@@ -33,7 +33,7 @@ const ROUTES: Route[] = [
   { path: "/", title: "OfferReady", component: HomePage },
   { path: "/analyze", title: "Analyze a job", stage: 1, subtitle: "Paste a job description to see what the role requires, where you may fall short, and a preparation plan.", component: AnalyzePage },
   { path: "/jobs", title: "My jobs", subtitle: "Every role you’re preparing for, with its progress and the next step.", component: MyJobsPage },
-  { path: "/jobs/:id", title: "Job", component: JobDetailPage as ComponentType<Record<string, string>> },
+  { path: "/jobs/:id", title: "Job", component: JobDetailPage },
   { path: "/fit", title: "Check my fit", stage: 2, subtitle: "Compare your resume with a saved job. Your resume is read in your browser and never stored.", component: CheckFitPage },
   { path: "/questions", title: "Practice questions", stage: 3, subtitle: "Interview questions written for this job and the gaps in your analysis, saved to the job.", component: QuestionsPage },
   { path: "/defend", title: "Defend your decisions", stage: 4, subtitle: "Make the call, then hold it while the interviewer pushes on trade-offs, constraints and incidents.", component: DefendPage },

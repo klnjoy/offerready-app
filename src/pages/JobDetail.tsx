@@ -14,7 +14,8 @@ import type { JobDetail } from "../types";
 
 type State = { kind: "loading" } | { kind: "signedout" } | { kind: "error"; msg: string } | { kind: "ready"; data: JobDetail };
 
-export default function JobDetailPage({ id }: { id: string }) {
+// Route params arrive as a string map (see App.tsx ROUTES).
+export default function JobDetailPage({ id }: Record<string, string>) {
   const auth = useAuth();
   const [state, setState] = useState<State>({ kind: "loading" });
 
