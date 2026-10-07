@@ -1,0 +1,20 @@
+name: Build check
+
+# Type-checks and builds every pull request, so a broken change can't merge.
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_BASE: /offerready-app/
+          VITE_API_BASE: https://offerready-beta.vercel.app
