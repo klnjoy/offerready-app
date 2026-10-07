@@ -162,3 +162,21 @@ export function startCheckout(token: string) {
   // study site) after Stripe checkout.
   return call<{ ok: boolean; url: string }>("/api/billing/checkout", { method: "POST", token, body: { app: true } });
 }
+
+// ---- help assistant (api/ask.js, api/areas.js) ------------------------------
+
+export interface AskCitation {
+  label?: string;
+  url?: string;
+}
+
+export function askHelp(question: string, area: string) {
+  return call<{ answer: string; citations?: (AskCitation | string)[]; area?: string }>("/api/ask", {
+    method: "POST",
+    body: { question, area, k: 4 },
+  });
+}
+
+export function listHelpAreas() {
+  return call<{ areas: string[] }>("/api/areas");
+}

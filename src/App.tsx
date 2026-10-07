@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { DOCS_BASE, PRICING_URL, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
+import { HelpBot } from "./components/HelpBot";
 import { Loading } from "./components/ui";
 import HomePage from "./pages/Home";
 
@@ -162,6 +163,8 @@ export default function App() {
           {Page ? <Page {...match!.params} /> : <NotFound />}
         </Suspense>
       </main>
+
+      <HelpBot />
 
       <footer className="footer">
         <div className="footer-inner">
