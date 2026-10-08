@@ -17,12 +17,16 @@ import * as api from "../lib/api";
 import { buildAppContext, contextLabel, readJobContext, startersFor } from "../lib/helpContext";
 import { useLocation, useNavigate } from "../lib/router";
 import { readJSON, writeJSON } from "../lib/storage";
+import { TOPIC_GROUPS, effectiveTopic, topicLabel } from "../lib/helpTopics";
 
-const SESSION_KEY = "offerready.help.v2";
+const SESSION_KEY = "offerready.help.v2"; // legacy single chat, imported once
+const STORE_KEY = "offerready.help.chats.v1"; // all chats (this device)
+const UI_KEY = "offerready.help.ui.v1"; // panel open/size (this tab)
 const FEEDBACK_KEY = "offerready.help.feedback.v1";
 const MAX_CHARS = 800;
 const HISTORY_TURNS = 8;
 const MAX_STORED_MSGS = 40;
+const MAX_CHATS = 20;
 
 interface Citation { label: string; url: string }
 
@@ -41,35 +45,98 @@ interface Msg {
   vote?: "up" | "down";
 }
 
-interface Saved { v: 2; msgs: Msg[]; open?: boolean; wide?: boolean }
+interface Chat { id: string; title: string; area: string; updatedAt: number; msgs: Msg[] }
+interface Store { activeId: string; chats: Chat[] }
 
-// ---- session persistence --------------------------------------------------
+// ---- persistence: chats in localStorage, panel state per tab ---------------
 
-function loadSession(): Saved {
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (raw) {
-      const s = JSON.parse(raw) as Saved;
-      if (s && s.v === 2 && Array.isArray(s.msgs)) {
-        // A reload mid-answer leaves a partial message: mark it stopped.
-        s.msgs = s.msgs
-          .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-          .map((m) => (m.streaming ? { ...m, streaming: false, stopped: true } : m));
-        return s;
-      }
-    }
-  } catch {
-    /* blocked or corrupt — start fresh */
-  }
-  return { v: 2, msgs: [] };
+function cleanMsgs(list: unknown): Msg[] {
+  return (Array.isArray(list) ? (list as Msg[]) : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .map((m) => (m.streaming ? { ...m, streaming: false, stopped: true } : m));
 }
 
-function saveSession(s: Saved) {
+function titleFor(msgs: Msg[]): string {
+  const first = msgs.find((m) => m.role === "user");
+  const t = first ? first.content.replace(/\s+/g, " ").trim() : "";
+  return t.length > 60 ? t.slice(0, 57) + "…" : t;
+}
+
+function newChat(area = "auto"): Chat {
+  return { id: uid(), title: "", area, updatedAt: Date.now(), msgs: [] };
+}
+
+function loadStore(): Store {
+  let s: Store | null = null;
   try {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...s, msgs: s.msgs.slice(-MAX_STORED_MSGS) }));
+    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null") as { v?: number; activeId?: string; chats?: Chat[] } | null;
+    if (raw && raw.v === 1 && Array.isArray(raw.chats)) {
+      s = {
+        activeId: raw.activeId || "",
+        chats: raw.chats.filter((c) => c && c.id).map((c) => ({ ...c, title: c.title || "", area: c.area || "auto", msgs: cleanMsgs(c.msgs) })),
+      };
+    }
+  } catch {
+    s = null;
+  }
+  if (!s) {
+    s = { activeId: "", chats: [] };
+    try {
+      const old = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null") as { msgs?: Msg[] } | null;
+      if (old && Array.isArray(old.msgs) && old.msgs.length) {
+        const c = newChat();
+        c.msgs = cleanMsgs(old.msgs);
+        c.title = titleFor(c.msgs);
+        s.chats.push(c);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!s.chats.some((c) => c.id === s!.activeId)) {
+    const empty = s.chats.find((c) => !c.msgs.length);
+    if (empty) s.activeId = empty.id;
+    else {
+      const c = newChat();
+      s.chats.unshift(c);
+      s.activeId = c.id;
+    }
+  }
+  return s;
+}
+
+function saveStore(s: Store) {
+  try {
+    const chats = [...s.chats]
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .filter((c) => c.msgs.length || c.id === s.activeId)
+      .slice(0, MAX_CHATS)
+      .map((c) => ({ ...c, msgs: c.msgs.filter((m) => !m.streaming || m.content).slice(-MAX_STORED_MSGS) }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ v: 1, activeId: s.activeId, chats }));
   } catch {
     /* non-fatal */
   }
+}
+
+function loadUi(): { open: boolean; wide: boolean } {
+  try {
+    const ui = JSON.parse(sessionStorage.getItem(UI_KEY) || "null") as { open?: boolean; wide?: boolean } | null;
+    if (ui) return { open: !!ui.open, wide: !!ui.wide };
+    const old = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null") as { open?: boolean; wide?: boolean } | null;
+    if (old) return { open: !!old.open, wide: !!old.wide };
+  } catch {
+    /* ignore */
+  }
+  return { open: false, wide: false };
+}
+
+function ago(t: number): string {
+  const s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.round(s / 60) + " min ago";
+  if (s < 86400) return Math.round(s / 3600) + " h ago";
+  const d = Math.round(s / 86400);
+  return d === 1 ? "yesterday" : d + " days ago";
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -222,59 +289,77 @@ const Icon = {
   up: (
     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 10v10H4V10zM7 10l4-7a2 2 0 0 1 3 2l-1 5h6a2 2 0 0 1 2 2.3l-1.3 6A2 2 0 0 1 17.7 20H7" /></svg>
   ),
+  history: (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5M12 7v5l3 2" /></svg>
+  ),
+  trash: (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" /></svg>
+  ),
+  back: (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H6M11 6l-6 6 6 6" /></svg>
+  ),
   down: (
     <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 14V4H4v10zM7 14l4 7a2 2 0 0 0 3-2l-1-5h6a2 2 0 0 0 2-2.3l-1.3-6A2 2 0 0 0 17.7 4H7" /></svg>
   ),
 };
+
 
 // ---- widget -----------------------------------------------------------------
 
 export function HelpBot() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const initial = useMemo(loadSession, []);
-  const [open, setOpen] = useState(!!initial.open);
-  const [wide, setWide] = useState(!!initial.wide);
-  const [msgs, setMsgs] = useState<Msg[]>(initial.msgs);
-  const [areas, setAreas] = useState<string[]>([]);
-  const [area, setArea] = useState("all");
+  const ui0 = useMemo(loadUi, []);
+  const [open, setOpen] = useState(ui0.open);
+  const [wide, setWide] = useState(ui0.wide);
+  const [store, setStore] = useState<Store>(loadStore);
+  const [view, setView] = useState<"chat" | "history">("chat");
+  const [running, setRunning] = useState<string[]>([]); // chat ids with an answer streaming
   const [text, setText] = useState("");
   const [announce, setAnnounce] = useState("");
   const [copied, setCopied] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const fabRef = useRef<HTMLButtonElement>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const pending = useRef("");
-  const raf = useRef(0);
-  const loadedAreas = useRef(false);
+  const controllers = useRef<Record<string, AbortController>>({});
+  const pending = useRef<Record<string, string>>({});
+  const frames = useRef<Record<string, number>>({});
   const stickToBottom = useRef(true);
   const wasOpen = useRef(open);
+  const activeRef = useRef(store.activeId);
+  activeRef.current = store.activeId;
 
-  const busy = msgs.some((m) => m.streaming);
+  const chat = store.chats.find((c) => c.id === store.activeId) || store.chats[0];
+  const msgs = chat ? chat.msgs : [];
+  const busy = !!chat && running.includes(chat.id);
+  const savedChats = [...store.chats].filter((c) => c.msgs.length).sort((a, b) => b.updatedAt - a.updatedAt);
 
   // Re-read cached job data whenever the screen changes (cheap: localStorage).
   const job = useMemo(() => readJobContext(), [pathname, open]); // eslint-disable-line react-hooks/exhaustive-deps
   const pill = contextLabel(pathname, job);
   const starters = startersFor(pathname, job);
 
+  useEffect(() => { saveStore(store); }, [store]);
   useEffect(() => {
-    saveSession({ v: 2, msgs: msgs.filter((m) => !m.streaming || m.content), open, wide });
-  }, [msgs, open, wide]);
+    try { sessionStorage.setItem(UI_KEY, JSON.stringify({ open, wide })); } catch { /* ignore */ }
+  }, [open, wide]);
 
-  // Open: focus the input, load topic areas once. Close: focus back to launcher.
+  // Another tab saved chats: pick them up unless this tab is mid-answer.
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 30);
-      if (!loadedAreas.current && API_ENABLED) {
-        loadedAreas.current = true;
-        api.listHelpAreas().then((r) => {
-          if (r.status === 200 && Array.isArray(r.body?.areas)) setAreas(r.body!.areas.filter((a) => a !== "all"));
-        });
-      }
-    } else if (wasOpen.current) {
-      fabRef.current?.focus();
-    }
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORE_KEY || Object.keys(controllers.current).length) return;
+      const next = loadStore();
+      if (next.chats.some((c) => c.id === activeRef.current)) next.activeId = activeRef.current;
+      setStore(next);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // Open: focus the input. Close: focus back to the launcher.
+  useEffect(() => {
+    if (open) inputRef.current?.focus(); // the panel mounted in this commit
+    else if (wasOpen.current) fabRef.current?.focus();
     wasOpen.current = open;
   }, [open]);
 
@@ -290,7 +375,7 @@ export function HelpBot() {
   useEffect(() => {
     const el = logRef.current;
     if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
-  }, [msgs, open]);
+  }, [msgs, open, view]);
   const onScroll = () => {
     const el = logRef.current;
     if (el) stickToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
@@ -302,96 +387,151 @@ export function HelpBot() {
     if (!el) return;
     el.style.height = "auto";
     el.style.height = Math.min(el.scrollHeight, 140) + "px";
-  }, [text, open]);
+  }, [text, open, view]);
 
-  // Abort any in-flight stream on unmount.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // Abort any in-flight answers on unmount.
+  useEffect(() => () => Object.values(controllers.current).forEach((c) => c.abort()), []);
 
-  const patch = useCallback((id: string, p: Partial<Msg> | ((m: Msg) => Partial<Msg>)) => {
-    setMsgs((list) => list.map((m) => (m.id === id ? { ...m, ...(typeof p === "function" ? p(m) : p) } : m)));
+  const updateChat = useCallback((chatId: string, fn: (c: Chat) => Chat) => {
+    setStore((s) => ({ ...s, chats: s.chats.map((c) => (c.id === chatId ? fn(c) : c)) }));
   }, []);
 
-  const flush = useCallback((id: string) => {
-    raf.current = 0;
-    const chunk = pending.current;
-    pending.current = "";
-    if (chunk) patch(id, (m) => ({ content: m.content + chunk }));
+  const patch = useCallback((chatId: string, id: string, p: Partial<Msg> | ((m: Msg) => Partial<Msg>)) => {
+    updateChat(chatId, (c) => ({
+      ...c,
+      msgs: c.msgs.map((m) => (m.id === id ? { ...m, ...(typeof p === "function" ? p(m) : p) } : m)),
+    }));
+  }, [updateChat]);
+
+  const flush = useCallback((chatId: string, id: string) => {
+    delete frames.current[chatId];
+    const chunk = pending.current[chatId] || "";
+    pending.current[chatId] = "";
+    if (chunk) patch(chatId, id, (m) => ({ content: m.content + chunk }));
   }, [patch]);
+
+  const setRun = (chatId: string, on: boolean) =>
+    setRunning((r) => (on ? (r.includes(chatId) ? r : [...r, chatId]) : r.filter((x) => x !== chatId)));
 
   const ask = async (q: string) => {
     const question = q.trim().slice(0, MAX_CHARS);
-    if (!question || busy) return;
-    const history: api.HelpTurn[] = msgs
+    if (!chat || !question || busy) return;
+    const chatId = chat.id;
+    const area = effectiveTopic(chat.area);
+    const history: api.HelpTurn[] = chat.msgs
       .filter((m) => !m.error && m.content.trim())
       .slice(-HISTORY_TURNS)
       .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
     const botId = uid();
+    const visible = () => activeRef.current === chatId;
     stickToBottom.current = true;
     setText("");
-    setMsgs((m) => [...m, { id: uid(), role: "user", content: question }]);
+    setView("chat");
+    const userMsg: Msg = { id: uid(), role: "user", content: question };
     if (!API_ENABLED) {
-      setMsgs((m) => [...m, { id: botId, role: "assistant", error: true, content: "The assistant isn’t enabled on this site yet." }]);
+      updateChat(chatId, (c) => ({
+        ...c, updatedAt: Date.now(), title: c.title || titleFor([userMsg]),
+        msgs: [...c.msgs, userMsg, { id: botId, role: "assistant", error: true, content: "The assistant isn’t enabled on this site yet." }],
+      }));
       return;
     }
-    setMsgs((m) => [...m, { id: botId, role: "assistant", content: "", streaming: true, q: question }]);
+    updateChat(chatId, (c) => ({
+      ...c, updatedAt: Date.now(), title: c.title || titleFor([userMsg]),
+      msgs: [...c.msgs, userMsg, { id: botId, role: "assistant", content: "", streaming: true, q: question }],
+    }));
 
     const req: api.HelpRequest = { question, area, history, context: buildAppContext(pathname, job) };
     const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    pending.current = "";
+    controllers.current[chatId] = ctrl;
+    setRun(chatId, true);
+    pending.current[chatId] = "";
     let full = "";
     const out = await api.streamHelp(req, (t) => {
       full += t;
-      pending.current += t;
-      if (!raf.current) raf.current = requestAnimationFrame(() => flush(botId));
+      pending.current[chatId] = (pending.current[chatId] || "") + t;
+      if (!frames.current[chatId]) frames.current[chatId] = requestAnimationFrame(() => flush(chatId, botId));
     }, ctrl.signal);
-    if (raf.current) cancelAnimationFrame(raf.current);
-    flush(botId);
-    abortRef.current = null;
+    if (frames.current[chatId]) cancelAnimationFrame(frames.current[chatId]);
+    flush(chatId, botId);
 
     if (out.kind === "done") {
-      const m: Partial<Msg> = {
+      patch(chatId, botId, (cur) => ({
         streaming: false,
+        content: cur.content.trimEnd(),
         citations: normalizeCitations(out.extras.citations),
         actions: normalizeActions(out.extras.actions),
         followups: normalizeFollowups(out.extras.followups),
-      };
-      patch(botId, (cur) => ({ ...m, content: cur.content.trimEnd() }));
-      setAnnounce(full.trim().slice(0, 600));
+      }));
+      if (visible()) setAnnounce(full.trim().slice(0, 600));
     } else if (out.kind === "aborted") {
-      patch(botId, (cur) => ({ streaming: false, stopped: true, content: cur.content.trimEnd() }));
+      patch(chatId, botId, (cur) => ({ streaming: false, stopped: true, content: cur.content.trimEnd() }));
     } else if (out.gotDelta) {
-      patch(botId, (cur) => ({ streaming: false, stopped: true, content: cur.content.trimEnd() + "\n\n*The answer was interrupted. Please try again.*" }));
+      patch(chatId, botId, (cur) => ({ streaming: false, stopped: true, content: cur.content.trimEnd() + "\n\n*The answer was interrupted. Please try again.*" }));
     } else if (out.status === 0 || out.status === 200 || out.status === 502 || out.status === 504) {
       // Stream never got going: one plain request instead.
       const res = await api.askHelp(question, area, { history: req.history, context: req.context });
       if (res.status === 200 && res.body?.answer) {
-        patch(botId, {
+        patch(chatId, botId, {
           streaming: false,
           content: res.body.answer.trim(),
           citations: normalizeCitations(res.body.citations),
           actions: normalizeActions(res.body.actions),
           followups: normalizeFollowups(res.body.followups),
         });
-        setAnnounce(res.body.answer.slice(0, 600));
+        if (visible()) setAnnounce(res.body.answer.slice(0, 600));
       } else {
-        patch(botId, { streaming: false, error: true, content: errorText(res.status, res.body?.error) });
+        patch(chatId, botId, { streaming: false, error: true, content: errorText(res.status, res.body?.error) });
       }
     } else {
-      patch(botId, { streaming: false, error: true, content: errorText(out.status, out.error) });
+      patch(chatId, botId, { streaming: false, error: true, content: errorText(out.status, out.error) });
     }
-    setTimeout(() => inputRef.current?.focus(), 30);
+    delete controllers.current[chatId];
+    setRun(chatId, false);
+    updateChat(chatId, (c) => ({ ...c, updatedAt: Date.now() }));
+    if (visible()) setTimeout(() => inputRef.current?.focus(), 30);
   };
 
-  const stop = () => abortRef.current?.abort();
+  const stop = () => { if (chat) controllers.current[chat.id]?.abort(); };
 
-  const newChat = () => {
-    abortRef.current?.abort();
-    setMsgs([]);
+  // "New" keeps the current chat (and any answer still streaming in it) under Chats.
+  const startNewChat = () => {
+    setView("chat");
     setText("");
     setAnnounce("");
+    if (chat && chat.msgs.length) {
+      const c = newChat(chat.area);
+      setStore((s) => ({ activeId: c.id, chats: [c, ...s.chats] }));
+    }
+    stickToBottom.current = true;
     setTimeout(() => inputRef.current?.focus(), 30);
   };
+
+  const openChat = (id: string) => {
+    setStore((s) => ({ ...s, activeId: id }));
+    setView("chat");
+    stickToBottom.current = true;
+    setTimeout(() => inputRef.current?.focus(), 30);
+  };
+
+  const deleteChat = (id: string) => {
+    controllers.current[id]?.abort();
+    setStore((s) => {
+      const chats = s.chats.filter((c) => c.id !== id);
+      if (s.activeId !== id) return { ...s, chats };
+      const c = newChat();
+      return { activeId: c.id, chats: [c, ...chats] };
+    });
+  };
+
+  const deleteAll = () => {
+    if (!window.confirm("Delete all saved chats on this device?")) return;
+    Object.values(controllers.current).forEach((c) => c.abort());
+    const c = newChat();
+    setStore({ activeId: c.id, chats: [c] });
+    setView("chat");
+  };
+
+  const setArea = (area: string) => { if (chat) updateChat(chat.id, (c) => ({ ...c, area })); };
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -425,7 +565,8 @@ export function HelpBot() {
   };
 
   const vote = (m: Msg, v: "up" | "down") => {
-    patch(m.id, { vote: v });
+    if (!chat) return;
+    patch(chat.id, m.id, { vote: v });
     const log = readJSON<{ q: string; vote: string; route: string; at: number }[]>(FEEDBACK_KEY, []);
     log.unshift({ q: (m.q || "").slice(0, 200), vote: v, route: pathname, at: Date.now() });
     writeJSON(FEEDBACK_KEY, log.slice(0, 50));
@@ -433,6 +574,8 @@ export function HelpBot() {
 
   const caret = <span className="hb-caret" aria-hidden="true" />;
   const lastBot = [...msgs].reverse().find((m) => m.role === "assistant");
+  const area = chat?.area || "auto";
+  const focusTitle = "Answers focus on: " + (topicLabel(effectiveTopic(area)) || "this screen and your job");
 
   return (
     <div className={"hb no-print" + (open ? " hb-is-open" : "")}>
@@ -445,8 +588,13 @@ export function HelpBot() {
                 <h2 id="hb-title">OfferReady Help</h2>
               </div>
               <div className="hb-tools">
-                <button type="button" className="hb-tool hb-new" onClick={newChat} disabled={!msgs.length} title="Start a new chat">
-                  {Icon.plus}<span>New chat</span>
+                <button type="button" className={"hb-tool hb-hist" + (view === "history" ? " hb-tool--on" : "")} aria-pressed={view === "history"}
+                  onClick={() => setView((v) => (v === "history" ? "chat" : "history"))} title="Your chats">
+                  {Icon.history}<span className="hb-tool-label">Chats</span>
+                  {savedChats.length > 0 && <span className="hb-hist-n">{savedChats.length}</span>}
+                </button>
+                <button type="button" className="hb-tool hb-new" onClick={startNewChat} disabled={!msgs.length && view === "chat"} title="Start a new chat">
+                  {Icon.plus}<span className="hb-tool-label">New</span>
                 </button>
                 <button type="button" className="hb-tool hb-expand" onClick={() => setWide((w) => !w)}
                   aria-pressed={wide} aria-label={wide ? "Use a smaller panel" : "Use a larger panel"} title={wide ? "Smaller" : "Larger"}>
@@ -455,97 +603,134 @@ export function HelpBot() {
                 <button type="button" className="hb-tool hb-close" aria-label="Close help" onClick={() => setOpen(false)}>{Icon.close}</button>
               </div>
             </div>
-            <p className="hb-pill" title={pill}><span className="hb-pill-dot" aria-hidden="true" /><span className="hb-pill-text">On: {pill}</span></p>
+            <div className="hb-subhead">
+              <p className="hb-pill" title={pill}><span className="hb-pill-dot" aria-hidden="true" /><span className="hb-pill-text">On: {pill}</span></p>
+              <label className="hb-topic" title={focusTitle}>
+                <span className="hb-topic-label">Focus</span>
+                <select className="hb-topic-select" aria-label="Topic focus" value={area}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => setArea(e.target.value)}>
+                  <option value="auto">Auto · this screen</option>
+                  {TOPIC_GROUPS.map((g) => (
+                    <optgroup key={g.label} label={g.label}>
+                      {g.topics.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </label>
+            </div>
           </header>
 
-          <div className="hb-log" ref={logRef} role="log" aria-label="Conversation" onScroll={onScroll}>
-            {msgs.length === 0 && (
-              <div className="hb-welcome">
-                <p className="hb-welcome-title">How can I help?</p>
-                <p>Ask about this screen, your job, or any interview topic. Answers stream in as they{"’"}re written.</p>
-                {areas.length > 0 && (
-                  <label className="hb-area">
-                    <span>Topic</span>
-                    <select className="input" value={area} onChange={(e: ChangeEvent<HTMLSelectElement>) => setArea(e.target.value)}>
-                      <option value="all">All topics</option>
-                      {areas.map((a) => <option key={a} value={a}>{a.replace(/-/g, " ")}</option>)}
-                    </select>
-                  </label>
+          <div className="hb-log" ref={logRef} role="log" aria-label={view === "history" ? "Your chats" : "Conversation"} onScroll={onScroll}>
+            {view === "history" ? (
+              <div className="hb-history">
+                <div><button type="button" className="hb-mini hb-back" onClick={() => setView("chat")}>{Icon.back}<span>Back to chat</span></button></div>
+                <p className="hb-history-title">Your chats</p>
+                {savedChats.length === 0 ? (
+                  <p className="hb-note">No chats yet. Your conversations are saved here on this device.</p>
+                ) : (
+                  <ul className="hb-chats">
+                    {savedChats.map((c) => {
+                      const n = c.msgs.filter((m) => m.role === "user").length;
+                      const live = running.includes(c.id);
+                      return (
+                        <li key={c.id} className={"hb-chat" + (c.id === store.activeId ? " hb-chat--active" : "")}>
+                          <button type="button" className="hb-chat-open" onClick={() => openChat(c.id)}>
+                            <span className="hb-chat-title">{c.title || titleFor(c.msgs) || "Untitled chat"}</span>
+                            <span className={"hb-chat-meta" + (live ? " hb-chat-live" : "")}>
+                              {live ? "Answering… · " : ""}{n} {n === 1 ? "question" : "questions"} · {ago(c.updatedAt)}
+                              {c.area && c.area !== "auto" ? " · " + topicLabel(c.area) : ""}
+                            </span>
+                          </button>
+                          <button type="button" className="hb-mini hb-chat-del" aria-label={"Delete chat: " + (c.title || "untitled")} onClick={() => deleteChat(c.id)}>{Icon.trash}</button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
-                <div className="hb-starters" role="group" aria-label="Suggested questions">
-                  {starters.map((s) => (
-                    <button key={s} type="button" className="hb-starter" onClick={() => ask(s)}>
-                      <span>{s}</span>{Icon.arrow}
-                    </button>
-                  ))}
-                </div>
+                {savedChats.length > 0 && <button type="button" className="hb-mini hb-clear" onClick={deleteAll}>Delete all chats</button>}
               </div>
-            )}
-
-            {msgs.map((m) =>
-              m.role === "user" ? (
-                <div key={m.id} className="hb-msg hb-user"><p>{m.content}</p></div>
-              ) : (
-                <div key={m.id} className={"hb-msg hb-bot" + (m.error ? " hb-err" : "") + (m.streaming ? " hb-streaming" : "")} aria-busy={m.streaming || undefined}>
-                  {m.error ? (
-                    <>
-                      <p>{m.content}</p>
-                      <p className="hb-fallback">You can also browse the <a href={STUDY_URL} target="_blank" rel="noopener noreferrer">study notes</a>.</p>
-                    </>
-                  ) : m.streaming && !m.content ? (
-                    <p className="hb-typing" aria-label="Writing an answer"><span /><span /><span /></p>
-                  ) : (
-                    <Markdown md={m.content} tail={m.streaming ? caret : undefined} />
-                  )}
-                  {m.stopped && !m.error && <p className="hb-note">Stopped.</p>}
-
-                  {!m.streaming && !m.error && m.content && (
-                    <>
-                      {m.actions && m.actions.length > 0 && (
-                        <div className="hb-actions">
-                          {m.actions.map((a) => (
-                            <button key={a.route} type="button" className="hb-action" onClick={() => go(a.route)}>
-                              {a.label}{Icon.arrow}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {m.citations && m.citations.length > 0 && (
-                        <div className="hb-cites">
-                          <span>Read more</span>
-                          {m.citations.map((c, k) =>
-                            c.url ? (
-                              <a key={k} href={docsUrl(c.url)} target="_blank" rel="noopener noreferrer">{c.label} <span aria-hidden="true">{"↗"}</span></a>
-                            ) : (
-                              <span key={k}>{c.label}</span>
-                            ),
-                          )}
-                        </div>
-                      )}
-                      <div className="hb-meta">
-                        <button type="button" className="hb-mini" onClick={() => copy(m)} aria-label="Copy answer">
-                          {Icon.copy}<span>{copied === m.id ? "Copied" : "Copy"}</span>
+            ) : (
+              <>
+                {msgs.length === 0 && (
+                  <div className="hb-welcome">
+                    <p className="hb-welcome-title">How can I help?</p>
+                    <p>Ask about this screen, your job, or any interview topic. Answers stream in as they{"’"}re written.</p>
+                    <div className="hb-starters" role="group" aria-label="Suggested questions">
+                      {starters.map((s) => (
+                        <button key={s} type="button" className="hb-starter" onClick={() => ask(s)}>
+                          <span>{s}</span>{Icon.arrow}
                         </button>
-                        {m.vote ? (
-                          <span className="hb-thanks" role="status">Thanks for the feedback</span>
-                        ) : (
-                          <>
-                            <button type="button" className="hb-mini hb-vote" onClick={() => vote(m, "up")} aria-label="Helpful">{Icon.up}</button>
-                            <button type="button" className="hb-mini hb-vote" onClick={() => vote(m, "down")} aria-label="Not helpful">{Icon.down}</button>
-                          </>
-                        )}
-                      </div>
-                      {m === lastBot && m.followups && m.followups.length > 0 && (
-                        <div className="hb-followups" role="group" aria-label="Follow-up questions">
-                          {m.followups.map((f) => (
-                            <button key={f} type="button" className="hb-follow" onClick={() => ask(f)} disabled={busy}>{f}</button>
-                          ))}
-                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {msgs.map((m) =>
+                  m.role === "user" ? (
+                    <div key={m.id} className="hb-msg hb-user"><p>{m.content}</p></div>
+                  ) : (
+                    <div key={m.id} className={"hb-msg hb-bot" + (m.error ? " hb-err" : "") + (m.streaming ? " hb-streaming" : "")} aria-busy={m.streaming || undefined}>
+                      {m.error ? (
+                        <>
+                          <p>{m.content}</p>
+                          <p className="hb-fallback">You can also browse the <a href={STUDY_URL} target="_blank" rel="noopener noreferrer">study notes</a>.</p>
+                        </>
+                      ) : m.streaming && !m.content ? (
+                        <p className="hb-typing" aria-label="Writing an answer"><span /><span /><span /></p>
+                      ) : (
+                        <Markdown md={m.content} tail={m.streaming ? caret : undefined} />
                       )}
-                    </>
-                  )}
-                </div>
-              ),
+                      {m.stopped && !m.error && <p className="hb-note">Stopped.</p>}
+
+                      {!m.streaming && !m.error && m.content && (
+                        <>
+                          {m.actions && m.actions.length > 0 && (
+                            <div className="hb-actions">
+                              {m.actions.map((a) => (
+                                <button key={a.route} type="button" className="hb-action" onClick={() => go(a.route)}>
+                                  {a.label}{Icon.arrow}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {m.citations && m.citations.length > 0 && (
+                            <div className="hb-cites">
+                              <span>Read more</span>
+                              {m.citations.map((c, k) =>
+                                c.url ? (
+                                  <a key={k} href={docsUrl(c.url)} target="_blank" rel="noopener noreferrer">{c.label} <span aria-hidden="true">{"↗"}</span></a>
+                                ) : (
+                                  <span key={k}>{c.label}</span>
+                                ),
+                              )}
+                            </div>
+                          )}
+                          <div className="hb-meta">
+                            <button type="button" className="hb-mini" onClick={() => copy(m)} aria-label="Copy answer">
+                              {Icon.copy}<span>{copied === m.id ? "Copied" : "Copy"}</span>
+                            </button>
+                            {m.vote ? (
+                              <span className="hb-thanks" role="status">Thanks for the feedback</span>
+                            ) : (
+                              <>
+                                <button type="button" className="hb-mini hb-vote" onClick={() => vote(m, "up")} aria-label="Helpful">{Icon.up}</button>
+                                <button type="button" className="hb-mini hb-vote" onClick={() => vote(m, "down")} aria-label="Not helpful">{Icon.down}</button>
+                              </>
+                            )}
+                          </div>
+                          {m === lastBot && m.followups && m.followups.length > 0 && (
+                            <div className="hb-followups" role="group" aria-label="Follow-up questions">
+                              {m.followups.map((f) => (
+                                <button key={f} type="button" className="hb-follow" onClick={() => ask(f)} disabled={busy}>{f}</button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  ),
+                )}
+              </>
             )}
           </div>
           <div className="hb-sr" aria-live="polite" aria-atomic="true">{announce}</div>

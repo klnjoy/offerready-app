@@ -615,6 +615,38 @@ tbody tr:last-child td { border-bottom: 0; }
   .hb-msg, .hb-bot { max-width: 100%; }
   .hb-bot { width: 100%; }
 }
+/* Help: topic focus + saved chats */
+.hb-subhead { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.hb-subhead .hb-pill { flex: 1 1 140px; min-width: 0; max-width: max-content; }
+.hb-topic { display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; height: 26px; padding: 0 4px 0 10px; border-radius: 999px; background: rgba(34, 192, 122, 0.14); border: 1px solid rgba(34, 192, 122, 0.4); color: #c9f2dd; font-size: 0.75rem; cursor: pointer; }
+.hb-topic:hover { background: rgba(34, 192, 122, 0.22); }
+.hb-topic:focus-within { outline: 2px solid var(--signal); outline-offset: 2px; }
+.hb-topic-label { font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; font-size: 0.66rem; color: #8fe3b9; }
+.hb-topic-select { appearance: none; -webkit-appearance: none; border: 0; background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23c9f2dd' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 6px center; color: #fff; font: inherit; font-weight: 600; padding: 0 22px 0 0; height: 24px; max-width: 190px; text-overflow: ellipsis; cursor: pointer; outline: none; }
+.hb-topic-select option, .hb-topic-select optgroup { color: var(--ink-950); background: #fff; font-weight: 500; }
+.hb-topic-select optgroup { font-weight: 700; }
+.hb-tool--on { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.hb-hist-n { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 5px; border-radius: 999px; background: var(--signal); color: #fff; font-size: 0.66rem; font-weight: 700; }
+.hb-history { display: flex; flex-direction: column; gap: 10px; }
+.hb-back { color: var(--text-2); padding-left: 2px; }
+.hb-back:hover { color: var(--text); }
+.hb-history-title { margin: 0; font-weight: 700; font-size: 1rem; color: var(--text); }
+.hb-chats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hb-chat { display: flex; align-items: stretch; gap: 4px; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; transition: border-color 0.15s ease; }
+.hb-chat:hover { border-color: var(--ink-800); }
+.hb-chat--active { border-color: var(--signal); box-shadow: inset 3px 0 0 var(--signal); }
+.hb-chat-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 9px 12px; border: 0; background: transparent; color: var(--text); cursor: pointer; border-radius: 10px; font: inherit; }
+.hb-chat-title { font-size: 0.9rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-chat-meta { font-size: 0.75rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hb-chat-live { color: var(--signal-600); font-weight: 600; }
+.hb-chat-del { align-self: center; margin-right: 6px; }
+.hb-chat-del:hover { color: var(--red); background: var(--red-soft); }
+.hb-clear { align-self: flex-start; margin-top: 4px; }
+.hb-clear:hover { color: var(--red); }
+@media (max-width: 639px) {
+  .hb-tool-label { display: none; }
+  .hb-topic-select { max-width: 150px; }
+}
 @keyframes hb-sheet { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .hb-panel { animation: none; }
