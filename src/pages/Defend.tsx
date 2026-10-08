@@ -7,7 +7,7 @@
  * no backend, bundled scenarios run fully client-side. */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { API_ENABLED, PRICING_URL, docsUrl } from "../config";
+import { API_ENABLED, docsUrl } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { upsert } from "../lib/progressStore";
@@ -334,7 +334,7 @@ function Gate({ kind, teaser: s, onBack }: { kind: "sign-in" | "upgrade"; teaser
       ) : (
         <>
           <p className="hint">This is part of <strong>OfferReady Pro</strong> {"—"} the complete defend-your-decision library, with progress tracking. Everything you learn and sample is free; Pro is where you practice and defend.</p>
-          <ExternalLink className="btn btn-primary" href={PRICING_URL}>See Free vs Pro</ExternalLink>
+          <Link className="btn btn-primary" to="/pricing">See Free vs Pro</Link>
         </>
       )}
       <button type="button" className="btn btn-ghost" onClick={onBack}>{"‹"} All scenarios</button>
@@ -501,7 +501,7 @@ function NodeBody({
     setGrading(false);
     if (res.status === 200 && res.body?.feedback) setFeedback(res.body.feedback);
     else if (res.status === 401) setGradeNote("Sign in to have your answer graded. You can still reveal the strong answer below.");
-    else if (res.status === 403) setGradeNote("AI answer feedback is part of OfferReady Pro. Reveal the strong answer below, or upgrade for graded feedback.");
+    else if (res.status === 403) setGradeNote((res.body?.error || "You’ve reached your AI feedback limit. Upgrade to Pro for more.") + " You can still reveal the strong answer below.");
     else if (res.status === 0) setGradeNote("Couldn't reach the feedback service — reveal the strong answer below and self-rate.");
     else setGradeNote("Couldn't grade that right now — reveal the strong answer below and self-rate.");
   };

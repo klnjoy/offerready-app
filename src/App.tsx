@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
-import { DOCS_BASE, PRICING_URL, STUDY_URL } from "./config";
+import { DOCS_BASE, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { HelpBot } from "./components/HelpBot";
@@ -19,53 +19,59 @@ const SimulatorPage = lazy(() => import("./pages/Simulator"));
 const DashboardPage = lazy(() => import("./pages/Dashboard"));
 const AccountPage = lazy(() => import("./pages/Account"));
 const ExamplePage = lazy(() => import("./pages/Example"));
+const TodayPage = lazy(() => import("./pages/Today"));
+const StoriesPage = lazy(() => import("./pages/Stories"));
+const VoiceMockPage = lazy(() => import("./pages/VoiceMock"));
+const PricingPage = lazy(() => import("./pages/Pricing"));
+
+type StageKey = "understand" | "prepare" | "prove";
 
 interface Route {
   path: string;
   title: string;
   /** One line under the page title. Omit to let the screen render its own header. */
   subtitle?: string;
-  /** Position in the job pipeline (1–5) — shows the pipeline rail. */
-  stage?: number;
+  /** Which of the three stages this screen belongs to — shows the stage rail. */
+  stage?: StageKey;
   component: ComponentType<Record<string, string>>;
 }
 
 const ROUTES: Route[] = [
   { path: "/", title: "OfferReady", component: HomePage },
-  { path: "/analyze", title: "Analyze a job", stage: 1, subtitle: "Paste a job description to see what the role requires, where you may fall short, and a preparation plan.", component: AnalyzePage },
+  { path: "/today", title: "Today", component: TodayPage },
+  { path: "/analyze", title: "Analyze a job", stage: "understand", subtitle: "Paste a job description to see what the role requires, where you may fall short, and a preparation plan.", component: AnalyzePage },
   { path: "/jobs", title: "My jobs", subtitle: "Every role you’re preparing for, with its progress and the next step.", component: MyJobsPage },
   { path: "/jobs/:id", title: "Job", component: JobDetailPage },
-  { path: "/fit", title: "Check my fit", stage: 2, subtitle: "Compare your resume with a saved job. Your resume is read in your browser and never stored.", component: CheckFitPage },
-  { path: "/questions", title: "Practice questions", stage: 3, subtitle: "Interview questions written for this job and the gaps in your analysis, saved to the job.", component: QuestionsPage },
-  { path: "/defend", title: "Defend your decisions", stage: 4, subtitle: "Make the call, then hold it while the interviewer pushes on trade-offs, constraints and incidents.", component: DefendPage },
-  { path: "/dashboard", title: "Interview readiness", stage: 5, subtitle: "One blended score per job, built from your resume match, practice and preparation.", component: DashboardPage },
-  { path: "/practice", title: "Interview practice", subtitle: "Drill the question bank with self-rated practice, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
-  { path: "/simulator", title: "Mock interview", subtitle: "A mixed loop across areas and levels. Answer out loud, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
+  { path: "/fit", title: "Check my fit", stage: "understand", subtitle: "Compare your resume with a saved job. Your resume is read in your browser and never stored.", component: CheckFitPage },
+  { path: "/questions", title: "Practice questions", stage: "prepare", subtitle: "Interview questions written for this job and the gaps in your analysis, saved to the job.", component: QuestionsPage },
+  { path: "/defend", title: "Defend your decisions", stage: "prepare", subtitle: "Make the call, then hold it while the interviewer pushes on trade-offs, constraints and incidents.", component: DefendPage },
+  { path: "/stories", title: "Story bank", stage: "prepare", subtitle: "Your STAR stories, mapped to what each job asks for.", component: StoriesPage },
+  { path: "/practice", title: "Interview practice", stage: "prepare", subtitle: "Drill the question bank with self-rated practice, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
+  { path: "/simulator", title: "Mock interview", stage: "prove", subtitle: "A mixed loop across areas and levels. Answer out loud, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
+  { path: "/interview/voice", title: "Voice mock interview", stage: "prove", subtitle: "Answer out loud. The interviewer follows up on what you actually said.", component: VoiceMockPage },
+  { path: "/dashboard", title: "Interview readiness", stage: "prove", subtitle: "One blended score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", component: AccountPage },
+  { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
-const PIPELINE = [
-  { stage: 1, to: "/analyze", label: "Analyze" },
-  { stage: 2, to: "/fit", label: "Check fit" },
-  { stage: 3, to: "/questions", label: "Questions" },
-  { stage: 4, to: "/defend", label: "Defend" },
-  { stage: 5, to: "/dashboard", label: "Readiness" },
-];
-
-const NAV_GROUPS = [
-  { label: "Prepare", items: [
-    { to: "/jobs", label: "My jobs" },
+/** The three stages and their steps: the rail and the menu both read this. */
+const STAGES: { key: StageKey; n: number; label: string; hint: string; steps: { to: string; label: string; short?: string }[] }[] = [
+  { key: "understand", n: 1, label: "Understand", hint: "What the role needs", steps: [
     { to: "/analyze", label: "Analyze" },
     { to: "/fit", label: "Check fit" },
+  ] },
+  { key: "prepare", n: 2, label: "Prepare", hint: "Close the gaps", steps: [
     { to: "/questions", label: "Questions" },
     { to: "/defend", label: "Defend" },
-  ] },
-  { label: "Practice", items: [
+    { to: "/stories", label: "Story bank", short: "Stories" },
     { to: "/practice", label: "Practice" },
-    { to: "/simulator", label: "Mock interview" },
   ] },
-  { label: "Track", items: [{ to: "/dashboard", label: "Readiness" }] },
+  { key: "prove", n: 3, label: "Prove", hint: "Show it under pressure", steps: [
+    { to: "/simulator", label: "Mock interview", short: "Mock" },
+    { to: "/interview/voice", label: "Voice mock", short: "Voice" },
+    { to: "/dashboard", label: "Readiness" },
+  ] },
 ];
 
 function Logo() {
@@ -78,19 +84,35 @@ function Logo() {
   );
 }
 
-/** The signature element: where this screen sits in the job pipeline. */
-function PipelineRail({ stage }: { stage: number }) {
+/** The signature element: the three stages, with the current one's steps. */
+function StageRail({ stage, pathname }: { stage: StageKey; pathname: string }) {
+  const cur = STAGES.findIndex((s) => s.key === stage);
   return (
-    <nav className="rail" aria-label="Job pipeline">
-      <ol className="rail-inner">
-        {PIPELINE.map((p) => {
-          const state = p.stage < stage ? "past" : p.stage === stage ? "current" : "next";
+    <nav className="rail srail" aria-label="Preparation stages">
+      <ol className="srail-inner">
+        {STAGES.map((s, i) => {
+          const state = i < cur ? "past" : i === cur ? "current" : "next";
           return (
-            <li key={p.stage} className={"rail-step rail-" + state}>
-              <Link to={p.to} aria-current={state === "current" ? "step" : undefined}>
-                <span className="rail-num">{p.stage}</span>
-                <span className="rail-label">{p.label}</span>
+            <li key={s.key} className={"srail-stage srail-" + state}>
+              <Link className="srail-head" to={s.steps[0].to} aria-current={state === "current" ? "step" : undefined}>
+                <span className="srail-num" aria-hidden="true">{s.n}</span>
+                <span className="srail-text" title={s.hint}>
+                  <span className="srail-label">{s.label}</span>
+                </span>
               </Link>
+              <ul className="srail-steps" aria-label={s.label + " steps"}>
+                {s.steps.map((st) => {
+                  const on = pathname === st.to || pathname.startsWith(st.to + "/");
+                  return (
+                    <li key={st.to}>
+                      <Link to={st.to} className={"srail-step" + (on ? " on" : "")} aria-current={on ? "page" : undefined}>
+                        <span className="srail-full">{st.label}</span>
+                        <span className="srail-short" aria-hidden="true">{st.short || st.label}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </li>
           );
         })}
@@ -118,6 +140,7 @@ export default function App() {
   const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
   const Page = match?.route.component;
   const initial = (auth.email || "").trim().charAt(0).toUpperCase();
+  const currentStage = match?.route.stage;
 
   return (
     <div className="app">
@@ -128,17 +151,33 @@ export default function App() {
           <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
             {menuOpen ? "Close" : "Menu"}
           </button>
-          <nav id="main-nav" className={"nav" + (menuOpen ? " open" : "")} aria-label="Main">
-            {NAV_GROUPS.map((g) => (
-              <div key={g.label} className="nav-group" role="group" aria-label={g.label}>
-                <span className="nav-group-label">{g.label}</span>
-                {g.items.map((n) => (
-                  <Link key={n.to} to={n.to} className={"nav-link" + (isActive(n.to) ? " active" : "")} aria-current={isActive(n.to) ? "page" : undefined}>
-                    {n.label}
-                  </Link>
-                ))}
-              </div>
-            ))}
+          <nav id="main-nav" className={"nav snav" + (menuOpen ? " open" : "")} aria-label="Main">
+            <div className="snav-primary">
+              <Link to="/today" className={"nav-link snav-today" + (isActive("/today") ? " active" : "")} aria-current={isActive("/today") ? "page" : undefined}>
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M3 8h14M7 2.5v3M13 2.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="10" cy="12.5" r="1.6" fill="currentColor" /></svg>
+                Today
+              </Link>
+              <Link to="/jobs" className={"nav-link" + (isActive("/jobs") ? " active" : "")} aria-current={isActive("/jobs") ? "page" : undefined}>My jobs</Link>
+            </div>
+            <div className="snav-stages">
+              {STAGES.map((st) => {
+                const on = currentStage === st.key;
+                return (
+                  <div key={st.key} className={"nav-group snav-group" + (on ? " on" : "")} role="group" aria-label={st.label}>
+                    <Link to={st.steps[0].to} className={"nav-link snav-stage" + (on ? " active" : "")}>
+                      <span className="snav-num" aria-hidden="true">{st.n}</span>{st.label}
+                    </Link>
+                    <div className="snav-subs">
+                      {st.steps.map((n) => (
+                        <Link key={n.to} to={n.to} className={"nav-link snav-sub" + (isActive(n.to) ? " active" : "")} aria-current={isActive(n.to) ? "page" : undefined}>
+                          {n.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </nav>
           <Link className={"account-link" + (isActive("/account") ? " active" : "")} to="/account" title={auth.email || "Sign in"}>
             {auth.session ? (
@@ -150,7 +189,7 @@ export default function App() {
         </div>
       </header>
 
-      {match?.route.stage ? <PipelineRail stage={match.route.stage} /> : null}
+      {match?.route.stage ? <StageRail stage={match.route.stage} pathname={pathname} /> : null}
 
       <main id="main" className={"main" + (pathname === "/" ? " main-home" : "")}>
         {match?.route.subtitle ? (
@@ -174,17 +213,19 @@ export default function App() {
           </div>
           <div className="footer-col">
             <h2>Product</h2>
+            <Link to="/today">Today</Link>
             <Link to="/analyze">Analyze a job</Link>
             <Link to="/jobs">My jobs</Link>
-            <Link to="/defend">Defend your decisions</Link>
+            <Link to="/stories">Story bank</Link>
+            <Link to="/interview/voice">Voice mock interview</Link>
             <Link to="/dashboard">Interview readiness</Link>
+            <Link to="/pricing">Pricing</Link>
           </div>
           <div className="footer-col">
             <h2>Learn</h2>
             <ExternalLink href={STUDY_URL}>Study notes</ExternalLink>
             <Link to="/example">Sample walkthrough</Link>
             <Link to="/practice">Question bank</Link>
-            <ExternalLink href={PRICING_URL}>Pricing</ExternalLink>
           </div>
           <div className="footer-col">
             <h2>Company</h2>

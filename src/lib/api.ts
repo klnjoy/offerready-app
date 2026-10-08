@@ -41,9 +41,11 @@ async function call<T>(path: string, opts: { method?: Method; token?: string | n
 
 // ---- AI router (api/ai.js) ----------------------------------------------
 
-export function analyzeJob(payload: { jobDescription: string; targetRole?: string; resume?: string }) {
+/** Public; pass the token when signed in so the run counts toward the plan. */
+export function analyzeJob(payload: { jobDescription: string; targetRole?: string; resume?: string }, token?: string | null) {
   return call<{ analysis: Analysis; model?: string }>("/api/ai", {
     method: "POST",
+    token,
     body: { action: "analyze_jd", ...payload },
   });
 }
@@ -153,6 +155,39 @@ export function gradeAnswer(token: string | null, p: { prompt: string; signals: 
     token,
     body: p,
   });
+}
+
+// ---- plan + usage (api/me/plan.js) ----------------------------------------
+
+export interface PlanUsageEntry {
+  used: number | null; // null when usage storage is unavailable
+  limit: number | null; // null = unlimited
+  unknown?: boolean;
+}
+
+export interface PlanResponse {
+  plan: "free" | "pro";
+  usage: Record<string, PlanUsageEntry>;
+  usage_known?: boolean;
+  plan_known?: boolean;
+  limits?: Record<"free" | "pro", Record<string, number | null>>;
+  period_start?: string;
+  period_end?: string;
+}
+
+/** 403 body from any limited endpoint when the user is over quota. */
+export interface QuotaError {
+  error: string;
+  upgrade: boolean;
+  feature?: string;
+  used?: number;
+  limit?: number | null;
+  plan?: "free" | "pro";
+  resets_at?: string;
+}
+
+export function getPlan(token: string) {
+  return call<PlanResponse>("/api/me/plan", { token });
 }
 
 // ---- billing --------------------------------------------------------------
@@ -301,4 +336,63 @@ export async function streamHelp(
 
 export function listHelpAreas() {
   return call<{ areas: string[] }>("/api/areas");
+}
+
+// ---- voice mock interview (api/premium/mock-turn.js) ------------------------
+
+export type MockType = "behavioral" | "technical" | "system_design" | "mixed";
+export type MockStyle = "friendly" | "neutral" | "tough";
+
+export interface MockScores {
+  structure: number;
+  depth: number;
+  relevance: number;
+  communication: number;
+}
+
+export interface MockFeedback {
+  scores: MockScores;
+  strengths: string[];
+  improve: string[];
+  strong_answer_outline: string[];
+}
+
+export interface MockTurnRequest {
+  session_id: string;
+  session_token?: string;
+  turn_index: number;
+  type: MockType;
+  style: MockStyle;
+  length: 3 | 5;
+  question: string;
+  transcript: string;
+  is_followup: boolean;
+  allow_followup: boolean;
+  need_next: boolean;
+  history: { question: string; answer: string }[];
+  job?: { title?: string; company?: string; seniority?: string; skills?: string[] } | null;
+}
+
+export interface MockTurnResponse {
+  ok: boolean;
+  model?: string;
+  session_token?: string;
+  feedback: MockFeedback;
+  followup?: string;
+  next_question?: string;
+  /** Turn 0 only: the remaining main questions for the session. */
+  questions?: string[];
+  quota?: { plan: string; used: number; limit: number | null };
+  // 403 over quota / 409 expired session
+  feature?: string;
+  used?: number;
+  limit?: number | null;
+  plan?: string;
+  restart?: boolean;
+  fallback?: boolean;
+}
+
+/** One interview turn. Requires sign-in; turn 0 counts one voice_mock session. */
+export function mockTurn(token: string | null, req: MockTurnRequest) {
+  return call<MockTurnResponse>("/api/premium/mock-turn", { method: "POST", token, body: req });
 }
