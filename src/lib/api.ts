@@ -170,11 +170,133 @@ export interface AskCitation {
   url?: string;
 }
 
-export function askHelp(question: string, area: string) {
-  return call<{ answer: string; citations?: (AskCitation | string)[]; area?: string }>("/api/ask", {
+/** An app screen the answer points to (route is an app path like "/fit"). */
+export interface HelpAction {
+  label: string;
+  route: string;
+}
+
+export interface HelpTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** Where the user is. Sent as untrusted context; the server validates + caps it. */
+export interface HelpContextPayload {
+  surface: "app" | "study";
+  page?: { title?: string; path?: string };
+  job?: { title?: string; company?: string; skills?: string[]; readiness?: number };
+}
+
+export interface HelpRequest {
+  question: string;
+  area?: string;
+  history?: HelpTurn[];
+  context?: HelpContextPayload;
+}
+
+export interface HelpExtras {
+  citations?: (AskCitation | string)[];
+  actions?: HelpAction[];
+  followups?: string[];
+}
+
+export function askHelp(question: string, area: string, extra?: Omit<HelpRequest, "question" | "area">) {
+  return call<{ answer: string; area?: string; used_llm?: boolean } & HelpExtras>("/api/ask", {
     method: "POST",
-    body: { question, area, k: 4 },
+    body: { question, area, k: 4, ...(extra || {}) },
   });
+}
+
+export type HelpStreamOutcome =
+  | { kind: "done"; extras: HelpExtras }
+  | { kind: "aborted"; gotDelta: boolean }
+  | { kind: "error"; status: number; error?: string; gotDelta: boolean };
+
+export interface SseFrame {
+  event: string;
+  data: string;
+}
+
+/** Incremental SSE parser: feed text chunks, get complete frames back.
+ * Frames may be split anywhere across chunks. */
+export function createSseParser() {
+  let buf = "";
+  return (chunk: string): SseFrame[] => {
+    buf += chunk.replace(/\r\n?/g, "\n");
+    const frames: SseFrame[] = [];
+    let cut: number;
+    while ((cut = buf.indexOf("\n\n")) >= 0) {
+      const block = buf.slice(0, cut);
+      buf = buf.slice(cut + 2);
+      let event = "message";
+      const data: string[] = [];
+      for (const line of block.split("\n")) {
+        if (line.startsWith(":")) continue;
+        const i = line.indexOf(":");
+        const field = i < 0 ? line : line.slice(0, i);
+        const value = i < 0 ? "" : line.slice(i + 1).replace(/^ /, "");
+        if (field === "event") event = value;
+        else if (field === "data") data.push(value);
+      }
+      if (data.length) frames.push({ event, data: data.join("\n") });
+    }
+    return frames;
+  };
+}
+
+/** Streamed answer: calls onDelta with visible text as it arrives. Resolves
+ * (never throws) once the stream ends, fails, or is aborted. A plain JSON 200
+ * (an older server) is treated as one big delta. */
+export async function streamHelp(
+  req: HelpRequest,
+  onDelta: (t: string) => void,
+  signal: AbortSignal,
+): Promise<HelpStreamOutcome> {
+  let gotDelta = false;
+  let r: Response;
+  try {
+    r = await fetch(API_BASE + "/api/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({ ...req, k: 4, stream: true }),
+      signal,
+    });
+  } catch {
+    return signal.aborted ? { kind: "aborted", gotDelta } : { kind: "error", status: 0, gotDelta };
+  }
+  const type = r.headers.get("Content-Type") || "";
+  if (!r.ok || !type.includes("text/event-stream")) {
+    let body: ({ answer?: string; error?: string } & HelpExtras) | null = null;
+    try { body = await r.json(); } catch { body = null; }
+    if (r.ok && body?.answer) {
+      onDelta(body.answer);
+      return { kind: "done", extras: { citations: body.citations, actions: body.actions, followups: body.followups } };
+    }
+    return { kind: "error", status: r.ok ? 502 : r.status, error: body?.error, gotDelta };
+  }
+  if (!r.body) return { kind: "error", status: 200, gotDelta };
+  const reader = r.body.getReader();
+  const decoder = new TextDecoder();
+  const parse = createSseParser();
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      const frames = parse(done ? decoder.decode() + "\n\n" : decoder.decode(value, { stream: true }));
+      for (const f of frames) {
+        let d: { t?: string; error?: string } & HelpExtras;
+        try { d = JSON.parse(f.data); } catch { continue; }
+        if (f.event === "delta" && typeof d.t === "string") { gotDelta = true; onDelta(d.t); }
+        else if (f.event === "done") { reader.cancel().catch(() => {}); return { kind: "done", extras: d }; }
+        else if (f.event === "error") return { kind: "error", status: 200, error: d.error, gotDelta };
+      }
+      if (done) break;
+    }
+  } catch {
+    return signal.aborted ? { kind: "aborted", gotDelta } : { kind: "error", status: 0, gotDelta };
+  }
+  // Stream closed without a done frame.
+  return signal.aborted ? { kind: "aborted", gotDelta } : { kind: "error", status: 200, gotDelta };
 }
 
 export function listHelpAreas() {
