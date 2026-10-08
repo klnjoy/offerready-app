@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { countdownLabel, daysUntil, formatDay, useInterviewDates } from "../lib/interviewDates";
 import { clearActiveJob, getActiveJob, setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate } from "../lib/router";
@@ -122,6 +123,7 @@ function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: stri
   }, [jobs, q, sort, controls]);
 
   const visible = controls ? list.slice(0, shown) : list;
+  const [dates] = useInterviewDates();
 
   return (
     <>
@@ -153,7 +155,7 @@ function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: stri
         </>
       )}
       <div className="jobs-grid">
-        {visible.map((j) => <JobCard key={j.id} job={j} isActive={j.id === activeId} onRemoved={onRemoved} />)}
+        {visible.map((j) => <JobCard key={j.id} job={j} isActive={j.id === activeId} interviewDate={dates[j.id] || ""} onRemoved={onRemoved} />)}
         {controls && !list.length && <p className="hint">No jobs match {"“"}{q}{"”"}.</p>}
       </div>
       {controls && shown < list.length && (
@@ -165,7 +167,7 @@ function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: stri
   );
 }
 
-function JobCard({ job: j, isActive, onRemoved }: { job: JobRow; isActive: boolean; onRemoved(id: string): void }) {
+function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; isActive: boolean; interviewDate: string; onRemoved(id: string): void }) {
   const auth = useAuth();
   const navigate = useNavigate();
   // Inline confirmation inside the card (no window.confirm / alert).
@@ -207,6 +209,7 @@ function JobCard({ job: j, isActive, onRemoved }: { job: JobRow; isActive: boole
         <h3>{displayJobTitle(j)}</h3>
         {isActive && <span className="job-activebadge">Active</span>}
       </div>
+      <InterviewChip date={interviewDate} />
       {(j.company || j.seniority) && <div className="job-meta">{[j.company, j.seniority].filter(Boolean).join(" · ")}</div>}
       <div className="job-stats">
         <div className="jobstat"><div className="jobstat-num">{j.skills_count || 0}</div><div className="jobstat-label">Skills</div></div>
@@ -245,5 +248,17 @@ function JobCard({ job: j, isActive, onRemoved }: { job: JobRow; isActive: boole
         </div>
       )}
     </div>
+  );
+}
+
+function InterviewChip({ date }: { date: string }) {
+  const days = daysUntil(date);
+  if (days == null) return null;
+  const label = days > 1 ? "Interview in " + days + " days" : days === 1 ? "Interview tomorrow" : countdownLabel(days);
+  return (
+    <span className={"iv-chip" + (days >= 0 && days <= 3 ? " iv-chip-soon" : "") + (days < 0 ? " iv-chip-past" : "")} title={formatDay(date, { weekday: "long", month: "long", day: "numeric" })}>
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+      {label}
+    </span>
   );
 }

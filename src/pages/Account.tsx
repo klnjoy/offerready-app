@@ -3,10 +3,11 @@
  * Checkout itself is created server-side (/api/billing/checkout). */
 
 import { useEffect, useRef, useState } from "react";
-import { API_ENABLED, PRICING_URL } from "../config";
+import { API_ENABLED, PRICING_URL, PRO_PRICE_LABEL } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { ExternalLink, useNavigate, useSearchParams } from "../lib/router";
+import { PLAN_MATRIX, featureNoun, usePlan, type Feature } from "../lib/plans";
+import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { AuthForm } from "../components/AuthForm";
 import { Card } from "../components/ui";
 
@@ -22,8 +23,13 @@ export default function AccountPage() {
 
   useEffect(() => {
     // Drop the flag from the URL so a refresh doesn't re-trigger checkout.
-    if (params.get("upgrade") === "1") navigate("/account", { replace: true });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Also catches ?upgrade=1 arriving while this page is already open.
+    if (params.get("upgrade") === "1") {
+      started.current = false;
+      setWantsUpgrade(true);
+      navigate("/account", { replace: true });
+    }
+  }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!wantsUpgrade || !auth.ready || started.current) return;
@@ -93,16 +99,106 @@ export default function AccountPage() {
           </Card>
         </>
       )}
-      <Card className="plan-card">
-        <div>
-          <h2>OfferReady Pro</h2>
-          <p className="muted">The full defend-your-decision library, AI answer grading, scenarios generated for your exact job, and more saved jobs.</p>
-        </div>
-        <div className="row wrap">
-          <button type="button" className="btn btn-primary" onClick={() => { started.current = false; setWantsUpgrade(true); }}>Upgrade to Pro</button>
-          <ExternalLink className="btn btn-ghost" href={PRICING_URL}>Compare Free and Pro</ExternalLink>
-        </div>
-      </Card>
+      {auth.session ? (
+        <PlanUsageCard onUpgrade={() => { started.current = false; setWantsUpgrade(true); }} />
+      ) : (
+        <Card className="plan-card">
+          <div>
+            <h2>OfferReady Pro</h2>
+            <p className="muted">The full defend-your-decision library, AI answer grading, scenarios generated for your exact job, and more saved jobs.</p>
+          </div>
+          <div className="row wrap">
+            <button type="button" className="btn btn-primary" onClick={() => { started.current = false; setWantsUpgrade(true); }}>Upgrade to Pro</button>
+            <Link className="btn btn-ghost" to="/pricing">Compare Free and Pro</Link>
+          </div>
+        </Card>
+      )}
     </div>
+  );
+}
+
+// ---- plan + usage ------------------------------------------------------------
+
+/** Limited features shown as meters, in PLAN_MATRIX order. */
+const METER_FEATURES: Feature[] = PLAN_MATRIX
+  .map((r) => r.feature)
+  .filter((f): f is Feature => f !== "library" && f !== "prep_plan" && f !== "premium_scenarios");
+
+function UsageMeter({ feature, used, limit, unknown }: { feature: Feature; used: number; limit: number | null; unknown?: boolean }) {
+  const label = PLAN_MATRIX.find((r) => r.feature === feature)?.label || featureNoun(feature, 2);
+  if (limit === 0) {
+    return (
+      <li className="meter meter-locked">
+        <div className="meter-top"><span>{label}</span><span className="pill pill-info">Pro</span></div>
+      </li>
+    );
+  }
+  const pct = limit === null || unknown ? 0 : Math.min(100, Math.round((used / Math.max(1, limit)) * 100));
+  const tone = limit !== null && !unknown && used >= limit ? " meter-full" : pct >= 80 ? " meter-near" : "";
+  const value = unknown ? "Not available" : limit === null ? (feature === "saved_jobs" ? `${used} · Unlimited` : "Unlimited") : `${used} of ${limit}`;
+  return (
+    <li className={"meter" + tone}>
+      <div className="meter-top"><span>{label}</span><span className="meter-val">{value}</span></div>
+      {limit !== null && !unknown && (
+        <div className="meter-track" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={limit} aria-valuenow={Math.min(used, limit)}>
+          <div className="meter-fill" style={{ width: Math.max(pct ? 3 : 0, pct) + "%" }} />
+        </div>
+      )}
+    </li>
+  );
+}
+
+function PlanUsageCard({ onUpgrade }: { onUpgrade(): void }) {
+  const p = usePlan();
+  const refreshed = useRef(false);
+  useEffect(() => {
+    // Account is where people check after paying: always show fresh numbers.
+    if (!refreshed.current) { refreshed.current = true; p.refresh(); }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isPro = p.plan === "pro";
+  const anyUnknown = METER_FEATURES.some((f) => p.usage[f]?.unknown);
+  const resets = p.resetsAt
+    ? new Date(p.resetsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })
+    : null;
+
+  return (
+    <Card className="plan-usage">
+      <div className="plan-usage-head">
+        <div>
+          <span className="plan-usage-kicker">Current plan</span>
+          <h2>{p.loading ? "Loading…" : isPro ? "OfferReady Pro" : "Free"}</h2>
+        </div>
+        {!p.loading && <span className={"pill " + (isPro ? "pill-ok" : "pill-info")}>{isPro ? "Pro" : "Free"}</span>}
+      </div>
+      {!p.loading && (
+        <>
+          <p className="muted small">
+            {isPro ? "Fair-use limits this month" : "Your usage this month"}
+            {resets ? ` · resets ${resets}` : ""}
+          </p>
+          <ul className="meters">
+            {METER_FEATURES.map((f) => {
+              const u = p.usage[f];
+              return <UsageMeter key={f} feature={f} used={u ? u.used : 0} limit={u ? u.limit : null} unknown={!u || u.unknown} />;
+            })}
+          </ul>
+          {anyUnknown && <p className="hint">Usage counts aren’t available right now. Nothing is blocked while they’re unavailable.</p>}
+        </>
+      )}
+      {isPro ? (
+        <p className="plan-usage-note">
+          <strong>Manage billing.</strong> Update your card or cancel from the Stripe customer portal (the “Manage subscription” link in any Stripe receipt email), or email us and we’ll take care of it.
+        </p>
+      ) : (
+        <div className="plan-usage-cta">
+          <p className="muted">Pro unlocks the full scenario library, scenarios generated for your job and higher limits for {PRO_PRICE_LABEL}.</p>
+          <div className="row wrap">
+            <button type="button" className="btn btn-primary" onClick={onUpgrade}>Upgrade to Pro</button>
+            <Link className="btn btn-ghost" to="/pricing">Compare plans</Link>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

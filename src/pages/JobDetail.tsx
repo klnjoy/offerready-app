@@ -2,6 +2,7 @@
  * questions + readiness (was renderJob() in content/assets/jobs.js). */
 
 import { useEffect, useState } from "react";
+import { countdownLabel, daysUntil, formatDay, localDay, useInterviewDate } from "../lib/interviewDates";
 import { docsUrl } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -61,6 +62,7 @@ function JobView({ data }: { data: JobDetail }) {
   return (
     <div className="stack">
       <h1>{title}</h1>
+      <InterviewDateRow jobId={job.id} />
       {a.roleSummary && <p>{a.roleSummary}</p>}
       <StatGrid>
         {overall != null && <Stat value={overall + "%"} label="Readiness" />}
@@ -71,6 +73,7 @@ function JobView({ data }: { data: JobDetail }) {
       <div className="row wrap">
         <Link className="btn btn-primary" to="/fit">{gap ? "Re-run gap analysis" : "Run gap analysis"}</Link>
         <Link className="btn btn-primary" to="/questions">{questions.length ? "Review / regenerate questions" : "Generate questions"}</Link>
+        <Link className="btn btn-ghost" to="/today">Today{"’"}s plan</Link>
         <Link className="btn btn-ghost" to="/dashboard">Readiness dashboard</Link>
       </div>
       {gapList.length > 0 && (
@@ -98,6 +101,37 @@ function JobView({ data }: { data: JobDetail }) {
         </Card>
       )}
       <Disclaimer />
+    </div>
+  );
+}
+
+/** Interview date for this job (stored locally; Today plans up to it). */
+function InterviewDateRow({ jobId }: { jobId: string }) {
+  const [date, setDate] = useInterviewDate(jobId);
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(date);
+  useEffect(() => { setVal(date); }, [date]);
+  const days = daysUntil(date);
+
+  if (editing || !date) {
+    return (
+      <form className="jd-date" onSubmit={(e) => { e.preventDefault(); if (val) { setDate(val); setEditing(false); } }}>
+        <label className="jd-date-label" htmlFor="jd-date-input">Interview date</label>
+        <input id="jd-date-input" className="input jd-date-input" type="date" min={localDay()} value={val} onChange={(e) => setVal(e.target.value)} />
+        <button type="submit" className="btn btn-primary btn-small" disabled={!val}>Save date</button>
+        {date && <button type="button" className="btn btn-ghost btn-small" onClick={() => { setVal(date); setEditing(false); }}>Cancel</button>}
+        {!date && <span className="small muted">Set it and Today plans every day up to it.</span>}
+      </form>
+    );
+  }
+  return (
+    <div className="jd-date">
+      <span className={"iv-chip" + (days != null && days >= 0 && days <= 3 ? " iv-chip-soon" : "") + (days != null && days < 0 ? " iv-chip-past" : "")}>
+        {days != null && days > 1 ? "Interview in " + days + " days" : days === 1 ? "Interview tomorrow" : countdownLabel(days)}
+      </span>
+      <span className="small muted">{formatDay(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span>
+      <button type="button" className="link-btn small" onClick={() => setEditing(true)}>Change</button>
+      <button type="button" className="link-btn small" onClick={() => setDate(null)}>Clear</button>
     </div>
   );
 }

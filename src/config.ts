@@ -26,6 +26,14 @@ export const QUESTION_BANK_URL = env.VITE_QUESTION_BANK_URL || DOCS_BASE + "asse
 
 export const PRICING_URL = DOCS_BASE + "assets/pricing.html";
 
+/** Pro price as shown on /pricing and upgrade cards. A display label only:
+ * the amount actually charged is the Stripe price (STRIPE_PRO_MONTHLY_PRICE_ID
+ * on the API), so keep the two in sync. */
+export const PRO_PRICE_LABEL = (env.VITE_PRO_PRICE_LABEL || "").trim() || "$12 / month";
+
+/** Optional support address for billing questions (cancel by email). */
+export const SUPPORT_EMAIL = (env.VITE_SUPPORT_EMAIL || "").trim();
+
 /** Study notes landing (GenAI topics) — not the docs home, which still hosts
  * the old copies of the tools. */
 export const STUDY_URL = DOCS_BASE + "GenAI-Topics/index.html";

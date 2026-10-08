@@ -16,6 +16,12 @@ export const KEYS = {
   activity: "ip_activity_v1",
   scenarioSessions: "or_scenario_sessions_v1",
   genScenarioPrefix: "offerready.genscenario.v1.",
+  /** jobId → interview date "YYYY-MM-DD" */
+  interviewDates: "offerready.interviewDates.v1",
+  /** jobId → { start, forDate, done: { taskId: "YYYY-MM-DD" } } (Today plan) */
+  prepPlan: "offerready.prepPlan.v1",
+  /** STAR story bank */
+  stories: "offerready.stories.v1",
 } as const;
 
 export function readString(key: string): string | null {

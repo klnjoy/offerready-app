@@ -1,7 +1,7 @@
 /* Analyze My Job (was content/assets/analyze.js, mounted on #analyze-app). */
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { API_ENABLED, PRICING_URL, docsUrl } from "../config";
+import { API_ENABLED, docsUrl } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { buildShareUrl, copyText, downloadText, planFilename, readSharedAnalysis, toMarkdown } from "../lib/analysisExport";
@@ -94,6 +94,7 @@ const skillLabel = (s: string | Skill): ReactNode =>
 
 export default function AnalyzePage() {
   const location = useLocation();
+  const auth = useAuth();
   const params = useSearchParams();
   const [view, setView] = useState<View>(() => {
     const shared = readSharedAnalysis(location.hash);
@@ -104,7 +105,8 @@ export default function AnalyzePage() {
 
   const analyze = async (payload: FormValues) => {
     setView({ kind: "loading" });
-    const res = await api.analyzeJob(payload);
+    // Signed-in runs count toward the plan's monthly analyses (server-enforced).
+    const res = await api.analyzeJob(payload, auth.session ? await auth.getAccessToken() : null);
     if (res.status === 503) {
       setView({ kind: "result", analysis: SAMPLE_ANALYSIS, meta: { demo: true, note: "Live analysis isn't enabled on this deployment yet — showing a sample." } });
       return;
@@ -302,7 +304,7 @@ function useSaveJob(analysis: Analysis, meta: ResultMeta) {
         setMsg({
           text: (
             <>
-              Free includes one saved job. <ExternalLink href={PRICING_URL}>Upgrade to Pro</ExternalLink> to save more, or open{" "}
+              Free includes one saved job. <Link to="/pricing">Upgrade to Pro</Link> to save more, or open{" "}
               <Link to="/jobs">My Jobs</Link> to Check My Fit on an existing job.
             </>
           ),
