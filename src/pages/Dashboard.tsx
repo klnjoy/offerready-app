@@ -21,6 +21,7 @@ import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
 import { Card, Loading, Muted } from "../components/ui";
 import ReadinessOverview from "./ReadinessOverview";
+import { JobPicker } from "../components/JobPicker";
 import type { GapRow, JobDetail, JobRow, PracticeRow, ProgressRow } from "../types";
 
 interface Cached {
@@ -292,7 +293,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
     <div className="rd-stack">
       {note && <Card><Muted>{note}</Muted></Card>}
 
-      {jobs.length > 1 ? <JobSwitcher jobs={jobs} current={detail.job.id} onSwitch={onSwitch} /> : null}
+      {jobs.length > 1 ? <JobPicker jobs={jobs} current={detail.job.id} onSwitch={onSwitch} back={{ to: "/dashboard", label: "All jobs (" + jobs.length + ")" }} /> : null}
 
       {/* 1. The answer */}
       <section className={"card rd-hero rd-tone-" + v.tone} aria-labelledby="rd-q">
@@ -364,41 +365,6 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
         </div>
         {m.points.length >= 2 ? <TrendChart points={m.points} today={today} interviewDate={date} f={m.forecast} /> : <TrendEmpty jobQ={m.jobQ} />}
       </section>
-    </div>
-  );
-}
-
-/** "← All jobs" plus a search box that finds any job by title or company
- * (a dropdown of hundreds of jobs is unusable). Shows the first 8 matches. */
-function JobSwitcher({ jobs, current, onSwitch }: { jobs: JobRow[]; current: string; onSwitch(id: string): void }) {
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const needle = q.trim().toLowerCase();
-  const matches = useMemo(
-    () => jobs.filter((j) => j.id !== current && (!needle || (displayJobTitle(j) + " " + (j.company || "")).toLowerCase().includes(needle))).slice(0, 8),
-    [jobs, current, needle],
-  );
-  const choose = (id: string) => { setQ(""); setOpen(false); onSwitch(id); };
-  return (
-    <div className="rd-switch">
-      <Link className="rd-back" to="/dashboard">{"←"} All jobs ({jobs.length})</Link>
-      <div className="rd-switch-box" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
-        <input className="input" type="search" role="combobox" aria-expanded={open} aria-controls="rd-switch-list" aria-label="Switch to another job"
-          placeholder={"Switch job: search title or company…"} value={q}
-          onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }}
-          onKeyDown={(e) => { if (e.key === "Enter" && matches[0]) { e.preventDefault(); choose(matches[0].id); } if (e.key === "Escape") setOpen(false); }} />
-        {open && (
-          <ul id="rd-switch-list" className="rd-switch-list" role="listbox">
-            {matches.length ? matches.map((j) => (
-              <li key={j.id} role="option" aria-selected={false}>
-                <button type="button" onClick={() => choose(j.id)}>
-                  <strong>{displayJobTitle(j)}</strong>{j.company ? <span className="muted small"> {"·"} {j.company}</span> : null}
-                </button>
-              </li>
-            )) : <li className="muted small rd-switch-none">No other job matches</li>}
-          </ul>
-        )}
-      </div>
     </div>
   );
 }

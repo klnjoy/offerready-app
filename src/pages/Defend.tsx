@@ -20,7 +20,8 @@ import { KEYS, readJSON, writeJSON } from "../lib/storage";
 import { OFFLINE_SCENARIOS } from "../data/offlineScenarios";
 import { AuthForm } from "../components/AuthForm";
 import { Card, ErrorText } from "../components/ui";
-import type { Analysis, AnswerFeedback, Scenario, ScenarioNode } from "../types";
+import { JobPicker } from "../components/JobPicker";
+import type { Analysis, AnswerFeedback, JobRow, Scenario, ScenarioNode } from "../types";
 
 interface JobContext {
   category: string | null;
@@ -87,6 +88,7 @@ export default function DefendPage() {
   const [activeCat, setActiveCat] = useState(initial.cat);
   const [matchedRole, setMatchedRole] = useState<string | null>(initial.matched);
   const [activeJob, setActiveJobState] = useState<{ id: string; title: string } | null>(null);
+  const [myJobs, setMyJobs] = useState<JobRow[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [offline, setOffline] = useState(!API_ENABLED);
   const [view, setView] = useState<View>(API_ENABLED ? { kind: "loading", msg: "Loading scenarios…" } : { kind: "list" });
@@ -112,28 +114,35 @@ export default function DefendPage() {
   }, [auth.ready, auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The ACTIVE JOB is authoritative for the family + label (where practice is saved).
+  const applyJob = (job: JobRow | undefined, id: string) => {
+    if (!job) { setActiveJobState({ id, title: "" }); return; }
+    const title = displayJobTitle(job);
+    setActiveJobState({ id, title });
+    if (title !== "Untitled role") setMatchedRole(title);
+    const fam = classifyFamilyFromJob(job);
+    // Can't classify this job confidently? Show all roles rather than keep
+    // another job's stale family.
+    setActiveCat(fam || "all");
+    if (fam && title === "Untitled role") setMatchedRole((m) => (cleanRoleLabel(m) ? m : CATEGORY_LABELS[fam]));
+  };
   useEffect(() => {
-    const id = getActiveJob();
-    if (!id || !API_ENABLED || !auth.session) return;
+    if (!API_ENABLED || !auth.session) return;
     let alive = true;
     (async () => {
       const tok = await auth.getAccessToken();
       if (!tok) return;
       const res = await api.listJobs(tok);
       if (!alive) return;
-      const job = (res.body?.jobs || []).find((j) => j.id === id);
-      if (!job) { setActiveJobState({ id, title: "" }); return; }
-      const title = displayJobTitle(job);
-      setActiveJobState({ id, title });
-      if (title !== "Untitled role") setMatchedRole(title);
-      const fam = classifyFamilyFromJob(job);
-      // Can't classify this job confidently? Show all roles rather than keep
-      // another job's stale family.
-      setActiveCat(fam || "all");
-      if (fam && title === "Untitled role") setMatchedRole((m) => (cleanRoleLabel(m) ? m : CATEGORY_LABELS[fam]));
+      const jobs = res.body?.jobs || [];
+      setMyJobs(jobs);
+      const id = (workflowJobId && jobs.some((j) => j.id === workflowJobId) ? workflowJobId : "") || getActiveJob();
+      if (!id) return;
+      if (id !== getActiveJob()) setActiveJob(id);
+      applyJob(jobs.find((j) => j.id === id), id);
     })();
     return () => { alive = false; };
   }, [auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
+  const switchJob = (id: string) => { setActiveJob(id); applyJob(myJobs.find((j) => j.id === id), id); };
 
   const list = offline ? OFFLINE_SCENARIOS : scenarios;
 
@@ -203,6 +212,7 @@ export default function DefendPage() {
       {view.kind === "list" && (
         <ScenarioList
           list={list} offline={offline} activeCat={activeCat} matchedRole={matchedRole} activeJob={activeJob}
+          jobs={myJobs} onSwitchJob={switchJob}
           canGenerate={API_ENABLED && !offline && !!getStoredAnalysis()} genBusy={genBusy}
           onCat={setActiveCat} onClear={() => { setActiveCat("all"); setMatchedRole(null); }}
           onOpen={openScenario} onGenerate={generateForJob}
@@ -228,19 +238,35 @@ export default function DefendPage() {
 // ---- list ------------------------------------------------------------------
 
 function ScenarioList({
-  list, offline, activeCat, matchedRole, activeJob, canGenerate, genBusy, onCat, onClear, onOpen, onGenerate,
+  list, offline, activeCat, matchedRole, activeJob, jobs, onSwitchJob, canGenerate, genBusy, onCat, onClear, onOpen, onGenerate,
 }: {
   list: Scenario[]; offline: boolean; activeCat: string; matchedRole: string | null;
-  activeJob: { id: string; title: string } | null; canGenerate: boolean; genBusy: boolean;
+  activeJob: { id: string; title: string } | null; jobs: JobRow[]; onSwitchJob(id: string): void; canGenerate: boolean; genBusy: boolean;
   onCat(c: string): void; onClear(): void; onOpen(s: Scenario): void; onGenerate(): void;
 }) {
   const pointer = getActiveJob();
-  const shown = list.filter((s) => activeCat === "all" || s.category === activeCat);
+  // Best score per scenario from your past runs (synced to your account).
+  const best = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const h of readJSON<{ slug?: string; score?: number }[]>(KEYS.scenarioSessions, [])) {
+      if (h && h.slug && typeof h.score === "number") out[h.slug] = Math.max(out[h.slug] ?? 0, h.score);
+    }
+    return out;
+  }, []);
+  const inFamily = list.filter((s) => activeCat === "all" || s.category === activeCat);
+  // No scenarios for this job's family yet: show every role instead of an empty page.
+  const familyEmpty = activeCat !== "all" && !inFamily.length && list.length > 0;
+  const shown = familyEmpty ? list : inFamily;
   const cats = ["all", ...uniqueCats(list)];
 
   return (
     <div className="stack">
-      {!offline && (
+      {!offline && jobs.length > 1 && activeJob?.title ? (
+        <div className="job-banner job-banner-picker">
+          <JobPicker jobs={jobs} current={activeJob.id} onSwitch={onSwitchJob}
+            label={<><span className="job-banner-label">Current job</span> <strong>{activeJob.title}</strong> {"·"} <span className="small">practice counts toward its readiness</span></>} />
+        </div>
+      ) : !offline && (
         <div className="job-banner">
           {pointer && activeJob?.id === pointer && activeJob.title ? (
             <><span className="job-banner-label">Current job</span> <strong>{activeJob.title}</strong> {"·"} <span className="small">completed practice counts toward this job{"’"}s readiness</span></>
@@ -255,7 +281,7 @@ function ScenarioList({
       <p className="hint">
         {offline
           ? "Practice the decisions senior AI, data, and cloud engineers defend under pressure. Pick one, make the call, and hold your reasoning as the interviewer keeps pushing — why, trade-off, constraint, incident. Your ratings feed your readiness."
-          : "Practice the decisions senior AI, data, and cloud engineers defend under pressure — across roles. Preview any scenario free; open the full tree with OfferReady Pro."}
+          : "Practice the decisions senior AI, data, and cloud engineers defend under pressure — across roles. Preview any scenario free; the full library comes with any pass."}
       </p>
 
       {matchedRole && activeCat !== "all" && (
@@ -264,15 +290,15 @@ function ScenarioList({
             <p><span className="job-banner-label">Current job</span> <strong>{matchedRole}</strong></p>
           )}
           <p>
-            Closest available catalog scenario family: <strong>{familyLabel(activeCat)}</strong>.{" "}
+            Showing <strong>{familyLabel(activeCat)}</strong> scenarios, the closest to this job.{" "}
             <button type="button" className="link-btn" onClick={onClear}>Show all roles</button>
           </p>
           {canGenerate && (
             <>
               <button type="button" className="btn btn-primary" disabled={genBusy} onClick={onGenerate}>
-                {genBusy ? "Generating…" : "✨ Generate a scenario for my exact job"}
+                {genBusy ? "Writing your scenario…" : "Write a scenario for this job"}
               </button>
-              <p className="hint">Pro {"·"} builds a scenario tailored to <strong>{matchedRole}</strong> from your analyzed job. Falls back to the closest catalog scenario if unavailable.</p>
+              <p className="hint">Built from <strong>{matchedRole}</strong> and its gaps. Comes with any pass. If it can’t be written right now, the closest scenario below opens instead.</p>
             </>
           )}
         </div>
@@ -284,28 +310,32 @@ function ScenarioList({
         <>
           <div className="scn-filter" role="group" aria-label="Filter by role">
             {cats.map((c) => (
-              <button key={c} type="button" className={"scn-chip" + (c === activeCat ? " on" : "")} aria-pressed={c === activeCat} onClick={() => onCat(c)}>
+              <button key={c} type="button" className={"scn-chip" + (c === activeCat || (familyEmpty && c === "all") ? " on" : "")} aria-pressed={c === activeCat || (familyEmpty && c === "all")} onClick={() => onCat(c)}>
                 {c === "all" ? "All roles" : catLabel(c)}
               </button>
             ))}
           </div>
+          {familyEmpty && <p className="hint">There are no {familyLabel(activeCat)} scenarios in the library yet, so here are all of them. The design calls carry over across roles.{canGenerate ? " Or write one for this job above." : ""}</p>}
           {!shown.length && <p className="hint">No scenarios in this role yet.</p>}
           {shown.map((s) => (
             <div className="scn-card" key={s.slug}>
-              <span className="topic">{catLabel(s.category)}</span>
+              <div className="scn-card-top">
+                <span className="topic">{catLabel(s.category)}</span>
+                {best[s.slug] != null && <span className={"qw-status " + (best[s.slug] >= 80 ? "good" : best[s.slug] >= 55 ? "mid" : "low")}>Done · best {best[s.slug]}%</span>}
+              </div>
               <h3>{s.title}</h3>
               {s.teaser?.setup && <p>{s.teaser.setup}</p>}
               {(s.teaser?.you_will_practice || []).length > 0 && <ul>{s.teaser!.you_will_practice!.map((x, i) => <li key={i}>{x}</li>)}</ul>}
               <div className="row">
                 <button type="button" className="btn btn-primary" onClick={() => onOpen(s)}>
-                  {offline || s.entitled ? "Start scenario" : "Open scenario"}
+                  {best[s.slug] != null ? "Practise again" : offline || s.entitled ? "Start scenario" : "Open scenario"}
                 </button>
-                {!offline && !s.entitled && <span className="scn-lock">{"🔒"} Pro</span>}
+                {!offline && !s.entitled && <span className="scn-lock">Free preview · full with a pass</span>}
               </div>
             </div>
           ))}
           {offline && (
-            <p className="hint">These bundled scenarios run free, right here. <strong>OfferReady Pro</strong> adds the full multi-role library with saved progress across devices.</p>
+            <p className="hint">These bundled scenarios run free, right here. A pass adds the full multi-role library, with progress saved to your account.</p>
           )}
         </>
       )}
@@ -317,7 +347,7 @@ function Gate({ kind, teaser: s, onBack }: { kind: "sign-in" | "upgrade"; teaser
   const t = s.teaser || {};
   return (
     <div className="card paywall">
-      <h2>{s.title || "OfferReady Pro scenario"}</h2>
+      <h2>{s.title || "Full scenario"}</h2>
       {t.setup && <p>{t.setup}</p>}
       {t.sample_node && (
         <div className="model">
@@ -328,13 +358,13 @@ function Gate({ kind, teaser: s, onBack }: { kind: "sign-in" | "upgrade"; teaser
       )}
       {kind === "sign-in" ? (
         <>
-          <p className="hint">Sign in to your OfferReady Pro account to run the full scenario.</p>
+          <p className="hint">Sign in to run the full scenario.</p>
           <AuthForm />
         </>
       ) : (
         <>
-          <p className="hint">This is part of <strong>OfferReady Pro</strong> {"—"} the complete trade-off drill library, with progress tracking. Everything you learn and sample is free; Pro is where you practice and defend.</p>
-          <Link className="btn btn-primary" to="/pricing">See Free vs Pro</Link>
+          <p className="hint">The full scenario comes with any pass: the complete trade-off drill library, with progress tracking. The preview above stays free.</p>
+          <Link className="btn btn-primary" to="/pricing">See passes</Link>
         </>
       )}
       <button type="button" className="btn btn-ghost" onClick={onBack}>{"‹"} All scenarios</button>
@@ -523,7 +553,7 @@ function NodeBody({
       <div className="row">
         {canGrade && (
           <button type="button" className="btn btn-primary" disabled={grading} onClick={grade}>
-            {grading ? "Grading…" : "🧑‍⚖️ Grade my answer"}
+            {grading ? "Getting feedback…" : "Get feedback"}
           </button>
         )}
         <button type="button" className={"btn " + (canGrade ? "btn-ghost" : "btn-primary")} disabled={revealed} onClick={() => setRevealed(true)}>
@@ -638,8 +668,9 @@ function Summary({
       sessionId: scenario.slug + ":" + runId, category: scenario.slug, contentSlug: scenario.slug,
       score: pct, completedAt: new Date().toISOString(),
     });
-    if (res.status === 200 && res.body?.ok) return { saved: true, readiness: res.body.readiness };
-    if (res.status === 207) return { saved: true, partial: true, readiness: res.body?.readiness, reason: res.body?.reason || "snapshot" };
+    // Also keep it in the local history: it drives the "Done · best" badges.
+    if (res.status === 200 && res.body?.ok) { localSave(); return { saved: true, readiness: res.body.readiness }; }
+    if (res.status === 207) { localSave(); return { saved: true, partial: true, readiness: res.body?.readiness, reason: res.body?.reason || "snapshot" }; }
     if (res.status === 404) clearActiveJob();
     localSave();
     if (res.status === 0) return { saved: false, local: true, reason: "network" };

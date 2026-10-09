@@ -2366,3 +2366,45 @@ tbody tr:last-child td { border-bottom: 0; }
 .rd-switch-list button:hover, .rd-switch-list button:focus-visible { background: var(--surface-2); outline: none; }
 .rd-switch-none { padding: 8px 10px; }
 @media (max-width: 560px) { .rd-switch-box { flex-basis: 100%; } }
+
+/* ===== Questions for this job: practice workspace ===== */
+.qw-head { display: flex; flex-direction: column; gap: 14px; }
+.qw-stats { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 24px; }
+.qw-title { margin: 0 0 4px; font-size: 1.25rem; }
+.qw-meter { display: flex; flex-direction: column; gap: 6px; min-width: 220px; flex: 0 1 300px; }
+.qw-meter-n { font-size: 0.9rem; color: var(--text-2); }
+.qw-meter-n b { color: var(--text); }
+.qw-bar { height: 8px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.qw-bar span { display: block; height: 100%; background: var(--signal); border-radius: 999px; }
+.qw-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.qw-item { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.qw-item.open { border-color: var(--border-strong); box-shadow: var(--raise); }
+.qw-q { font: inherit; width: 100%; text-align: left; background: none; border: 0; cursor: pointer; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 14px 16px; color: var(--text); border-radius: var(--r-md); }
+.qw-q:hover { background: var(--surface-2); }
+.qw-q:focus-visible { outline: 2px solid var(--link); outline-offset: -2px; }
+.qw-num { width: 26px; height: 26px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; color: var(--text-2); }
+.qw-item.done .qw-num { background: var(--signal-soft); border-color: transparent; color: var(--signal-600); }
+.qw-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.qw-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.qw-cat { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); }
+.qw-prompt { font-weight: 600; line-height: 1.45; }
+.qw-status { font-size: 0.8rem; font-weight: 700; border-radius: 999px; padding: 3px 10px; white-space: nowrap; border: 1px solid var(--border); color: var(--text-2); background: var(--surface); }
+.qw-status.good { background: var(--signal-soft); color: var(--signal-600); border-color: transparent; }
+.qw-status.mid { background: var(--amber-soft); color: var(--amber); border-color: var(--amber-border); }
+.qw-status.low { background: var(--red-soft); color: var(--red); border-color: var(--red-border); }
+.qw-body { padding: 0 16px 16px 56px; }
+@media (max-width: 560px) { .qw-body { padding: 0 12px 14px; } .qw-q { padding: 12px; gap: 10px; } }
+.why-details { padding: 0; }
+.why-details > summary { cursor: pointer; font-weight: 600; padding: 14px 18px; }
+.why-details[open] > summary { border-bottom: 1px solid var(--border); }
+.why-details .why { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.rd-switch-label { font-size: 0.95rem; }
+.coach { display: flex; flex-direction: column; gap: 10px; }
+.coach-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
+.coach-timer { font-variant-numeric: tabular-nums; font-weight: 700; display: inline-flex; gap: 10px; align-items: center; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.coach-timer.low { color: var(--amber); border-color: var(--amber-border); background: var(--amber-soft); }
+.coach-timer.done { color: var(--red); border-color: var(--red-border); background: var(--red-soft); }
+.coach-followup { border-left: 3px solid var(--ink-800); padding: 6px 12px; background: var(--blue-soft); border-radius: var(--r-sm); }
+.coach-followup p { margin: 2px 0 0; font-weight: 600; }
+.coach-self { display: flex; flex-direction: column; gap: 6px; }
+.fb-followup .btn { margin-top: 6px; }

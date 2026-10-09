@@ -122,7 +122,7 @@ export interface ReadinessSummary {
 export function completePractice(
   token: string,
   jobId: string,
-  p: { sessionId: string; category: string; contentSlug: string; score: number; completedAt: string },
+  p: { sessionId: string; category: string; contentSlug: string; score: number; completedAt: string; mode?: "scenario" | "practice" },
 ) {
   return call<{ ok: boolean; readiness?: ReadinessSummary }>("/api/jobs/" + encodeURIComponent(jobId), {
     method: "POST",
@@ -131,7 +131,7 @@ export function completePractice(
       action: "complete_practice",
       sessionId: p.sessionId,
       category: p.category,
-      mode: "scenario",
+      mode: p.mode || "scenario",
       contentSlug: p.contentSlug,
       score: p.score,
       completed: true,
