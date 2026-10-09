@@ -2408,3 +2408,52 @@ tbody tr:last-child td { border-bottom: 0; }
 .coach-followup p { margin: 2px 0 0; font-weight: 600; }
 .coach-self { display: flex; flex-direction: column; gap: 6px; }
 .fb-followup .btn { margin-top: 6px; }
+
+/* ===== Trade-off drills ===== */
+.drill-hero { display: flex; flex-wrap: wrap; gap: 16px 28px; justify-content: space-between; align-items: flex-start; padding: 20px 22px; border-radius: var(--r-md); background: var(--surface); border: 1.5px solid var(--ink-800); box-shadow: var(--raise); }
+.drill-hero-main { flex: 1 1 26rem; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.drill-hero-main h2 { margin: 0; font-size: 1.3rem; }
+.drill-hero-kicker { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--signal-600); }
+.drill-hero-how { font-size: 0.92rem; color: var(--text-2); }
+.drill-hero-stats { display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; color: var(--text-2); min-width: 140px; }
+.drill-hero-stats b { color: var(--text); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.scn-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.drill { display: flex; flex-direction: column; gap: 14px; }
+.drill-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.drill-title { font-weight: 700; flex: 1; min-width: 0; }
+.drill-count { font-size: 0.85rem; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.drill-track { list-style: none; margin: 0; padding: 0; display: flex; gap: 4px; overflow-x: auto; }
+.drill-stage { margin: 0; flex: 1 1 0; min-width: 84px; display: flex; flex-direction: column; gap: 6px; font-size: 0.78rem; color: var(--text-3); }
+.drill-dot { display: block; height: 6px; border-radius: 999px; background: var(--border); }
+.drill-stage.done .drill-dot { background: var(--signal); }
+.drill-stage.now .drill-dot { background: var(--ink-800); }
+.drill-stage.now { color: var(--text); font-weight: 700; }
+.drill-stage.done { color: var(--text-2); }
+.drill-ask { display: flex; gap: 12px; align-items: flex-start; }
+.drill-who { flex: none; width: 34px; height: 34px; border-radius: 999px; background: var(--ink-800); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.85rem; }
+.drill-bubble { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.drill-kind { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--signal-600); }
+.drill-tip { font-size: 0.88rem; color: var(--text-2); margin: 0; }
+.scn-tests > summary { cursor: pointer; }
+.star.on { background: var(--ink-800); color: #fff; border-color: var(--ink-800); }
+.drill-summary { display: flex; flex-direction: column; gap: 14px; }
+.drill-sum-head { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.drill-sum-title { margin: 0 0 4px; font-size: 1.15rem; }
+.drill-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--r-md); align-self: stretch; }
+.drill-step { margin: 0; display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; gap: 12px; align-items: center; padding: 10px 14px; }
+.drill-step + .drill-step { border-top: 1px solid var(--border); }
+.drill-step.weakest { background: var(--amber-soft); }
+.drill-step-kind { font-size: 0.82rem; font-weight: 700; color: var(--text-2); }
+.drill-step-q { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drill-step-score { display: flex; align-items: center; gap: 8px; }
+.drill-step-score .qw-bar { flex: 1; }
+.qw-bar .fill-good { background: var(--signal); }
+.qw-bar .fill-mid { background: var(--amber); }
+.qw-bar .fill-low { background: var(--red); }
+.drill-focus { align-self: stretch; background: var(--blue-soft); border: 1px solid var(--blue-border); border-radius: var(--r-sm); padding: 10px 12px; font-size: 0.92rem; }
+.status-ok { color: var(--text); }
+@media (max-width: 640px) {
+  .drill-step { grid-template-columns: 1fr auto; grid-template-areas: "k s" "q q"; row-gap: 4px; }
+  .drill-step-kind { grid-area: k; } .drill-step-score { grid-area: s; min-width: 120px; } .drill-step-q { grid-area: q; white-space: normal; }
+  .drill-who { display: none; }
+}

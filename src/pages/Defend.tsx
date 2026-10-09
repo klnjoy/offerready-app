@@ -145,6 +145,15 @@ export default function DefendPage() {
   const switchJob = (id: string) => { setActiveJob(id); applyJob(myJobs.find((j) => j.id === id), id); };
 
   const list = offline ? OFFLINE_SCENARIOS : scenarios;
+  const [runNonce, setRunNonce] = useState(0);
+  /** The drill to suggest after `cur`: same family first, ones you haven't done (or scored lowest) first. */
+  const pickNext = (cur: Scenario | null): Scenario | null => {
+    const best = bestScores();
+    const fam = cur?.category || (activeCat !== "all" ? activeCat : "");
+    const pool = list.filter((x) => !cur || x.slug !== cur.slug);
+    const rank = (x: Scenario) => (fam && x.category === fam ? 0 : 1) * 1000 + (best[x.slug] == null ? 0 : 100 + best[x.slug]);
+    return pool.slice().sort((a, b) => rank(a) - rank(b))[0] || null;
+  };
 
   const openScenario = async (s: Scenario) => {
     if (offline || s.content) { setView({ kind: "run", scenario: s }); return; }
@@ -212,7 +221,7 @@ export default function DefendPage() {
       {view.kind === "list" && (
         <ScenarioList
           list={list} offline={offline} activeCat={activeCat} matchedRole={matchedRole} activeJob={activeJob}
-          jobs={myJobs} onSwitchJob={switchJob}
+          jobs={myJobs} onSwitchJob={switchJob} recommended={pickNext(null)}
           canGenerate={API_ENABLED && !offline && !!getStoredAnalysis()} genBusy={genBusy}
           onCat={setActiveCat} onClear={() => { setActiveCat("all"); setMatchedRole(null); }}
           onOpen={openScenario} onGenerate={generateForJob}
@@ -221,7 +230,10 @@ export default function DefendPage() {
       {view.kind === "gate" && <Gate kind={view.gate} teaser={view.teaser} onBack={backToList} />}
       {view.kind === "run" && (
         <Runner
-          key={view.scenario.slug + (view.scenario.exactJob ? ":gen" : "")}
+          key={view.scenario.slug + (view.scenario.exactJob ? ":gen" : "") + ":" + runNonce}
+          onRetry={() => setRunNonce((r) => r + 1)}
+          nextUp={pickNext(view.scenario)}
+          onOpenNext={(sc) => { setRunNonce((r) => r + 1); openScenario(sc); }}
           scenario={view.scenario}
           offline={offline}
           jobContext={initial.jobContext}
@@ -237,22 +249,27 @@ export default function DefendPage() {
 
 // ---- list ------------------------------------------------------------------
 
+/** Best score per drill from your past runs (synced to your account). */
+function bestScores(): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const h of readJSON<{ slug?: string; score?: number }[]>(KEYS.scenarioSessions, [])) {
+    if (h && h.slug && typeof h.score === "number") out[h.slug] = Math.max(out[h.slug] ?? 0, h.score);
+  }
+  return out;
+}
+
 function ScenarioList({
-  list, offline, activeCat, matchedRole, activeJob, jobs, onSwitchJob, canGenerate, genBusy, onCat, onClear, onOpen, onGenerate,
+  list, offline, activeCat, matchedRole, activeJob, jobs, onSwitchJob, recommended, canGenerate, genBusy, onCat, onClear, onOpen, onGenerate,
 }: {
   list: Scenario[]; offline: boolean; activeCat: string; matchedRole: string | null;
-  activeJob: { id: string; title: string } | null; jobs: JobRow[]; onSwitchJob(id: string): void; canGenerate: boolean; genBusy: boolean;
+  activeJob: { id: string; title: string } | null; jobs: JobRow[]; onSwitchJob(id: string): void; recommended: Scenario | null; canGenerate: boolean; genBusy: boolean;
   onCat(c: string): void; onClear(): void; onOpen(s: Scenario): void; onGenerate(): void;
 }) {
   const pointer = getActiveJob();
   // Best score per scenario from your past runs (synced to your account).
-  const best = useMemo(() => {
-    const out: Record<string, number> = {};
-    for (const h of readJSON<{ slug?: string; score?: number }[]>(KEYS.scenarioSessions, [])) {
-      if (h && h.slug && typeof h.score === "number") out[h.slug] = Math.max(out[h.slug] ?? 0, h.score);
-    }
-    return out;
-  }, []);
+  const best = useMemo(() => bestScores(), []);
+  const doneCount = list.filter((x) => best[x.slug] != null).length;
+  const avgBest = doneCount ? Math.round(list.filter((x) => best[x.slug] != null).reduce((a, x) => a + best[x.slug], 0) / doneCount) : null;
   const inFamily = list.filter((s) => activeCat === "all" || s.category === activeCat);
   // No scenarios for this job's family yet: show every role instead of an empty page.
   const familyEmpty = activeCat !== "all" && !inFamily.length && list.length > 0;
@@ -277,11 +294,29 @@ function ScenarioList({
           )}
         </div>
       )}
-      <h2 className="section-heading">Scenarios</h2>
+      {recommended && list.length > 0 && (
+        <section className="drill-hero" aria-labelledby="drill-hero-h">
+          <div className="drill-hero-main">
+            <span className="drill-hero-kicker">{best[recommended.slug] != null ? "Lift your lowest score" : activeJob?.title ? "Recommended for " + activeJob.title : "Start here"}</span>
+            <h2 id="drill-hero-h">{recommended.title}</h2>
+            {recommended.teaser?.setup && <p className="muted">{recommended.teaser.setup}</p>}
+            <p className="drill-hero-how">You make a design call, then the interviewer pushes on why, trade-offs, a new constraint and an incident. Each answer gets feedback. About 10 minutes.</p>
+            <div className="row wrap">
+              <button type="button" className="btn btn-primary" onClick={() => onOpen(recommended)}>{best[recommended.slug] != null ? "Run it again" : "Start this drill"}</button>
+              {canGenerate && <button type="button" className="btn" disabled={genBusy} onClick={onGenerate}>{genBusy ? "Writing your drill…" : "Write one for this exact job"}</button>}
+            </div>
+          </div>
+          <div className="drill-hero-stats" aria-label="Your drills">
+            <span><b>{doneCount}</b> of {list.length} done</span>
+            {avgBest != null && <span><b>{avgBest}%</b> average best</span>}
+          </div>
+        </section>
+      )}
+      <h2 className="section-heading">All drills</h2>
       <p className="hint">
         {offline
           ? "Practice the decisions senior AI, data, and cloud engineers defend under pressure. Pick one, make the call, and hold your reasoning as the interviewer keeps pushing — why, trade-off, constraint, incident. Your ratings feed your readiness."
-          : "Practice the decisions senior AI, data, and cloud engineers defend under pressure — across roles. Preview any scenario free; the full library comes with any pass."}
+          : "Each drill is one design problem from a real senior interview, across roles. Preview any drill free; the full library comes with any pass."}
       </p>
 
       {matchedRole && activeCat !== "all" && (
@@ -293,7 +328,7 @@ function ScenarioList({
             Showing <strong>{familyLabel(activeCat)}</strong> scenarios, the closest to this job.{" "}
             <button type="button" className="link-btn" onClick={onClear}>Show all roles</button>
           </p>
-          {canGenerate && (
+          {canGenerate && !recommended && (
             <>
               <button type="button" className="btn btn-primary" disabled={genBusy} onClick={onGenerate}>
                 {genBusy ? "Writing your scenario…" : "Write a scenario for this job"}
@@ -328,7 +363,7 @@ function ScenarioList({
               {(s.teaser?.you_will_practice || []).length > 0 && <ul>{s.teaser!.you_will_practice!.map((x, i) => <li key={i}>{x}</li>)}</ul>}
               <div className="row">
                 <button type="button" className="btn btn-primary" onClick={() => onOpen(s)}>
-                  {best[s.slug] != null ? "Practise again" : offline || s.entitled ? "Start scenario" : "Open scenario"}
+                  {best[s.slug] != null ? "Practise again" : offline || s.entitled ? "Start drill" : "Preview drill"}
                 </button>
                 {!offline && !s.entitled && <span className="scn-lock">Free preview · full with a pass</span>}
               </div>
@@ -374,17 +409,54 @@ function Gate({ kind, teaser: s, onBack }: { kind: "sign-in" | "upgrade"; teaser
 
 // ---- runner ----------------------------------------------------------------
 
+/** What each kind of step tests, shown above the question and in the summary. */
+const KIND_HELP: Record<string, { name: string; tip: string }> = {
+  decision: { name: "Make the call", tip: "State your choice in one line, then the one reason it wins for this situation." },
+  why: { name: "Defend the why", tip: "Tie it to a requirement, and name the option you rejected and why." },
+  tradeoff: { name: "Name the trade-off", tip: "Say what you give up, why that’s acceptable here, and when you’d switch." },
+  constraint: { name: "A new constraint", tip: "Adapt without throwing the design away: say exactly what changes and what stays." },
+  incident: { name: "Something broke", tip: "Detect, stop the bleeding first, then find the root cause and prevent a repeat." },
+  reflection: { name: "Look back", tip: "Check what a strong answer covers before you move on." },
+  choice: { name: "Pick a path", tip: "Choose the direction you’d take; the follow-ups depend on it." },
+  next_drill: { name: "Go deeper", tip: "Study material for the parts you found hard." },
+};
+const kindInfo = (k: string) => KIND_HELP[k] || { name: k.replace(/_/g, " "), tip: "" };
+const RATED = (k: string) => !["choice", "reflection", "next_drill"].includes(k);
+
+/** The main line through the scenario (following `next`, first option at a choice). */
+function mainLine(scenario: Scenario): ScenarioNode[] {
+  const nodes = scenario.content?.nodes || {};
+  const out: ScenarioNode[] = [];
+  const seen = new Set<string>();
+  let id = scenario.content?.start;
+  while (id && nodes[id] && !seen.has(id) && out.length < 40) {
+    seen.add(id);
+    const n = nodes[id];
+    out.push(n);
+    id = n.next || (n.options && n.options[0]?.next) || undefined;
+  }
+  return out;
+}
+
+/** AI score (0-100) to the 1-5 rating the drill uses. */
+const ratingFor = (score: number) => (score >= 90 ? 5 : score >= 75 ? 4 : score >= 55 ? 3 : score >= 35 ? 2 : 1);
+
+export interface StepResult { id: string; kind: string; prompt: string; rating: number; ai?: number }
+
 function Runner({
-  scenario, offline, jobContext, whoFallback, workflowJobId, boundJobId, onBack,
+  scenario, offline, jobContext, whoFallback, workflowJobId, boundJobId, onBack, onRetry, nextUp, onOpenNext,
 }: {
   scenario: Scenario; offline: boolean; jobContext: JobContext | null; whoFallback: string;
-  workflowJobId: string; boundJobId: string; onBack(): void;
+  workflowJobId: string; boundJobId: string; onBack(): void; onRetry(): void;
+  nextUp: Scenario | null; onOpenNext(s: Scenario): void;
 }) {
   const nodes = scenario.content?.nodes || {};
-  const total = Object.keys(nodes).length;
+  const line = useMemo(() => mainLine(scenario), [scenario]);
+  const ratedTotal = line.filter((n) => RATED(n.kind)).length;
   const [current, setCurrent] = useState<string | undefined>(scenario.content?.start);
   const [path, setPath] = useState<string[]>(scenario.content?.start ? [scenario.content.start] : []);
   const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [aiScores, setAiScores] = useState<Record<string, number>>({});
   const [finished, setFinished] = useState(!scenario.content?.start);
   const runId = useRef(Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
 
@@ -409,7 +481,7 @@ function Runner({
     const score = pct(r);
     upsert({
       key: "scenario:" + scenario.slug, mode: "scenario", track: "Scenarios", topic: scenario.title || scenario.slug,
-      score, n, total, partial, topics: scenario.title ? { [scenario.title]: score } : {},
+      score, n, total: ratedTotal, partial, topics: scenario.title ? { [scenario.title]: score } : {},
     });
   };
 
@@ -421,32 +493,66 @@ function Runner({
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const steps: StepResult[] = path.filter((id) => ratings[id] != null && nodes[id]).map((id) => ({
+    id, kind: nodes[id].kind, prompt: nodes[id].prompt, rating: ratings[id], ai: aiScores[id],
+  }));
+
   if (finished || !current || !nodes[current]) {
     return (
-      <Summary scenario={scenario} ratings={ratings} pct={pct(ratings)} offline={offline} runId={runId.current}
+      <Summary scenario={scenario} steps={steps} pct={pct(ratings)} offline={offline} runId={runId.current}
         workflowJobId={workflowJobId} boundJobId={boundJobId} whoFallback={whoFallback}
-        onPersistLocal={() => persistLocal(ratings, false)} onBack={onBack} />
+        onPersistLocal={() => persistLocal(ratings, false)} onBack={onBack} onRetry={onRetry}
+        nextUp={nextUp} onOpenNext={onOpenNext} />
     );
   }
 
   const node = nodes[current];
-  const step = path.length;
+  const answered = Object.keys(ratings).length;
+  const info = kindInfo(node.kind);
+  // The stage track: the main line, marked done / current / ahead.
+  const onLine = line.some((n) => n.id === current);
   return (
-    <div className="card">
-      {personalize && step === 1 && (
+    <div className="card drill">
+      <div className="drill-top">
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => { if (!answered || window.confirm("Leave this drill? Your answers so far won’t be saved.")) onBack(); }}>{"‹"} All drills</button>
+        <span className="drill-title">{scenario.title}</span>
+        <span className="drill-count">{answered} of {ratedTotal || "?"} answered</span>
+      </div>
+      {line.length > 1 && (
+        <ol className="drill-track" aria-label="Stages in this drill">
+          {line.filter((n) => RATED(n.kind) || n.kind === "choice").map((n) => {
+            const st = ratings[n.id] != null ? "done" : n.id === current ? "now" : path.includes(n.id) ? "done" : "ahead";
+            return (
+              <li key={n.id} className={"drill-stage " + st} aria-current={n.id === current ? "step" : undefined}>
+                <span className="drill-dot" aria-hidden="true" />
+                <span className="drill-stage-l">{kindInfo(n.kind).name}</span>
+              </li>
+            );
+          })}
+          {!onLine && <li className="drill-stage now"><span className="drill-dot" aria-hidden="true" /><span className="drill-stage-l">{info.name}</span></li>}
+        </ol>
+      )}
+      {personalize && path.length === 1 && (
         <div className="personalized">
           <div>
-            {scenario.exactJob ? "Exact-job scenario generated for: " : "Closest available catalog scenario · for your role: "}
+            {scenario.exactJob ? "Written for your job: " : "Closest drill for your role: "}
             <strong>{personalize.role || whoFallback || "your target role"}</strong>
           </div>
           {personalize.technologies.length > 0 && <div className="small">Stack: {personalize.technologies.slice(0, 5).join(", ")}</div>}
           {personalize.gaps.length > 0 && <div className="small">Focus: {personalize.gaps.slice(0, 3).join(", ")}</div>}
         </div>
       )}
-      <div className="progress-label">{(total ? "Step " + step + " of " + total + " · " : "") + scenario.title + " · " + node.kind}</div>
-      <div className="question">{node.prompt}</div>
-      <PersonalizeHint node={node} personalize={personalize} step={step} />
+      <div className="drill-ask">
+        <div className="drill-who" aria-hidden="true">I</div>
+        <div className="drill-bubble">
+          <div className="drill-kind">{info.name}</div>
+          <div className="question">{node.prompt}</div>
+          {info.tip && RATED(node.kind) && <p className="drill-tip">{info.tip}</p>}
+        </div>
+      </div>
+      <PersonalizeHint node={node} personalize={personalize} step={path.length} />
       <NodeBody key={node.id} node={node} offline={offline}
+        onScored={(v) => setAiScores((a) => ({ ...a, [node.id]: v }))}
         onRate={(v) => { const r = { ...ratings, [node.id]: v }; setRatings(r); advance(node.next, r); }}
         onNext={(next) => advance(next)}
         onFinish={() => setFinished(true)} />
@@ -461,7 +567,7 @@ function PersonalizeHint({ node, personalize, step }: { node: ScenarioNode; pers
   const i = Math.max(0, step - 1);
   return (
     <p className="hint pers-hint">
-      {"🎯"} For your job: frame the answer
+      For your job: frame the answer
       {t.length > 0 && <> using <strong>{t[i % t.length]}</strong></>}
       {g.length > 0 && <> and speak to <strong>{g[i % g.length]}</strong></>}.
     </p>
@@ -469,9 +575,15 @@ function PersonalizeHint({ node, personalize, step }: { node: ScenarioNode; pers
 }
 
 function NodeBody({
-  node, offline, onRate, onNext, onFinish,
-}: { node: ScenarioNode; offline: boolean; onRate(v: number): void; onNext(next?: string): void; onFinish(): void }) {
+  node, offline, onRate, onNext, onFinish, onScored,
+}: { node: ScenarioNode; offline: boolean; onRate(v: number): void; onNext(next?: string): void; onFinish(): void; onScored(score: number): void }) {
   const auth = useAuth();
+  const [secs, setSecs] = useState<number | null>(null);
+  useEffect(() => {
+    if (secs == null || secs <= 0) return;
+    const t = setTimeout(() => setSecs((v) => (v == null ? v : v - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [secs]);
   const [answer, setAnswer] = useState("");
   const [revealed, setRevealed] = useState(false);
   const [grading, setGrading] = useState(false);
@@ -481,8 +593,8 @@ function NodeBody({
   const rateRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (revealed) rateRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [revealed]);
+    if (revealed || feedback) rateRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [revealed, feedback]);
 
   if (node.kind === "choice") {
     return (
@@ -529,7 +641,10 @@ function NodeBody({
     setGrading(true);
     const res = await api.gradeAnswer(await auth.getAccessToken(), { prompt: node.prompt, signals: node.signals || [], model: node.model || "", answer: a });
     setGrading(false);
-    if (res.status === 200 && res.body?.feedback) setFeedback(res.body.feedback);
+    if (res.status === 200 && res.body?.feedback) {
+      setFeedback(res.body.feedback);
+      if (typeof res.body.feedback.score === "number") onScored(res.body.feedback.score);
+    }
     else if (res.status === 401) setGradeNote("Sign in to have your answer graded. You can still reveal the strong answer below.");
     else if (res.status === 403) setGradeNote((res.body?.error || "You’ve reached your AI feedback limit. Get a pass for more.") + " You can still reveal the strong answer below.");
     else if (res.status === 0) setGradeNote("Couldn't reach the feedback service — reveal the strong answer below and self-rate.");
@@ -538,52 +653,73 @@ function NodeBody({
 
   const isLast = !node.next;
   const canGrade = API_ENABLED && !offline;
+  const suggested = feedback && typeof feedback.score === "number" ? ratingFor(feedback.score) : null;
+  const fmt = (v: number) => Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0");
 
   return (
     <>
       {(node.signals || []).length > 0 && (
-        <div className="scn-tests">
-          <div className="field-label">What this tests</div>
+        <details className="scn-tests">
+          <summary className="field-label">What the interviewer listens for</summary>
           <ul>{node.signals!.map((x, i) => <li key={i}>{x}</li>)}</ul>
-        </div>
+        </details>
       )}
-      <textarea className="input textarea" rows={5} aria-label="Your answer"
-        placeholder={"Answer out loud, then type the gist — get it graded, or reveal the strong answer."}
+      <div className="coach-top">
+        <span className="muted small">Answer out loud first, then type the gist.</span>
+        {secs == null ? (
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => setSecs(120)}>Start 2-minute timer</button>
+        ) : (
+          <span className={"coach-timer" + (secs <= 0 ? " done" : secs <= 20 ? " low" : "")} role="timer">
+            {secs <= 0 ? "Time’s up" : fmt(secs)}
+            <button type="button" className="link-btn" onClick={() => setSecs(null)}>Stop</button>
+          </span>
+        )}
+      </div>
+      <textarea className="input textarea" rows={5} aria-label="Your answer" autoFocus
+        placeholder={"Your call, the reason, what you trade away…"}
         value={answer} onChange={(e) => setAnswer(e.target.value)} />
-      <div className="row">
+      <div className="row wrap">
         {canGrade && (
-          <button type="button" className="btn btn-primary" disabled={grading} onClick={grade}>
-            {grading ? "Getting feedback…" : "Get feedback"}
+          <button type="button" className="btn btn-primary" disabled={grading || !!feedback} onClick={grade}>
+            {grading ? "Getting feedback…" : feedback ? "Feedback below" : "Get feedback"}
           </button>
         )}
-        <button type="button" className={"btn " + (canGrade ? "btn-ghost" : "btn-primary")} disabled={revealed} onClick={() => setRevealed(true)}>
-          Reveal strong answer
+        <button type="button" className={"btn " + (canGrade ? "btn-ghost" : "btn-primary")} aria-expanded={revealed} onClick={() => setRevealed((v) => !v)}>
+          {revealed ? "Hide strong answer" : "Show strong answer"}
         </button>
       </div>
       {gradeNote && <p className="hint">{gradeNote}</p>}
       {feedback && <FeedbackCard f={feedback} />}
       {revealed && (
-        <>
-          <div className="model">
-            <h4>Strong answer</h4>
-            <p>{node.model || ""}</p>
-            {(node.signals || []).length > 0 && (
-              <>
-                <div className="field-label">A strong answer shows</div>
-                <ul>{node.signals!.map((x, i) => <li key={i}>{x}</li>)}</ul>
-              </>
-            )}
+        <div className="model">
+          <h4>Strong answer</h4>
+          <p>{node.model || ""}</p>
+          {(node.signals || []).length > 0 && (
+            <>
+              <div className="field-label">A strong answer shows</div>
+              <ul>{node.signals!.map((x, i) => <li key={i}>{x}</li>)}</ul>
+            </>
+          )}
+        </div>
+      )}
+      {(feedback || revealed || gradeNote) && (
+        <div className="rate-row" ref={rateRef}>
+          {suggested ? (
+            <>
+              <button type="button" className="btn btn-primary" onClick={() => onRate(suggested)}>
+                {isLast ? "Finish" : "Next step"} {"·"} counts as {suggested}/5
+              </button>
+              <p className="hint">Based on the feedback score. Disagree? Rate it yourself:</p>
+            </>
+          ) : (
+            <div className="progress-label">How well did you hold your ground? {isLast ? "This finishes the drill." : "This moves you to the next step."}</div>
+          )}
+          <div className="rate">
+            {["1 · hand-waved", "2", "3 · partial", "4", "5 · nailed it"].map((lab, i) => (
+              <button key={lab} type="button" className={"star" + (suggested === i + 1 ? " on" : "")} onClick={() => onRate(i + 1)}>{lab}</button>
+            ))}
           </div>
-          <div className="rate-row" ref={rateRef}>
-            <div className="progress-label">Rate how well you defended it {"—"} {isLast ? "this finishes the scenario:" : "this moves you to the next step:"}</div>
-            <div className="rate">
-              {["1 · hand-waved", "2", "3 · partial", "4", "5 · nailed it"].map((lab, i) => (
-                <button key={lab} type="button" className="star" onClick={() => onRate(i + 1)}>{lab}</button>
-              ))}
-            </div>
-            <p className="hint">{isLast ? "Pick a rating to see your scenario summary." : "Pick a rating to continue — there are more decisions to defend."}</p>
-          </div>
-        </>
+        </div>
       )}
     </>
   );
@@ -600,8 +736,7 @@ function FeedbackCard({ f }: { f: AnswerFeedback }) {
       </div>
       {(f.covered || []).length > 0 && (<><div className="field-label">What held up</div><ul className="fb-ok">{f.covered!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
       {(f.missing || []).length > 0 && (<><div className="field-label">What was missing</div><ul className="fb-miss">{f.missing!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
-      {f.followup && (<div className="fb-followup"><div className="field-label">The interviewer would push back</div><p>{f.followup}</p></div>)}
-      <p className="hint">Now reveal the strong answer to compare, then rate yourself to continue.</p>
+      {f.followup && (<div className="fb-followup"><div className="field-label">The interviewer would push back</div><p>{f.followup}</p><p className="muted small">Say your answer to this out loud before you move on.</p></div>)}
     </div>
   );
 }
@@ -613,13 +748,23 @@ type SaveResult =
   | { saved: false; local: true; reason: string; error?: string };
 
 function Summary({
-  scenario, ratings, pct, offline, runId, workflowJobId, boundJobId, whoFallback, onPersistLocal, onBack,
+  scenario, steps, pct, offline, runId, workflowJobId, boundJobId, whoFallback, onPersistLocal, onBack, onRetry, nextUp, onOpenNext,
 }: {
-  scenario: Scenario; ratings: Record<string, number>; pct: number; offline: boolean; runId: string;
+  scenario: Scenario; steps: StepResult[]; pct: number; offline: boolean; runId: string;
   workflowJobId: string; boundJobId: string; whoFallback: string; onPersistLocal(): void; onBack(): void;
+  onRetry(): void; nextUp: Scenario | null; onOpenNext(s: Scenario): void;
 }) {
   const auth = useAuth();
-  const n = Object.keys(ratings).length;
+  const n = steps.length;
+  // Best earlier score on this drill, read before this run is saved.
+  const [prevBest] = useState<number | null>(() => {
+    let b: number | null = null;
+    for (const h of readJSON<{ slug?: string; score?: number }[]>(KEYS.scenarioSessions, [])) {
+      if (h && h.slug === scenario.slug && typeof h.score === "number") b = b == null ? h.score : Math.max(b, h.score);
+    }
+    return b;
+  });
+  const weakest = steps.length > 1 ? steps.slice().sort((a, b) => a.rating - b.rating || (a.ai ?? 0) - (b.ai ?? 0))[0] : null;
   const [result, setResult] = useState<SaveResult | null>(null);
   const [attempt, setAttempt] = useState(0);
   const inFlight = useRef(false);
@@ -679,22 +824,18 @@ function Summary({
 
   const jt = whoFallback || "your job";
   const retry = () => { setResult(null); setAttempt((a) => a + 1); };
-  const allBtn = <button type="button" className="btn btn-ghost" onClick={onBack}>All scenarios</button>;
+  const allBtn = null; // "All drills" is always shown below
 
   let status: ReactNode = <p className="status">Saving practice and updating readiness{"…"}</p>;
   let actions: ReactNode = null;
   if (result?.saved && !result.partial) {
     const ov = typeof result.readiness?.overall === "number" ? result.readiness.overall : null;
     status = (
-      <div className="complete" role="status">
-        <div className="complete-badge">{"✅"} Scenario complete</div>
-        <ul className="complete-list">
-          <li>Practice saved to <strong>{jt}</strong></li>
-          <li>{ov != null ? <>Interview Readiness updated {"—"} now <strong>{ov}%</strong></> : "Interview Readiness updated"}</li>
-        </ul>
-      </div>
+      <p className="status status-ok" role="status">
+        Saved to <strong>{jt}</strong>. {ov != null ? <>Readiness is now <strong>{ov}</strong>. <Link to="/dashboard">See readiness</Link></> : <Link to="/dashboard">See readiness</Link>}
+      </p>
     );
-    actions = (<><Link className="btn btn-primary" to="/dashboard">See readiness {"→"}</Link><button type="button" className="btn btn-ghost" onClick={onBack}>Try another scenario</button></>);
+    actions = null;
   } else if (result?.saved && result.partial) {
     status = <p className="status status-warn">{result.reason === "schema_missing"
       ? "Scenario completed and your practice was saved, but readiness storage isn’t fully deployed yet (migration 0006). Readiness will update once it’s applied."
@@ -704,7 +845,7 @@ function Summary({
     const r = result.reason;
     if (r === "schema_missing") {
       status = <p className="status status-err">Scenario completed, but readiness storage isn{"’"}t fully deployed yet, so we couldn{"’"}t save this to your job. (Migration 0006 needs to be applied.)</p>;
-      actions = (<><button type="button" className="btn btn-primary" onClick={retry}>Try Saving Again</button>{allBtn}</>);
+      actions = (<><button type="button" className="btn btn-primary" onClick={retry}>Try saving again</button>{allBtn}</>);
     } else if (r === "choose") {
       status = <p className="status status-warn">Scenario completed. You have more than one saved job {"—"} <Link to="/jobs">open the job</Link> you{"’"}re practicing for, then re-run so it counts toward that job{"’"}s readiness.</p>;
       actions = allBtn;
@@ -725,17 +866,54 @@ function Summary({
             ? "Scenario completed, but we couldn’t load your jobs to attribute this practice. Please try again."
             : "Scenario completed, but the server couldn’t save it right now. Please try again — your practice is kept in this browser meanwhile.";
       status = <p className="status status-err">{msg}</p>;
-      actions = (<><button type="button" className="btn btn-primary" onClick={retry}>Try Saving Again</button>{allBtn}</>);
+      actions = (<><button type="button" className="btn btn-primary" onClick={retry}>Try saving again</button>{allBtn}</>);
     }
   }
 
+  const delta = prevBest != null && n ? pct - prevBest : null;
   return (
-    <div className="card summary">
-      <div className="big-score">{n ? pct + "%" : "✓"}</div>
-      <p>{scenario.title} {"—"} {n} decisions defended.</p>
-      <p>{pct >= 80 ? "Strong — you held the line under follow-ups." : pct >= 60 ? "Solid. Revisit the ones you rated low and run it again." : "Good start. Re-read the strong answers, then rerun."}</p>
+    <div className="card summary drill-summary">
+      <div className="drill-sum-head">
+        <div className="big-score">{n ? pct + "%" : "✓"}</div>
+        <div>
+          <h2 className="drill-sum-title">{scenario.title}</h2>
+          <p className="muted">
+            {n} {n === 1 ? "decision" : "decisions"} defended.{" "}
+            {delta != null ? (delta > 0 ? "Up " + delta + " on your best." : delta < 0 ? "Your best is " + prevBest + "%." : "Same as your best.") : ""}
+          </p>
+          <p>{pct >= 80 ? "Strong: you held the line under follow-ups." : pct >= 60 ? "Solid. Work on the weakest step below, then run it again." : "A good start. Read the strong answers for the low steps, then rerun."}</p>
+        </div>
+      </div>
+      {n > 0 && (
+        <ol className="drill-steps">
+          {steps.map((st) => {
+            const p = st.ai ?? st.rating * 20;
+            const tone = p >= 80 ? "good" : p >= 55 ? "mid" : "low";
+            return (
+              <li key={st.id} className={"drill-step" + (weakest && weakest.id === st.id ? " weakest" : "")}>
+                <span className="drill-step-kind">{kindInfo(st.kind).name}</span>
+                <span className="drill-step-q">{st.prompt}</span>
+                <span className="drill-step-score">
+                  <span className="qw-bar" aria-hidden="true"><span className={"fill-" + tone} style={{ width: p + "%" }} /></span>
+                  <span className="small">{st.ai != null ? st.ai + "%" : st.rating + "/5"}</span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {weakest && weakest.rating < 4 && (
+        <div className="drill-focus">
+          <strong>Work on: {kindInfo(weakest.kind).name.toLowerCase()}.</strong> {kindInfo(weakest.kind).tip}
+        </div>
+      )}
       {status}
-      <div className="row">{actions}</div>
+      <div className="row wrap">
+        <button type="button" className="btn btn-primary" onClick={onRetry}>Run it again</button>
+        {nextUp && <button type="button" className="btn" onClick={() => onOpenNext(nextUp)}>Next drill: {nextUp.title}</button>}
+        {actions}
+        <button type="button" className="btn btn-ghost" onClick={onBack}>All drills</button>
+      </div>
     </div>
   );
 }
