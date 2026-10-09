@@ -9,6 +9,7 @@ import { SIM_BANK_EXTRA } from "../data/simulatorBankExtra";
 const SIM_BANK: SimItem[] = [...BASE_BANK, ...SIM_BANK_EXTRA];
 import { record } from "../lib/progressStore";
 import { Link } from "../lib/router";
+import { track } from "../lib/track";
 
 const AREAS = Array.from(new Set(SIM_BANK.map((b) => b.area)));
 const LENGTHS = [["3", "Quick (3)"], ["5", "Standard (5)"], ["8", "Full loop (8)"]] as const;
@@ -192,6 +193,7 @@ function Results({ run, onAgain }: { run: Run; onAgain(): void }) {
   useEffect(() => {
     if (saved.current || !answered) return;
     saved.current = true;
+    track("mock_completed", { kind: "text", answers: answered, score });
     record({ mode: "exam", track: "Master Simulator", topic: run.level === "Mixed" ? "Mixed loop" : run.level, score, n: answered, topics });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

@@ -8,6 +8,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../config";
 import { flushSync, startSync, stopSync, wantKeepalive } from "./sync";
+import { track } from "./track";
 
 /** fetch for the Supabase client: a page-hide sync flush goes out with
  * keepalive (when small enough) so it survives the tab closing. */
@@ -74,7 +75,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {})
       .finally(() => alive && setReady(true));
-    const { data } = c.auth.onAuthStateChange((_evt, s) => setSession(s ?? null));
+    const { data } = c.auth.onAuthStateChange((evt, s) => {
+      setSession(s ?? null);
+      if (evt === "SIGNED_IN" && s) track("signed_in");
+    });
     return () => {
       alive = false;
       data.subscription.unsubscribe();

@@ -21,6 +21,7 @@ import { deleteAllSyncedData, exportAllData } from "../lib/sync";
 import { AuthForm } from "../components/AuthForm";
 import { SyncStatus } from "../components/SyncStatus";
 import { Card } from "../components/ui";
+import { track } from "../lib/track";
 
 type Banner = { text: string; tone: "info" | "ok" | "err" } | null;
 type Want = BillingOption | "auto" | null;
@@ -76,6 +77,7 @@ export default function AccountPage() {
       const tok = await auth.getAccessToken();
       if (!tok) { started.current = false; setBanner({ text: "Please sign in below, then try again.", tone: "info" }); return; }
       const option = resolveOption(wantsUpgrade, billing.info);
+      track("checkout_started", { option });
       const res = await api.startCheckoutOption(tok, option);
       if (res.status === 200 && res.body?.url) {
         setBanner({ text: "Redirecting to secure checkout…", tone: "ok" });

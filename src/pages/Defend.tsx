@@ -22,6 +22,7 @@ import { AuthForm } from "../components/AuthForm";
 import { Card, ErrorText } from "../components/ui";
 import { JobPicker } from "../components/JobPicker";
 import type { Analysis, AnswerFeedback, JobRow, Scenario, ScenarioNode } from "../types";
+import { track } from "../lib/track";
 
 interface JobContext {
   category: string | null;
@@ -787,6 +788,7 @@ function Summary({
   };
 
   async function persistSession(): Promise<SaveResult> {
+    track("drill_completed", { scenario: scenario.slug, score: pct });
     if (offline || !API_ENABLED || !auth.configured) { localSave(); return { saved: false, local: true, reason: "signedout" }; }
     const tok = await auth.getAccessToken();
     if (!tok) { localSave(); return { saved: false, local: true, reason: "signedout" }; }

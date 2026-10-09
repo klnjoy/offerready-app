@@ -16,6 +16,7 @@ import { AnswerCoach } from "../components/AnswerCoach";
 import { JobPicker } from "../components/JobPicker";
 import { qKey, useQuestionProgress } from "../lib/questionProgress";
 import type { Analysis, GeneratedQuestion, JobRow } from "../types";
+import { track } from "../lib/track";
 
 const CATEGORY_LABEL: Record<string, string> = {
   technical: "Technical",
@@ -84,7 +85,10 @@ export default function QuestionsPage() {
     setView({ kind: "loading", msg: "Generating your question set…" });
     const tok = await auth.getAccessToken();
     const res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d });
-    if (res.status === 200 && res.body?.questions) setView({ kind: "result", questions: res.body.questions, saved: !!res.body.saved });
+    if (res.status === 200 && res.body?.questions) {
+      track("questions_generated", { n: res.body.questions.length });
+      setView({ kind: "result", questions: res.body.questions, saved: !!res.body.saved });
+    }
     else if (res.status === 401) setView({ kind: "form", note: "Sign in (Account, top right) to get questions, then try again." });
     else if (res.status === 503) setView({ kind: "form", note: "Question generation isn't enabled on this deployment yet." });
     else if (res.status === 0) setView({ kind: "form", note: "Couldn't reach the generator. Check your connection and try again." });
@@ -239,6 +243,7 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
 
   const onResult = async (q: GeneratedQuestion, score: number, how: "ai" | "self") => {
     saveProgress(q.prompt, { score, how, at: new Date().toISOString() });
+    track("question_practised", { how, score });
     if (!jobId) return;
     const tok = await auth.getAccessToken();
     if (!tok) { setSavedNote("Practice saved on this device. Sign in to count it toward readiness."); return; }
