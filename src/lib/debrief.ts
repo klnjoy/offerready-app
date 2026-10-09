@@ -54,6 +54,11 @@ export interface Debrief {
   nextDate: string;
   nextRound?: RoundType | "";
   notes: string;
+  /** Company name as the user confirmed it (prefilled from the job). */
+  company?: string;
+  /** Opt-in: share company, round, month and the questions anonymously
+   * (lib/communityShare.ts). Never interviewers or notes. */
+  share?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,6 +105,8 @@ export function normalizeDebrief(raw: unknown): Debrief | null {
     nextDate: validDay(r.nextDate) ? (r.nextDate as string) : "",
     nextRound: isRound(r.nextRound) ? r.nextRound : "",
     notes: str(r.notes, 2000),
+    company: str(r.company, 80),
+    share: r.share === true,
     createdAt: str(r.createdAt, 40),
     updatedAt: str(r.updatedAt, 40),
   };

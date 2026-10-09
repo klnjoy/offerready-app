@@ -2483,3 +2483,37 @@ tbody tr:last-child td { border-bottom: 0; }
 .fbk-ends { display: none; justify-content: space-between; font-size: 0.75rem; color: var(--text-3); margin-top: 4px; }
 @media (max-width: 420px) { .fbk-pill span { display: none; } .fbk-ends { display: flex; } }
 button.acct-item { background: none; border: 0; text-align: left; font: inherit; font-weight: 550; cursor: pointer; width: 100%; }
+
+/* ---- rubric feedback (components/FeedbackView.tsx) ---- */
+.fb-headtext { display: flex; flex-direction: column; gap: 2px; }
+.fb-level { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.fb-level-staff, .fb-level-senior { color: var(--good); }
+.fb-level-almost { color: var(--mid); }
+.fb-level-not_yet { color: var(--weak); }
+.fb-crit { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.fb-crit-row { border-top: 1px solid var(--border); padding-top: 8px; }
+.fb-crit-row:first-child { border-top: 0; padding-top: 0; }
+.fb-crit-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fb-crit-label { font-weight: 600; flex: 1 1 12rem; }
+.fb-dots { display: inline-flex; gap: 3px; }
+.fb-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); display: inline-block; }
+.fb-crit-row.r1 .fb-dots i.on { background: var(--weak); }
+.fb-crit-row.r2 .fb-dots i.on { background: var(--mid); }
+.fb-crit-row.r3 .fb-dots i.on { background: var(--good); }
+.fb-crit-rating { font-size: 0.8rem; color: var(--text-2); min-width: 5.5rem; text-align: right; }
+.fb-crit-note { margin: 4px 0 0; font-size: 0.92rem; }
+.fb-crit-quote { margin: 2px 0 0; font-size: 0.82rem; color: var(--text-3); font-style: italic; }
+.fb-cap { margin: 0; font-size: 0.85rem; color: var(--text-2); }
+.fb-staff { background: var(--surface); border: 1px dashed var(--border-strong); border-radius: var(--r-sm); padding: 8px 12px; }
+.fb-staff p { margin: 4px 0 0; }
+@media (max-width: 480px) { .fb-crit-rating { min-width: 0; text-align: left; } }
+
+/* ---- outcome check-in (components/OutcomeCheckIn.tsx) ---- */
+.oc { display: flex; flex-direction: column; gap: 10px; border-left: 4px solid var(--accent); }
+.oc h2 { margin: 0; font-size: 1.15rem; }
+.oc-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.oc-btn.oc-offer { border-color: var(--good); }
+.oc-done { margin: 0; }
+.dto-share { background: var(--surface-2); border-radius: var(--r-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.dto-share-check { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+.dto-share p { margin: 0; }

@@ -23,6 +23,7 @@ import { Card, Loading, Muted } from "../components/ui";
 import ReadinessOverview from "./ReadinessOverview";
 import { JobPicker } from "../components/JobPicker";
 import type { GapRow, JobDetail, JobRow, PracticeRow, ProgressRow } from "../types";
+import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 
 interface Cached {
   when: number;
@@ -100,7 +101,8 @@ export default function DashboardPage() {
   else if (!detail) body = <Loading>Loading your readiness{"…"}</Loading>;
   else body = <Readiness key={detail.job.id} detail={detail} jobs={jobsState.jobs} onSwitch={openJob} />;
 
-  return <div className="page rd">{body}</div>;
+  const ready = jobsState.status === "ready" && jobsState.jobs.length > 0;
+  return <div className="page rd">{ready ? <OutcomeCheckIn jobs={jobsState.jobs} /> : null}{body}</div>;
 }
 
 function SignedOut() {

@@ -18,6 +18,7 @@ import { downloadText } from "../lib/analysisExport";
 import { installState, promptInstall, subscribePwa } from "../lib/pwa";
 import { KEYS, allLocalKeys, writeStringQuiet } from "../lib/storage";
 import { deleteAllSyncedData, exportAllData } from "../lib/sync";
+import { deleteCommunityData } from "../lib/communityShare";
 import { AuthForm } from "../components/AuthForm";
 import { SyncStatus } from "../components/SyncStatus";
 import { Card } from "../components/ui";
@@ -274,6 +275,8 @@ function YourDataCard() {
       const r = await deleteAllSyncedData();
       if (r.ok) lines.push("Synced preparation data and synced resume: deleted.");
       else { ok = false; lines.push("Synced data: not deleted (" + (r.error || "error") + ")."); }
+      // Shared interview questions and interview results (opt-in data).
+      if (await deleteCommunityData()) lines.push("Shared interview questions and interview results: deleted.");
       // 2. Saved jobs, with their analyses, questions and readiness history.
       const tok = await auth.getAccessToken();
       if (tok && API_ENABLED) {

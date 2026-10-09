@@ -40,6 +40,7 @@ const BACKUP_KEY = "offerready.sync.backup.v1";
 const LIB_EVENTS: Record<string, string> = {
   [KEYS.interviewDates]: "offerready:interviewdates",
   [KEYS.debriefs]: "offerready:debriefs",
+  [KEYS.jobOutcomes]: "offerready:joboutcomes",
   [KEYS.resume]: "offerready:resume",
 };
 

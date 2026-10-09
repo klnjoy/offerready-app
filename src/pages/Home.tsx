@@ -17,6 +17,7 @@ import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
 import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
+import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import type { JobRow } from "../types";
 
 /* ---------- content ---------- */
@@ -129,6 +130,8 @@ function ContinueBar() {
   const prep = typeof job.prep_progress === "number" ? Math.max(0, Math.min(100, Math.round(job.prep_progress))) : null;
   const meta = [job.company, job.seniority].filter(Boolean).join(" · ");
   return (
+    <>
+    <OutcomeCheckIn jobs={jobs} />
     <section className="hm-continue" aria-labelledby="hm-continue-h">
       <div className="hm-continue-job">
         <p className="hm-continue-label" id="hm-continue-h">Continue where you left off</p>
@@ -149,6 +152,7 @@ function ContinueBar() {
         {jobs.length > 1 ? <Link className="hm-continue-all" to="/jobs">All {jobs.length} jobs</Link> : null}
       </div>
     </section>
+    </>
   );
 }
 

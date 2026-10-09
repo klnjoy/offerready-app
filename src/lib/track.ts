@@ -23,7 +23,9 @@ export type TrackEvent =
   | "drill_completed"
   | "mock_completed"
   | "checkout_started"
-  | "feedback_sent";
+  | "feedback_sent"
+  | "debrief_saved"
+  | "outcome_reported";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 
