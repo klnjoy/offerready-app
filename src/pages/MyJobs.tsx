@@ -3,12 +3,13 @@
 import { useMemo, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { countdownLabel, daysUntil, formatDay, useInterviewDates } from "../lib/interviewDates";
+import { daysUntil, useInterviewDates } from "../lib/interviewDates";
 import { clearActiveJob, getActiveJob, setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
+import { InterviewChip } from "../components/InterviewChip";
 import { Card, Loading, Muted } from "../components/ui";
 import { readString, writeString } from "../lib/storage";
 import type { JobRow } from "../types";
@@ -381,14 +382,3 @@ function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; 
   );
 }
 
-function InterviewChip({ date }: { date: string }) {
-  const days = daysUntil(date);
-  if (days == null) return null;
-  const label = days > 1 ? "Interview in " + days + " days" : days === 1 ? "Interview tomorrow" : countdownLabel(days);
-  return (
-    <span className={"iv-chip" + (days >= 0 && days <= 3 ? " iv-chip-soon" : "") + (days < 0 ? " iv-chip-past" : "")} title={formatDay(date, { weekday: "long", month: "long", day: "numeric" })}>
-      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-      {label}
-    </span>
-  );
-}
