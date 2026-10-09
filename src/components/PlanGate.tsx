@@ -3,7 +3,9 @@
  * for showing after the server answers 403 {upgrade:true}.
  * CONTRACT: keep these props stable; other screens use them. */
 import type { ReactNode } from "react";
+import type { PassKind } from "../lib/api";
 import { LIMITS, PLAN_MATRIX, featureNoun, usePlan, type Feature } from "../lib/plans";
+import { MOCK_PACK, PASSES, POPULAR, passName } from "../lib/passes";
 import { Link } from "../lib/router";
 
 function LockIcon() {
@@ -22,26 +24,34 @@ function labelFor(feature: Feature): string {
 }
 
 /** Default explanation, from the user's real usage when we have it. */
-function defaultMessage(feature: Feature, used: number, limit: number | null): string {
-  const pro = LIMITS.pro[feature];
-  const proPart = pro === null ? "Pro has no monthly limit." : `Pro includes ${pro} ${featureNoun(feature, pro)} a month.`;
+function defaultMessage(feature: Feature, used: number, limit: number | null, pass: PassKind | null): string {
+  const pop = PASSES[POPULAR];
+  const inPop = pop.limits[feature];
+  const popPart = inPop === null ? `Every pass includes it.` : `The ${pop.name} includes ${inPop} ${featureNoun(feature, inPop)}.`;
+  if (pass) {
+    const name = passName(pass);
+    if (feature === "saved_jobs") return `Your ${name} includes ${limit ?? 1} ${featureNoun(feature, limit ?? 1)}. Remove one you no longer need, or add a bigger pass.`;
+    return `You’ve used all ${limit ?? 0} ${featureNoun(feature, 2)} in your ${name}.${feature === "voice_mock" ? " A mock pack adds 10 more, or add another pass." : " Add another pass to top it up."}`;
+  }
   if (feature === "saved_jobs") {
-    return `Free includes ${limit ?? 1} ${featureNoun(feature, limit ?? 1)}. Pro saves as many jobs as you need.`;
+    return `Free includes ${limit ?? 1} ${featureNoun(feature, limit ?? 1)}. ${popPart}`;
   }
   if (!limit) {
-    return `${labelFor(feature)} ${feature === "premium_scenarios" ? "is previews only" : "isn’t included"} on Free. ${proPart}`;
+    return `${labelFor(feature)} ${feature === "premium_scenarios" ? "is previews only" : "isn’t included"} on Free. ${popPart}`;
   }
-  return `You’ve used ${used} of ${limit} ${featureNoun(feature, 2)} this month on Free. ${proPart}`;
+  return `You’ve used ${used} of ${limit} ${featureNoun(feature, 2)} this month on Free. ${popPart}`;
 }
 
 export function UpgradeCard({ feature, title, message }: { feature: Feature; title?: string; message?: string }) {
   const p = usePlan();
   const u = p.usage[feature];
+  const passKind = p.pass ? p.pass.kind : null;
   const limit = u ? u.limit : LIMITS.free[feature];
   const used = u && !u.unknown ? u.used : limit ?? 0;
-  const heading = title || (limit ? `You’ve reached this month’s Free limit` : `${labelFor(feature)} is part of Pro`);
+  const heading = title || (passKind ? `You’ve used this part of your pass` : limit ? `You’ve reached this month’s Free limit` : `${labelFor(feature)} comes with a pass`);
+  const isMock = feature === "voice_mock";
   return (
-    <div className="card upgrade-card" role="region" aria-label="Upgrade to Pro">
+    <div className="card upgrade-card" role="region" aria-label="Get more with a pass">
       <div className="upgrade-head">
         <span className="upgrade-icon">
           <LockIcon />
@@ -49,20 +59,33 @@ export function UpgradeCard({ feature, title, message }: { feature: Feature; tit
         <h3>{heading}</h3>
       </div>
       {message ? <p className="upgrade-lead">{message}</p> : null}
-      <p className="upgrade-msg">{defaultMessage(feature, used, limit)}</p>
-      {p.resetsAt && limit ? (
+      <p className="upgrade-msg">{defaultMessage(feature, used, limit, passKind)}</p>
+      {p.resetsAt && limit && !passKind ? (
         <p className="upgrade-reset small">
           Free resets on{" "}
           {new Date(p.resetsAt).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}.
         </p>
       ) : null}
+      <p className="upgrade-reset small">One-time payment. Nothing renews.</p>
       <div className="row upgrade-actions">
-        <Link className="btn btn-primary" to="/account?upgrade=1">
-          Upgrade to Pro
-        </Link>
-        <Link className="btn btn-ghost" to="/pricing">
-          Compare plans
-        </Link>
+        {isMock && passKind ? (
+          <Link className="btn btn-primary" to={"/account?upgrade=1&option=" + MOCK_PACK.kind}>
+            Add {MOCK_PACK.amount} mock interviews ({MOCK_PACK.price})
+          </Link>
+        ) : (
+          <Link className="btn btn-primary" to="/pricing">
+            {passKind ? "Add another pass" : "See passes"}
+          </Link>
+        )}
+        {isMock && !passKind ? (
+          <Link className="btn btn-ghost" to={"/account?upgrade=1&option=" + MOCK_PACK.kind}>
+            Or {MOCK_PACK.amount} mock interviews for {MOCK_PACK.price}
+          </Link>
+        ) : (
+          <Link className="btn btn-ghost" to="/pricing">
+            Compare passes
+          </Link>
+        )}
       </div>
     </div>
   );

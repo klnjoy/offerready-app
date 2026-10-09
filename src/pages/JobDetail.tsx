@@ -328,7 +328,7 @@ function Overview({ data }: { data: JobDetail }) {
             ) : (
               <>
                 <button type="button" className="btn btn-small" disabled aria-describedby="td-cal-pro">Add to calendar</button>
-                <Link id="td-cal-pro" className="pro-badge" to="/pricing" title="Calendar export is a Pro feature">Pro</Link>
+                <Link id="td-cal-pro" className="pro-badge" to="/pricing" title="Calendar export comes with any pass">Pass</Link>
               </>
             )}
           </div>

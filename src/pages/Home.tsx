@@ -11,8 +11,8 @@
 
 import type { ReactNode } from "react";
 import { DOCS_BASE, STUDY_URL } from "../config";
-import { useBilling } from "../lib/billing";
 import { LIMITS, PLAN_MATRIX } from "../lib/plans";
+import { PASSES } from "../lib/passes";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
 import { Icon, type IconName } from "../components/Icon";
@@ -221,8 +221,6 @@ function Journey() {
 /* ---------- page ---------- */
 
 export default function HomePage() {
-  const billing = useBilling();
-  const sprint = !!billing.info && billing.info.options.includes("sprint");
   return (
     <div className="page hm">
       <ContinueBar />
@@ -379,8 +377,8 @@ export default function HomePage() {
       <section className="hm-section hm-plans" aria-labelledby="hm-plan-h">
         <div className="hm-plans-intro">
           <p className="hm-kicker">Plans</p>
-          <h2 id="hm-plan-h" className="hm-h2">Start free. Upgrade when your interview gets close.</h2>
-          <p className="hm-sub">The free plan covers a full prep loop for one job. Pro raises the limits for heavy practice weeks and unlocks the full scenario library.{sprint ? <> Interview already booked? The 30-day Interview Sprint pass covers it with one payment and no renewal.</> : null}</p>
+          <h2 id="hm-plan-h" className="hm-h2">Start free. Pay once when your interview is real.</h2>
+          <p className="hm-sub">The free plan covers a full prep loop for one job. When an interview is booked, a one-time pass covers your search: {PASSES.job.price} for one job, up to {PASSES.pass365.price} for a year. No subscription, nothing to cancel.</p>
           <div className="hm-cta-row">
             <Link className="btn btn-primary btn-lg" to="/analyze">Start free</Link>
             <Link className="btn btn-lg" to="/pricing">See pricing</Link>
@@ -388,9 +386,9 @@ export default function HomePage() {
         </div>
         <div className="hm-plan-table">
           <table>
-            <caption className="hm-sr">Free and Pro plans compared</caption>
+            <caption className="hm-sr">Free and the 90-day pass compared</caption>
             <thead>
-              <tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col" className="hm-pro-col">Pro</th></tr>
+              <tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col" className="hm-pro-col">90-day pass ({PASSES.pass90.price} once)</th></tr>
             </thead>
             <tbody>
               {PLAN_MATRIX.map((row) => (

@@ -501,7 +501,7 @@ function NodeBody({
     setGrading(false);
     if (res.status === 200 && res.body?.feedback) setFeedback(res.body.feedback);
     else if (res.status === 401) setGradeNote("Sign in to have your answer graded. You can still reveal the strong answer below.");
-    else if (res.status === 403) setGradeNote((res.body?.error || "You’ve reached your AI feedback limit. Upgrade to Pro for more.") + " You can still reveal the strong answer below.");
+    else if (res.status === 403) setGradeNote((res.body?.error || "You’ve reached your AI feedback limit. Get a pass for more.") + " You can still reveal the strong answer below.");
     else if (res.status === 0) setGradeNote("Couldn't reach the feedback service — reveal the strong answer below and self-rate.");
     else setGradeNote("Couldn't grade that right now — reveal the strong answer below and self-rate.");
   };

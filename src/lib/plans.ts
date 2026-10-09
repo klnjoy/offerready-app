@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_ENABLED } from "../config";
 import * as api from "./api";
-import type { PlanResponse } from "./api";
+import type { PassKind, PlanResponse } from "./api";
 import { useAuth } from "./auth";
 
 export type Plan = "free" | "pro";
@@ -26,30 +26,40 @@ export type Feature =
 
 export interface Usage { used: number; limit: number | null; unknown?: boolean } // null = unlimited; unknown = server couldn't count
 
+export interface PlanPass { kind: PassKind; kinds: PassKind[]; expiresAt: string }
+
 export interface PlanInfo {
   plan: Plan;
   signedIn: boolean;
   loading: boolean;
   usage: Partial<Record<Feature, Usage>>;
-  /** When monthly counters reset (ISO, first instant of next UTC month). */
+  /** When monthly counters reset (ISO, first instant of next UTC month). Unset on a pass: its allowance doesn't reset. */
   resetsAt?: string;
+  /** The live one-time pass, when Pro comes from one. Usage then counts since the pass started. */
+  pass: PlanPass | null;
+  /** Mock pack credits left (never expire). */
+  mockCredits: number;
 }
 
-/** Shown on Pricing, Account and the home page. */
+/** Feature rows for Pricing, Account and the home page. `free` is the monthly
+ * Free allowance; `pro` is what the most popular pass (90 days) includes for
+ * its whole length. Pricing shows every pass from lib/passes. */
 export const PLAN_MATRIX: { feature: Feature | "library"; label: string; free: string; pro: string }[] = [
   { feature: "library", label: "Study library, question banks, practice mode", free: "Included", pro: "Included" },
-  { feature: "saved_jobs", label: "Saved jobs", free: "1", pro: "Unlimited" },
-  { feature: "analyses", label: "Job analyses", free: "3 / month", pro: "60 / month" },
+  { feature: "saved_jobs", label: "Saved jobs", free: "1", pro: "15" },
+  { feature: "analyses", label: "Job analyses", free: "3 / month", pro: "80" },
   { feature: "prep_plan", label: "Day-by-day plan to your interview date", free: "Included", pro: "Included + calendar export" },
-  { feature: "ai_grading", label: "AI feedback on your answers", free: "5 / month", pro: "400 / month" },
-  { feature: "voice_mock", label: "Voice mock interview with follow-ups", free: "1 session / month", pro: "40 sessions / month" },
+  { feature: "ai_grading", label: "AI feedback on your answers", free: "5 / month", pro: "600" },
+  { feature: "voice_mock", label: "Voice mock interview with follow-ups", free: "1 / month", pro: "20" },
   { feature: "premium_scenarios", label: "Defend-your-decision scenario library", free: "Previews", pro: "Full library" },
-  { feature: "custom_scenarios", label: "Scenarios generated for your job", free: "—", pro: "40 / month" },
-  { feature: "story_ai", label: "STAR story bank coaching", free: "3 / month", pro: "150 / month" },
-  { feature: "resume_tailor", label: "Resume tailoring for a job", free: "2 / month", pro: "100 / month" },
+  { feature: "custom_scenarios", label: "Scenarios generated for your job", free: "—", pro: "40" },
+  { feature: "story_ai", label: "STAR story bank coaching", free: "3 / month", pro: "120" },
+  { feature: "resume_tailor", label: "Resume tailoring for a job", free: "2 / month", pro: "80" },
 ];
 
-/** Monthly limits; must match api/_lib/plans.js LIMITS. null = unlimited. */
+/** Monthly limits; must match api/_lib/plans.js LIMITS. null = unlimited.
+ * `pro` is the monthly subscription (only sold if configured); passes have
+ * their own whole-pass allowances in lib/passes. */
 export const LIMITS: Record<Plan, Record<Feature, number | null>> = {
   free: { saved_jobs: 1, analyses: 3, ai_grading: 5, voice_mock: 1, custom_scenarios: 0, premium_scenarios: 0, story_ai: 3, prep_plan: null, resume_tailor: 2 },
   pro: { saved_jobs: null, analyses: 60, ai_grading: 400, voice_mock: 40, custom_scenarios: 40, premium_scenarios: null, story_ai: 150, prep_plan: null, resume_tailor: 100 },
@@ -83,10 +93,10 @@ export function canUse(usage: Partial<Record<Feature, Usage>>, f: Feature): bool
 
 // ---- usePlan: /api/me/plan with a 2-minute memory + sessionStorage cache ----
 
-interface Cached { who: string; at: number; plan: Plan; usage: Partial<Record<Feature, Usage>>; resetsAt?: string }
+interface Cached { who: string; at: number; plan: Plan; usage: Partial<Record<Feature, Usage>>; resetsAt?: string; pass?: PlanPass | null; mockCredits?: number }
 
 const TTL_MS = 2 * 60 * 1000;
-const SS_KEY = "offerready.plan.v1";
+const SS_KEY = "offerready.plan.v2";
 let mem: Cached | null = null;
 let inflight: { who: string; p: Promise<void> } | null = null;
 const listeners = new Set<() => void>();
@@ -118,7 +128,7 @@ function fresh(who: string): Cached | null {
   return s;
 }
 
-function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsAt"> {
+function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsAt" | "pass" | "mockCredits"> {
   const plan: Plan = body.plan === "pro" ? "pro" : "free";
   const usage: Partial<Record<Feature, Usage>> = {};
   for (const f of Object.keys(LIMITS[plan]) as Feature[]) {
@@ -128,7 +138,12 @@ function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsA
     else if (!e || e.unknown || typeof e.used !== "number") usage[f] = { used: 0, limit, unknown: true };
     else usage[f] = { used: e.used, limit };
   }
-  return { plan, usage, resetsAt: body.period_end };
+  const bp = body.pass;
+  const pass: PlanPass | null = plan === "pro" && bp && bp.kind && bp.expires_at
+    ? { kind: bp.kind, kinds: Array.isArray(bp.kinds) && bp.kinds.length ? bp.kinds : [bp.kind], expiresAt: bp.expires_at }
+    : null;
+  const mockCredits = Math.max(0, Number(body.credits?.voice_mock) || 0);
+  return { plan, usage, resetsAt: pass ? undefined : body.period_end, pass, mockCredits };
 }
 
 function notify() {
@@ -199,7 +214,10 @@ export function usePlan(): PlanInfo & { refresh(): void; can(f: Feature): boolea
     loading,
     usage,
     resetsAt: cached?.resetsAt,
+    pass: cached?.pass || null,
+    mockCredits: cached?.mockCredits || 0,
     refresh: () => load(true),
-    can: (f: Feature) => canUse(usage, f),
+    // Pack credits keep voice mock interviews open past the allowance.
+    can: (f: Feature) => canUse(usage, f) || (f === "voice_mock" && (cached?.mockCredits || 0) > 0),
   };
 }
