@@ -8,7 +8,7 @@ import { extractResume } from "../lib/resumeExtract";
 import { resumeLabel, useSavedResume } from "../lib/savedResume";
 
 export const RESUME_PRIVACY =
-  "Read in your browser and saved only on this device, so you add it once. When we compare it with a job, the text is used only for that analysis and never stored on our servers.";
+  "Read in your browser and saved on this device, so you add it once. It syncs to your account only if you turn that on in Account. When we compare it with a job, the text is used only for that analysis and not kept by the analysis.";
 
 export function ResumeField({ onPaste, compact }: {
   /** Pasted (not yet saved) text, so a parent form can save it on submit. */

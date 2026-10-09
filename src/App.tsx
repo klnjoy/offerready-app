@@ -3,7 +3,9 @@ import { DOCS_BASE, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
 import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
+import { SyncIndicator } from "./components/SyncStatus";
 import { Loading } from "./components/ui";
 import HomePage from "./pages/Home";
 
@@ -173,6 +175,7 @@ export default function App() {
               <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
               <span className="add-job-long">Add a job</span><span className="add-job-short" aria-hidden="true">Add</span>
             </Link>
+            <SyncIndicator />
             <AccountMenu pathname={pathname} />
             <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
               {menuOpen ? "Close" : "Menu"}
@@ -189,9 +192,11 @@ export default function App() {
             <p>{match.route.subtitle}</p>
           </header>
         ) : null}
-        <Suspense fallback={<div className="page"><Loading /></div>}>
-          {Page ? <Page {...match!.params} /> : <NotFound />}
-        </Suspense>
+        <ErrorBoundary resetKey={pathname}>
+          <Suspense fallback={<div className="page"><Loading /></div>}>
+            {Page ? <Page {...match!.params} /> : <NotFound />}
+          </Suspense>
+        </ErrorBoundary>
       </main>
 
       <HelpBot />

@@ -6,14 +6,19 @@
  * (/api/billing/portal). */
 
 import { useEffect, useRef, useState } from "react";
-import { API_ENABLED, PRICING_URL, PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SPRINT_PRICE_LABEL } from "../config";
+import { API_ENABLED, DOCS_BASE, PRICING_URL, PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SPRINT_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
 import * as api from "../lib/api";
 import type { BillingInfo, BillingOption } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { invalidateBilling, shortDate, useBilling } from "../lib/billing";
 import { PLAN_MATRIX, featureNoun, usePlan, type Feature } from "../lib/plans";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
+import { downloadText } from "../lib/analysisExport";
+import { installState, promptInstall, subscribePwa } from "../lib/pwa";
+import { KEYS, allLocalKeys, writeStringQuiet } from "../lib/storage";
+import { deleteAllSyncedData, exportAllData } from "../lib/sync";
 import { AuthForm } from "../components/AuthForm";
+import { SyncStatus } from "../components/SyncStatus";
 import { Card } from "../components/ui";
 
 type Banner = { text: string; tone: "info" | "ok" | "err" } | null;
@@ -166,7 +171,225 @@ export default function AccountPage() {
           </div>
         </Card>
       )}
+      <YourDataCard />
+      <InstallAppCard />
     </div>
+  );
+}
+
+// ---- your data: sync, export, delete ----------------------------------------
+
+const CONTACT_URL = DOCS_BASE + "Contact/index.html";
+const CONFIRM_WORD = "DELETE";
+
+function SupportLink() {
+  return SUPPORT_EMAIL
+    ? <a href={"mailto:" + SUPPORT_EMAIL + "?subject=" + encodeURIComponent("Delete my OfferReady account")}>{SUPPORT_EMAIL}</a>
+    : <a href={CONTACT_URL} target="_blank" rel="noopener noreferrer">the Contact page</a>;
+}
+
+/** Saved jobs from the API, in full, for the export file. */
+async function exportJobs(token: string | null): Promise<{ included: boolean; items: unknown[]; error?: string }> {
+  if (!token || !API_ENABLED) return { included: false, items: [] };
+  const list = await api.listJobs(token);
+  if (list.status !== 200 || !list.body) return { included: false, items: [], error: "Couldn’t load your saved jobs (status " + list.status + ")." };
+  const items: unknown[] = [];
+  for (const row of list.body.jobs || []) {
+    const d = await api.getJob(token, row.id);
+    if (d.status === 200 && d.body) {
+      const { ok: _ok, ...detail } = d.body;
+      void _ok;
+      items.push(detail);
+    } else items.push({ ...row, error: "Details couldn’t be loaded." });
+  }
+  return { included: true, items };
+}
+
+/** Removes every OfferReady key from this browser. Keeps the sync pause flag
+ * (deleteAllSyncedData sets it) so nothing is uploaded again by accident, and
+ * the Supabase sign-in session, so the user stays signed in. */
+function clearLocalData(): number {
+  let n = 0;
+  for (const k of allLocalKeys()) {
+    if (k === KEYS.syncOff) continue;
+    writeStringQuiet(k, null);
+    n++;
+  }
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (k && /^(offerready\.|ip_|or_)/.test(k)) sessionStorage.removeItem(k);
+    }
+  } catch {
+    /* blocked */
+  }
+  return n;
+}
+
+type DelResult = { ok: boolean; lines: string[] };
+
+function YourDataCard() {
+  const auth = useAuth();
+  const signedIn = !!auth.session;
+  const [exportMsg, setExportMsg] = useState<Banner>(null);
+  const [exporting, setExporting] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [result, setResult] = useState<DelResult | null>(null);
+  const confirmed = typed.trim() === CONFIRM_WORD;
+
+  const onExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    setExportMsg({ text: "Preparing your file…", tone: "info" });
+    try {
+      const data = await exportAllData();
+      const jobs = await exportJobs(signedIn ? await auth.getAccessToken() : null);
+      const file = { ...data, jobs };
+      const day = new Date().toISOString().slice(0, 10);
+      downloadText("offerready-data-" + day + ".json", JSON.stringify(file, null, 2), "application/json;charset=utf-8");
+      const notes = [data.account.error, jobs.error].filter(Boolean);
+      setExportMsg(notes.length
+        ? { text: "Downloaded, but some parts were missing: " + notes.join(" "), tone: "err" }
+        : { text: "Downloaded offerready-data-" + day + ".json.", tone: "ok" });
+    } catch {
+      setExportMsg({ text: "Couldn’t create the file. Please try again.", tone: "err" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const onDelete = async () => {
+    if (!confirmed || deleting) return;
+    setDeleting(true);
+    setResult(null);
+    const lines: string[] = [];
+    let ok = true;
+    if (signedIn) {
+      // 1. Synced copies (this also pauses sync on this device).
+      const r = await deleteAllSyncedData();
+      if (r.ok) lines.push("Synced preparation data and synced resume: deleted.");
+      else { ok = false; lines.push("Synced data: not deleted (" + (r.error || "error") + ")."); }
+      // 2. Saved jobs, with their analyses, questions and readiness history.
+      const tok = await auth.getAccessToken();
+      if (tok && API_ENABLED) {
+        const list = await api.listJobs(tok);
+        if (list.status === 200 && list.body) {
+          const jobs = list.body.jobs || [];
+          let gone = 0;
+          for (const j of jobs) {
+            const d = await api.deleteJob(tok, j.id);
+            if (d.status === 200 || d.status === 404) gone++;
+          }
+          if (gone === jobs.length) lines.push("Saved jobs: " + (jobs.length ? "deleted " + jobs.length + "." : "none to delete."));
+          else { ok = false; lines.push("Saved jobs: deleted " + gone + " of " + jobs.length + ". Try again for the rest."); }
+        } else { ok = false; lines.push("Saved jobs: couldn’t be loaded, so none were deleted. Try again."); }
+      } else if (API_ENABLED) { ok = false; lines.push("Saved jobs: please sign in again, then retry."); }
+    }
+    // 3. This browser.
+    const n = clearLocalData();
+    lines.push("This browser: cleared " + n + " item" + (n === 1 ? "" : "s") + ".");
+    setResult({ ok, lines });
+    setDeleting(false);
+    setTyped("");
+    if (ok) setOpen(false);
+  };
+
+  return (
+    <Card className="lp-data">
+      <div className="lp-data-head">
+        <h2>Your data</h2>
+        <p className="muted">
+          {signedIn
+            ? "Your preparation syncs to your account so it follows you to every device. Download a copy or delete it any time."
+            : "Signed out, OfferReady keeps your preparation in this browser only. Download a copy or clear it any time."}
+        </p>
+      </div>
+      {signedIn && <SyncStatus />}
+
+      <div className="lp-data-row">
+        <div>
+          <h3>Download my data</h3>
+          <p className="hint">A JSON file with {signedIn ? "your saved jobs and their analyses, your synced preparation data, and " : ""}everything OfferReady keeps in this browser.</p>
+        </div>
+        <button type="button" className="btn btn-ghost" onClick={onExport} disabled={exporting}>{exporting ? "Preparing…" : "Download my data"}</button>
+      </div>
+      {exportMsg && <p className={"lp-note lp-note-" + exportMsg.tone} role="status">{exportMsg.text}</p>}
+
+      <div className="lp-data-row">
+        <div>
+          <h3>Delete my data</h3>
+          <p className="hint">Permanently delete your preparation data. This can’t be undone.</p>
+        </div>
+        {!open && <button type="button" className="btn btn-ghost lp-danger-ghost" onClick={() => { setOpen(true); setResult(null); }}>Delete my data…</button>}
+      </div>
+      {open && (
+        <div className="lp-delete" role="group" aria-labelledby="lp-del-title">
+          <h3 id="lp-del-title">This permanently deletes:</h3>
+          <ul>
+            {signedIn && <li><strong>Your saved jobs</strong>, with their analyses, resume matches, generated questions, practice results and readiness history.</li>}
+            {signedIn && <li><strong>Your synced data</strong>: plan progress, interview dates, stories, debriefs, offers, practice history, help chats and your synced resume.</li>}
+            <li><strong>Everything OfferReady keeps in this browser</strong>, including your saved resume and recent voice sessions.</li>
+          </ul>
+          <p className="hint">
+            {signedIn
+              ? <>It does <strong>not</strong> delete your sign-in account, cancel your plan, or reset this month’s usage. To cancel Pro, use Manage billing. Sync stays paused on this device afterwards; if you’re signed in on other devices, delete there too or their copies will sync back. </>
+              : <>Sign in first if you also want to delete your saved jobs and synced data. </>}
+            {SUPPORT_EMAIL
+              ? <>To delete your account entirely, email <SupportLink /> from the address you signed up with.</>
+              : <>To delete your account entirely, contact us through <SupportLink />.</>}
+          </p>
+          <label className="field-label" htmlFor="lp-del-confirm">Type <code>{CONFIRM_WORD}</code> to confirm</label>
+          <input id="lp-del-confirm" className="input lp-del-input" value={typed} autoComplete="off" spellCheck={false}
+            onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void onDelete(); }} aria-describedby="lp-del-title" />
+          <div className="row wrap">
+            <button type="button" className="btn btn-danger" disabled={!confirmed || deleting} onClick={onDelete}>{deleting ? "Deleting…" : "Delete my data"}</button>
+            <button type="button" className="btn btn-ghost" disabled={deleting} onClick={() => { setOpen(false); setTyped(""); }}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {result && (
+        <div className={"lp-note lp-note-" + (result.ok ? "ok" : "err")} role="status">
+          <strong>{result.ok ? "Your data was deleted." : "Some data wasn’t deleted."}</strong>
+          <ul>{result.lines.map((l) => <li key={l}>{l}</li>)}</ul>
+          <button type="button" className="btn btn-ghost btn-small" onClick={() => window.location.reload()}>Reload the app</button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ---- install the app ---------------------------------------------------------------
+
+function InstallAppCard() {
+  const [state, setState] = useState(installState());
+  const [msg, setMsg] = useState("");
+  useEffect(() => subscribePwa(() => setState(installState())), []);
+  if (state === "installed") return null;
+  const install = async () => {
+    const r = await promptInstall();
+    setMsg(r === "accepted" ? "Installing OfferReady…" : r === "dismissed" ? "No problem. You can install it later from here." : "");
+    setState(installState());
+  };
+  return (
+    <Card className="lp-install">
+      <div className="lp-install-copy">
+        <h2>Install the app</h2>
+        <p className="muted">Open OfferReady from your home screen or dock, in its own window. It opens even when you’re offline.</p>
+        {state === "ios" && (
+          <ol className="lp-install-steps">
+            <li>In Safari, tap the <strong>Share</strong> button.</li>
+            <li>Choose <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>
+          </ol>
+        )}
+        {state === "manual" && (
+          <p className="hint">In Chrome or Edge, use the install icon in the address bar or the browser menu’s “Install app”. On Android, choose “Add to Home screen”.</p>
+        )}
+        {msg && <p className="hint" role="status">{msg}</p>}
+      </div>
+      {state === "prompt" && <button type="button" className="btn btn-primary" onClick={install}>Install app</button>}
+    </Card>
   );
 }
 

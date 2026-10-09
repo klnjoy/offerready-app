@@ -25,6 +25,7 @@ import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router"
 import { useSavedResume } from "../lib/savedResume";
 import { loadStories, neededCompetencies, storyGaps } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
+import { KEYS, onDataChanged } from "../lib/storage";
 import { SignInCard } from "../components/AuthForm";
 import { DebriefCard } from "../components/DebriefHistory";
 import { FitDetails, gapRowToResult, resultToGapRow, topGaps } from "../components/FitSummary";
@@ -181,6 +182,8 @@ function Overview({ data }: { data: JobDetail }) {
   const debriefs = useDebriefs();
 
   useEffect(() => { setState(ensurePlanState(jobId, date, today)); }, [jobId, date, today]);
+  // Account sync brought newer checkmarks: re-read.
+  useEffect(() => onDataChanged([KEYS.prepPlan], () => { setState(ensurePlanState(jobId, date, today)); setDoneDays(allDoneDays()); }), [jobId, date, today]);
 
   const title = displayJobTitle(data.job);
   const derived = useMemo(() => {

@@ -11,6 +11,7 @@ import {
   practicePrompt, saveStories, starCheck, storiesToMarkdown, tagLabel, type Story,
 } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
+import { KEYS, onDataChanged } from "../lib/storage";
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { invalidatePlan } from "../lib/plans";
 import { Card, Muted } from "../components/ui";
@@ -57,6 +58,9 @@ export default function StoriesPage() {
   useEffect(() => {
     if (editing) editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [editing?.story.id, editing?.mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Account sync brought newer stories: re-read.
+  useEffect(() => onDataChanged([KEYS.stories], () => setStories(loadStories())), []);
 
   const persist = (list: Story[]) => { setStories(list); saveStories(list); };
 

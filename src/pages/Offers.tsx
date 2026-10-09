@@ -3,13 +3,14 @@
  * on each dimension marked, deadline countdowns, and a streamed negotiation
  * plan (email + call script) from the help API. */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DIMENSIONS, LEVERAGE, bestBy, deadlineDays, deadlineLabel, emptyOffer, loadOffers, money, moneyShort, negotiationPrompt,
   offerTotals, saveOffers, type Leverage, type Offer,
 } from "../lib/offers";
 import { formatDay, localDay } from "../lib/interviewDates";
 import { newId } from "../lib/debriefStore";
+import { KEYS, onDataChanged } from "../lib/storage";
 import { StreamDraft } from "../components/StreamDraft";
 
 const MAX = 4;
@@ -25,6 +26,9 @@ export default function OffersPage() {
   const today = localDay();
   const [offers, setOffers] = useState<Offer[]>(loadOffers);
   const [editing, setEditing] = useState<Offer | null>(() => (loadOffers().length ? null : emptyOffer(newId("o"))));
+
+  // Account sync brought newer offers: re-read.
+  useEffect(() => onDataChanged([KEYS.offers], () => setOffers(loadOffers())), []);
 
   const persist = (next: Offer[]) => { setOffers(next); saveOffers(next); };
   const save = (o: Offer) => {
