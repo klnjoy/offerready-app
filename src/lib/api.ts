@@ -228,6 +228,8 @@ export interface HelpRequest {
   area?: string;
   history?: HelpTurn[];
   context?: HelpContextPayload;
+  /** "story_coach": metered Story bank coaching (needs the token; 401/403 like other plan features). */
+  purpose?: "story_coach";
 }
 
 export interface HelpExtras {
@@ -246,7 +248,7 @@ export function askHelp(question: string, area: string, extra?: Omit<HelpRequest
 export type HelpStreamOutcome =
   | { kind: "done"; extras: HelpExtras }
   | { kind: "aborted"; gotDelta: boolean }
-  | { kind: "error"; status: number; error?: string; gotDelta: boolean };
+  | { kind: "error"; status: number; error?: string; gotDelta: boolean; body?: QuotaError & { signin?: boolean } };
 
 export interface SseFrame {
   event: string;
@@ -287,13 +289,16 @@ export async function streamHelp(
   req: HelpRequest,
   onDelta: (t: string) => void,
   signal: AbortSignal,
+  token?: string | null,
 ): Promise<HelpStreamOutcome> {
   let gotDelta = false;
   let r: Response;
+  const headers: Record<string, string> = { "Content-Type": "application/json", Accept: "text/event-stream" };
+  if (token) headers.Authorization = "Bearer " + token;
   try {
     r = await fetch(API_BASE + "/api/ask", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers,
       body: JSON.stringify({ ...req, k: 4, stream: true }),
       signal,
     });
@@ -308,7 +313,7 @@ export async function streamHelp(
       onDelta(body.answer);
       return { kind: "done", extras: { citations: body.citations, actions: body.actions, followups: body.followups } };
     }
-    return { kind: "error", status: r.ok ? 502 : r.status, error: body?.error, gotDelta };
+    return { kind: "error", status: r.ok ? 502 : r.status, error: body?.error, gotDelta, body: (body as (QuotaError & { signin?: boolean }) | null) || undefined };
   }
   if (!r.body) return { kind: "error", status: 200, gotDelta };
   const reader = r.body.getReader();
@@ -395,4 +400,102 @@ export interface MockTurnResponse {
 /** One interview turn. Requires sign-in; turn 0 counts one voice_mock session. */
 export function mockTurn(token: string | null, req: MockTurnRequest) {
   return call<MockTurnResponse>("/api/premium/mock-turn", { method: "POST", token, body: req });
+}
+
+// ---- resume tailoring (api/premium/tailor.js) -------------------------------
+
+export interface TailorRequest {
+  /** ≤ 12 bullets, each ≤ 400 chars (the server caps too). */
+  bullets: string[];
+  /** Optional surrounding resume text, ≤ 8000 chars. Sent, never stored. */
+  resume_text?: string;
+  job: { title?: string; company?: string; seniority?: string; skills?: string[]; gaps?: string[] };
+}
+
+export interface TailorResponse {
+  ok: boolean;
+  model?: string;
+  suggestions: {
+    index: number;
+    original: string;
+    rewritten: string;
+    keywords_added: string[];
+    why: string;
+    needs_fact: boolean;
+    fact_question?: string;
+  }[];
+  quota?: { plan: string; used: number; limit: number | null };
+  feature?: string;
+  used?: number;
+  limit?: number | null;
+}
+
+/** Rewrite bullets for a job. Requires sign-in; counts one resume_tailor run. */
+export function tailorResume(token: string | null, req: TailorRequest) {
+  return call<TailorResponse>("/api/premium/tailor", { method: "POST", token, body: req });
+}
+
+// ---- billing options + portal (api/billing/*, api/me/plan billing block) -----
+
+export type BillingOption = "monthly" | "annual" | "sprint";
+
+export interface BillingInfo {
+  /** Checkout options this deployment sells. */
+  options: BillingOption[];
+  /** A Stripe customer exists, so the billing portal can open. */
+  portal: boolean;
+  pro_source: "subscription" | "sprint" | null;
+  /** Renewal / period end for a subscription; the end of a sprint pass. */
+  pro_expires_at: string | null;
+  pro_interval?: "month" | "year" | null;
+  cancel_at_period_end?: boolean;
+}
+
+export type PlanWithBilling = PlanResponse & { billing?: BillingInfo };
+
+/** /api/me/plan including the billing block (same endpoint as getPlan). */
+export function getPlanWithBilling(token: string) {
+  return call<PlanWithBilling>("/api/me/plan", { token });
+}
+
+/** Public: which checkout options are configured (for signed-out pricing). */
+export function getBillingOptions() {
+  return call<{ options: BillingOption[] }>("/api/billing/checkout");
+}
+
+/** Checkout for a specific option; returns Stripe's hosted checkout url.
+ * 400 = option not configured, 409 = already subscribed (use the portal). */
+export function startCheckoutOption(token: string, option: BillingOption) {
+  return call<{ ok: boolean; url: string; option?: BillingOption; options?: BillingOption[]; portal?: boolean }>(
+    "/api/billing/checkout",
+    { method: "POST", token, body: { app: true, option } },
+  );
+}
+
+/** Stripe Billing Portal session url (404 = no billing account yet, 503 = not configured). */
+export function openBillingPortal(token: string) {
+  return call<{ ok: boolean; url: string }>("/api/billing/portal", { method: "POST", token, body: {} });
+}
+
+// ---- Job import from a link (api/ai.js action "import_job_url") ----------
+
+export interface ImportedJob {
+  ok: true;
+  title: string;
+  company: string;
+  location: string;
+  /** Plain-text job description, ready for analyzeJob. */
+  description: string;
+  source_url: string;
+  source: "jsonld" | "greenhouse" | "lever" | "ashby" | "html";
+}
+
+/** Fetch a job posting from a job-board link. 422 {blocked:true} = the site
+ * blocks automatic import; ask the user to paste the description instead. */
+export function importJobUrl(token: string | null, url: string) {
+  return call<ImportedJob & { blocked?: boolean }>("/api/ai", {
+    method: "POST",
+    token,
+    body: { action: "import_job_url", url },
+  });
 }

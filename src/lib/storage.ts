@@ -18,10 +18,24 @@ export const KEYS = {
   genScenarioPrefix: "offerready.genscenario.v1.",
   /** jobId → interview date "YYYY-MM-DD" */
   interviewDates: "offerready.interviewDates.v1",
-  /** jobId → { start, forDate, done: { taskId: "YYYY-MM-DD" } } (Today plan) */
+  /** jobId → { start, forDate, done: { taskId: "YYYY-MM-DD" } } (the job page's plan) */
   prepPlan: "offerready.prepPlan.v1",
   /** STAR story bank */
   stories: "offerready.stories.v1",
+  /** Post-interview debriefs (Debrief[], see lib/debrief.ts) */
+  debriefs: "offerready.debriefs.v1",
+  /** Job offers being compared (Offer[], see lib/offers.ts) */
+  offers: "offerready.offers.v1",
+  /** The user's resume text, saved in this browser only so it is entered once
+   * and reused by Add a job, the job page's fit check, Tailor and the voice
+   * mock ({ text, fileName, updatedAt }, see lib/savedResume.ts). */
+  resume: "offerready.resume.v1",
+} as const;
+
+/** sessionStorage hand-off to Tailor (resume text, read once and removed).
+ * Kept for old links; Tailor now prefers the saved resume (KEYS.resume). */
+export const SESSION_KEYS = {
+  tailorHandoff: "offerready.tailor.handoff.v1",
 } as const;
 
 export function readString(key: string): string | null {

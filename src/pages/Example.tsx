@@ -43,7 +43,7 @@ const SIGNALS: [string, string[]][] = [
   ["Core skills", ["Python (production-grade)", "AWS (esp. Bedrock)", "RAG — retrieval design + tuning", "Agents — tool use, orchestration", "System design (GenAI at scale)"]],
   ["Technology signals", ["AWS Bedrock — managed models, guardrails", "Kubernetes — serving / scaling", "Snowflake — governed data (a plus)", "Observability / LLMOps"]],
   ["Experience signals", ["Production AI apps, not prototypes", "Reliability + cost ownership at scale", "Customer-facing delivery (FDE)", "Setting patterns (Staff/Principal)"]],
-  ["Interview signals", ["System-design rounds", "“Defend your decisions” follow-ups", "Production-incident troubleshooting", "Behavioral: ambiguity, influence"]],
+  ["Interview signals", ["System-design rounds", "Trade-off follow-ups (“why that, not this?”)", "Production-incident troubleshooting", "Behavioral: ambiguity, influence"]],
 ];
 
 interface Stage { tag: string; title: string; body: ReactNode }
@@ -121,8 +121,8 @@ export default function ExamplePage() {
     ) },
     { tag: "5 · Track", title: "Watch readiness move as you work the plan", body: (
       <>
-        <p>In this sample, readiness moves from mostly Partial and Gap to Strong as you complete the plan. For your own job, readiness is tracked per job on your <Link to="/dashboard">Readiness dashboard</Link>.</p>
-        <p className="muted">This walkthrough uses fixed <strong>sample data</strong>. To do it for real, paste your own job description into <Link to="/analyze">Analyze a Job</Link> {"—"} it generates your readiness and plan automatically.</p>
+        <p>In this sample, readiness moves from mostly Partial and Gap to Strong as you complete the plan. For your own job, readiness is tracked per job in <Link to="/dashboard">Readiness</Link>.</p>
+        <p className="muted">This walkthrough uses fixed <strong>sample data</strong>. To do it for real, <Link to="/analyze">add your own job</Link> from its link or description. You get your resume match and a day-by-day plan straight away.</p>
       </>
     ) },
   ];
@@ -160,7 +160,7 @@ export default function ExamplePage() {
           <button type="button" className="btn btn-primary" onClick={() => setI(i + 1)}>Next {"→"}</button>
         ) : (
           <>
-            <Link className="btn btn-primary" to="/analyze">Analyze your own job {"→"}</Link>
+            <Link className="btn btn-primary" to="/analyze">Add your own job {"→"}</Link>
             <button type="button" className="btn btn-ghost" onClick={() => setI(0)}>Restart walkthrough</button>
           </>
         )}

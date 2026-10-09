@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { displayJobTitle } from "../lib/roles";
-import { Link } from "../lib/router";
+import { Link, useSearchParams } from "../lib/router";
+import { setActiveJob } from "../lib/readiness";
 import { useJobs } from "../lib/useJobs";
 import { Card, ErrorText, JobBanner, Loading, Muted } from "../components/ui";
 import type { Analysis, GeneratedQuestion, JobRow } from "../types";
@@ -28,6 +29,7 @@ type View =
 export default function QuestionsPage() {
   const auth = useAuth();
   const jobsState = useJobs();
+  const params = useSearchParams();
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [jobId, setJobId] = useState("");
   const [role, setRole] = useState("");
@@ -39,13 +41,17 @@ export default function QuestionsPage() {
     if (initialized.current || jobsState.status === "loading") return;
     initialized.current = true;
     setJobs(jobsState.jobs);
-    if (jobsState.activeId) restoreOrForm(jobsState.activeId);
+    // ?job= (from Practice or the job page) wins over the active job.
+    const want = params.get("job");
+    const id = want && jobsState.jobs.some((j) => j.id === want) ? want : jobsState.activeId;
+    if (id) { if (id !== jobsState.activeId) setActiveJob(id); restoreOrForm(id); }
     else setView({ kind: "form" });
   }, [jobsState.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Restore the job's saved JD/role and any existing question set. */
   async function restoreOrForm(id: string) {
     setJobId(id);
+    if (id) setActiveJob(id);
     const row = jobsState.jobs.find((j) => j.id === id) || jobs.find((j) => j.id === id);
     if (row) {
       setRole(row.title || "");
@@ -74,7 +80,7 @@ export default function QuestionsPage() {
     const tok = await auth.getAccessToken();
     const res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d });
     if (res.status === 200 && res.body?.questions) setView({ kind: "result", questions: res.body.questions, saved: !!res.body.saved });
-    else if (res.status === 401) setView({ kind: "form", note: "Sign in (Account, top-right) to generate questions — then try again." });
+    else if (res.status === 401) setView({ kind: "form", note: "Sign in (Account, top right) to get questions, then try again." });
     else if (res.status === 503) setView({ kind: "form", note: "Question generation isn't enabled on this deployment yet." });
     else if (res.status === 0) setView({ kind: "form", note: "Couldn't reach the generator. Check your connection and try again." });
     else setView({ kind: "form", note: res.body?.error || "Couldn't generate the question set. Please try again." });
@@ -96,19 +102,19 @@ export default function QuestionsPage() {
         <>
           <Card>
             <JobBanner title={activeTitle} hasJobs={jobs.length > 0} />
-            <h2>Your practice questions are ready</h2>
+            <h2>Your questions are ready</h2>
             <p className="qcount">{view.questions.length} saved questions for this job</p>
             {lastGenerated(view.questions) && <Muted small>Last generated: {lastGenerated(view.questions)}</Muted>}
-            <Muted small>Continue preparing with the saved questions for this job {"—"} available on any device.</Muted>
+            <Muted small>Answer them out loud, two minutes each. They{"’"}re saved to this job, on any device.</Muted>
             <div className="row">
-              <Link className="btn btn-primary" to={defendTo}>Continue Practice</Link>
+              <Link className="btn btn-primary" to={defendTo}>Next: a trade-off drill</Link>
               <button type="button" className="btn"
                 onClick={() => {
                   if (window.confirm("Regenerating will replace the current saved question set for this job.\n\nThis can’t be undone.")) {
                     setView({ kind: "form", note: "Regenerating replaces your saved questions for this job. Review the job description, then generate to confirm the replacement." });
                   }
                 }}>
-                Regenerate Questions
+                Write new questions
               </button>
             </div>
           </Card>
@@ -122,9 +128,9 @@ export default function QuestionsPage() {
             <Muted>
               {view.questions.length} questions generated
               {view.saved && jobId ? " · ✓ saved to this job" : jobId ? "" : " · not saved (pick a saved job to keep it)"}
-              {" · answer them out loud, then practice defending your decisions."}
+              {" · answer them out loud, then try a trade-off drill."}
             </Muted>
-            <button type="button" className="btn" onClick={() => setView({ kind: "form" })}>Generate for another job</button>
+            <button type="button" className="btn" onClick={() => setView({ kind: "form" })}>Get questions for another job</button>
           </Card>
           <QuestionCards questions={view.questions} analysis={analysis} defendTo={defendTo} />
         </>
@@ -152,7 +158,7 @@ function QuestionForm({
             <option value="">{"—"} Select a saved job {"—"}</option>
             {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
           </select>
-          <Muted small>No job here yet? <Link to="/analyze">Analyze &amp; save a job</Link> first.</Muted>
+          <Muted small>No job here yet? <Link to="/analyze">Add a job</Link> first.</Muted>
         </>
       )}
       <label className="field-label" htmlFor="q-role">Target role</label>
@@ -160,7 +166,7 @@ function QuestionForm({
       <label className="field-label" htmlFor="q-jd">Job description</label>
       <textarea id="q-jd" className="input textarea" rows={9} placeholder={"Paste the full job description here…"} value={d} onChange={(e) => setD(e.target.value)} />
       <div className="row">
-        <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Prepare Practice Questions</button>
+        <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Get my questions</button>
       </div>
     </Card>
   );
@@ -208,7 +214,7 @@ function WhyPanel({ analysis, questions }: { analysis: Analysis | null; question
   return (
     <Card className="why">
       <div className="field-label">Why these questions</div>
-      <Muted small>Generated for this role{"\u2019"}s requirements and the gaps found in your analysis. A {"\u2713"} means a question actually references that item.</Muted>
+      <Muted small>Written for this role{"\u2019"}s requirements and the gaps in your resume. A {"\u2713"} means a question actually references that item.</Muted>
       {row("Because the role requires", techs, false)}
       {row("And to close your identified gaps", gaps, true)}
       {questions.length > 0 && (
@@ -244,11 +250,11 @@ function QuestionCards({ questions, analysis, defendTo }: { questions: Generated
       <div className="next-action">
         <div className="next-action-label">What to do next</div>
         <div className="next-action-row">
-          <Link className="btn btn-primary" to={defendTo}>{"🗡️"} Start Recommended Practice</Link>
-          <span className="next-action-why">Defend these answers under follow-up pressure {"—"} tradeoffs, alternatives, cost, scale, failure modes {"—"} to raise your Interview Readiness for this job.</span>
+          <Link className="btn btn-primary" to={defendTo}>Start a trade-off drill</Link>
+          <span className="next-action-why">Practise holding your answers when the interviewer pushes back on trade-offs, cost, scale and failure. It raises your readiness for this job.</span>
         </div>
       </div>
-      <div className="row"><Link className="btn" to="/dashboard">{"📊"} View My Readiness</Link></div>
+      <div className="row"><Link className="btn" to="/dashboard">See readiness</Link></div>
     </>
   );
 }

@@ -11,7 +11,8 @@ import {
   practicePrompt, saveStories, starCheck, storiesToMarkdown, tagLabel, type Story,
 } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
-import { PlanGate } from "../components/PlanGate";
+import { PlanGate, UpgradeCard } from "../components/PlanGate";
+import { invalidatePlan } from "../lib/plans";
 import { Card, Muted } from "../components/ui";
 import type { Analysis, JobRow } from "../types";
 
@@ -114,7 +115,7 @@ export default function StoriesPage() {
           <div>
             <h2 id="sb-matrix-h">Coverage {jobTitle ? <span className="sb-for">for {jobTitle}</span> : null}</h2>
             <p className="muted small">
-              {analysis ? "What this job is likely to probe, from its seniority, responsibilities and skills." : jobs.status === "ready" && !jobs.jobs.length ? "Analyze a job to see what it needs. Until then, these are the competencies most loops ask about." : "The competencies most behavioural rounds ask about."}
+              {analysis ? "What this job is likely to probe, from its seniority, responsibilities and skills." : jobs.status === "ready" && !jobs.jobs.length ? "Add a job to see what it needs. Until then, these are the competencies most loops ask about." : "The competencies most behavioural rounds ask about."}
             </p>
           </div>
           <div className="sb-score" aria-label={"Covered " + (rows.length - missing.length) + " of " + rows.length}>
@@ -240,10 +241,12 @@ function StoryCard({ s, jobTitles, onEdit, onDelete }: { s: Story; jobTitles: Re
 }
 
 function Coach({ s }: { s: Story }) {
+  const auth = useAuth();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState<ReactNode>("");
+  const [overLimit, setOverLimit] = useState(false);
   const ctrl = useRef<AbortController | null>(null);
   useEffect(() => () => ctrl.current?.abort(), []);
 
@@ -251,12 +254,38 @@ function Coach({ s }: { s: Story }) {
     ctrl.current?.abort();
     const c = new AbortController();
     ctrl.current = c;
-    setOpen(true); setBusy(true); setErr(""); setText("");
-    const out = await api.streamHelp({ question: coachPrompt(s), area: "all", context: { surface: "app", page: { title: "Story bank", path: "/stories" } } }, (t) => setText((x) => x + t), c.signal);
+    setOpen(true); setBusy(true); setErr(""); setText(""); setOverLimit(false);
+    // Story coaching is metered (story_ai): it needs the signed-in user's token.
+    const tok = auth.session ? await auth.getAccessToken() : null;
+    if (c.signal.aborted) return;
+    if (!tok) {
+      setBusy(false);
+      setErr(<>Please <Link to="/account">sign in</Link> to get AI coaching on your stories. It{"’"}s free.</>);
+      return;
+    }
+    const out = await api.streamHelp(
+      { question: coachPrompt(s), area: "all", purpose: "story_coach", context: { surface: "app", page: { title: "Your stories", path: "/stories" } } },
+      (t) => setText((x) => x + t),
+      c.signal,
+      tok,
+    );
     if (c.signal.aborted) return;
     setBusy(false);
-    if (out.kind === "error" && !out.gotDelta) setErr(out.status === 429 ? "You've reached this month's coaching limit." : "Coaching isn't available right now. Please try again.");
+    if (out.kind === "done") { invalidatePlan(); return; } // one use counted: refresh the meters
+    if (out.kind === "error" && !out.gotDelta) {
+      if (out.status === 403) { invalidatePlan(); setOverLimit(true); return; }
+      if (out.status === 401) { setErr(<>Your session ended. Please <Link to="/account">sign in</Link> again.</>); return; }
+      setErr(out.status === 429 ? "Too many requests right now. Try again in a minute." : "Coaching isn't available right now. Please try again.");
+    }
   };
+
+  if (overLimit) {
+    return (
+      <div className="sb-coach">
+        <UpgradeCard feature="story_ai" title="You’ve used this month’s story coaching" message="Pro gives you far more AI coaching on your STAR stories." />
+      </div>
+    );
+  }
 
   return (
     <div className="sb-coach">

@@ -204,7 +204,7 @@ function Results({ run, onAgain }: { run: Run; onAgain(): void }) {
       <p>The goal isn{"’"}t the number {"—"} it{"’"}s answering each out loud with clarify {"→"} claim {"→"} mechanism {"→"} trade-off {"→"} how I{"’"}d verify, without stalling on the follow-up.</p>
       <div className="row wrap">
         <button type="button" className="btn btn-primary" onClick={onAgain}>Run another mock</button>
-        <Link className="btn btn-ghost" to="/defend">Defend a decision {"→"}</Link>
+        <Link className="btn btn-ghost" to="/defend">Try a trade-off drill {"→"}</Link>
       </div>
     </div>
   );

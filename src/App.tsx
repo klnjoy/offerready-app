@@ -1,78 +1,92 @@
-import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { DOCS_BASE, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
+import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { HelpBot } from "./components/HelpBot";
 import { Loading } from "./components/ui";
 import HomePage from "./pages/Home";
 
 // Code-split each screen so the first load stays small (and the resume
-// parsers only load on Check My Fit).
+// parsers only load where a resume is added).
 const AnalyzePage = lazy(() => import("./pages/Analyze"));
 const MyJobsPage = lazy(() => import("./pages/MyJobs"));
 const JobDetailPage = lazy(() => import("./pages/JobDetail"));
-const CheckFitPage = lazy(() => import("./pages/CheckFit"));
 const QuestionsPage = lazy(() => import("./pages/Questions"));
 const DefendPage = lazy(() => import("./pages/Defend"));
+const PracticeHubPage = lazy(() => import("./pages/PracticeHub"));
 const PracticePage = lazy(() => import("./pages/Practice"));
+const MockHubPage = lazy(() => import("./pages/MockHub"));
 const SimulatorPage = lazy(() => import("./pages/Simulator"));
 const DashboardPage = lazy(() => import("./pages/Dashboard"));
 const AccountPage = lazy(() => import("./pages/Account"));
 const ExamplePage = lazy(() => import("./pages/Example"));
-const TodayPage = lazy(() => import("./pages/Today"));
 const StoriesPage = lazy(() => import("./pages/Stories"));
 const VoiceMockPage = lazy(() => import("./pages/VoiceMock"));
 const PricingPage = lazy(() => import("./pages/Pricing"));
+const TailorPage = lazy(() => import("./pages/Tailor"));
+const DebriefPage = lazy(() => import("./pages/Debrief"));
+const OffersPage = lazy(() => import("./pages/Offers"));
+const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.TodayRedirect })));
+const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
 
-type StageKey = "understand" | "prepare" | "prove";
+/** The four top-nav sections (plus the account menu = five items). */
+type Section = "jobs" | "practice" | "mock" | "readiness";
 
 interface Route {
   path: string;
   title: string;
-  /** One line under the page title. Omit to let the screen render its own header. */
+  /** One plain line under the page title: what you get here. Omit to let the screen render its own header. */
   subtitle?: string;
-  /** Which of the three stages this screen belongs to — shows the stage rail. */
-  stage?: StageKey;
+  /** Which top-nav item is highlighted. */
+  section?: Section;
+  /** Small "← label" link above the title. "@job" / "@job:tab" = the active job's page. */
+  back?: { to: string; label: string };
   component: ComponentType<Record<string, string>>;
 }
 
+const BACK_PRACTICE = { to: "/practice", label: "Practice" };
+const BACK_MOCK = { to: "/mock", label: "Mock interview" };
+
 const ROUTES: Route[] = [
   { path: "/", title: "OfferReady", component: HomePage },
-  { path: "/today", title: "Today", component: TodayPage },
-  { path: "/analyze", title: "Analyze a job", stage: "understand", subtitle: "Paste a job description to see what the role requires, where you may fall short, and a preparation plan.", component: AnalyzePage },
-  { path: "/jobs", title: "My jobs", subtitle: "Every role you’re preparing for, with its progress and the next step.", component: MyJobsPage },
-  { path: "/jobs/:id", title: "Job", component: JobDetailPage },
-  { path: "/fit", title: "Check my fit", stage: "understand", subtitle: "Compare your resume with a saved job. Your resume is read in your browser and never stored.", component: CheckFitPage },
-  { path: "/questions", title: "Practice questions", stage: "prepare", subtitle: "Interview questions written for this job and the gaps in your analysis, saved to the job.", component: QuestionsPage },
-  { path: "/defend", title: "Defend your decisions", stage: "prepare", subtitle: "Make the call, then hold it while the interviewer pushes on trade-offs, constraints and incidents.", component: DefendPage },
-  { path: "/stories", title: "Story bank", stage: "prepare", subtitle: "Your STAR stories, mapped to what each job asks for.", component: StoriesPage },
-  { path: "/practice", title: "Interview practice", stage: "prepare", subtitle: "Drill the question bank with self-rated practice, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
-  { path: "/simulator", title: "Mock interview", stage: "prove", subtitle: "A mixed loop across areas and levels. Answer out loud, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
-  { path: "/interview/voice", title: "Voice mock interview", stage: "prove", subtitle: "Answer out loud. The interviewer follows up on what you actually said.", component: VoiceMockPage },
-  { path: "/dashboard", title: "Interview readiness", stage: "prove", subtitle: "One blended score per job, built from your resume match, practice and preparation.", component: DashboardPage },
+  { path: "/jobs", title: "Jobs", section: "jobs", subtitle: "Every job you’re preparing for. Open one to see your plan, your resume match and what to do next.", component: MyJobsPage },
+  { path: "/jobs/:id", title: "Job", section: "jobs", component: JobDetailPage },
+  { path: "/analyze", title: "Add a job", section: "jobs", subtitle: "Paste a job link or description. You get what the role needs, how your resume matches, and a day-by-day plan to your interview.", component: AnalyzePage },
+  { path: "/today", title: "Your plan", section: "jobs", component: TodayRedirect },
+  { path: "/fit", title: "Resume match", section: "jobs", component: FitRedirect },
+  { path: "/tailor", title: "Tailor your resume", section: "jobs", back: { to: "@job:resume", label: "Your job" }, subtitle: "Rewrite your resume bullets for one job’s skills and gaps, without inventing anything.", component: TailorPage },
+  { path: "/debrief", title: "Interview debrief", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Write down each round while it’s fresh. Questions that went badly come back in your plan.", component: DebriefPage },
+  { path: "/offers", title: "Compare offers", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Put your offers side by side on year-1 and yearly pay, then plan how to negotiate.", component: OffersPage },
+  { path: "/practice", title: "Practice", section: "practice", subtitle: "Four ways to practise. Each one says when to use it; start with the first if you’re not sure.", component: PracticeHubPage },
+  { path: "/practice/bank", title: "Question bank", section: "practice", back: BACK_PRACTICE, subtitle: "Quick reps on any topic: answer and rate yourself, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
+  { path: "/questions", title: "Questions for this job", section: "practice", back: BACK_PRACTICE, subtitle: "Likely interview questions written from the job and the gaps in your resume, saved to the job.", component: QuestionsPage },
+  { path: "/defend", title: "Trade-off drills", section: "practice", back: BACK_PRACTICE, subtitle: "Make a design call, then hold it while the interviewer pushes back on trade-offs, limits and incidents.", component: DefendPage },
+  { path: "/stories", title: "Your stories", section: "practice", back: BACK_PRACTICE, subtitle: "Your STAR stories for behavioral rounds, matched to what each job asks for.", component: StoriesPage },
+  { path: "/mock", title: "Mock interview", section: "mock", subtitle: "Rehearse the real thing. Choose voice or text.", component: MockHubPage },
+  { path: "/interview/voice", title: "Voice interview", section: "mock", back: BACK_MOCK, subtitle: "Answer out loud. The interviewer follows up on what you actually said, then scores your content and delivery.", component: VoiceMockPage },
+  { path: "/simulator", title: "Text interview", section: "mock", back: BACK_MOCK, subtitle: "A mixed loop of questions. Answer, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
+  { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", component: AccountPage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
-/** The three stages and their steps: the rail and the menu both read this. */
-const STAGES: { key: StageKey; n: number; label: string; hint: string; steps: { to: string; label: string; short?: string }[] }[] = [
-  { key: "understand", n: 1, label: "Understand", hint: "What the role needs", steps: [
-    { to: "/analyze", label: "Analyze" },
-    { to: "/fit", label: "Check fit" },
-  ] },
-  { key: "prepare", n: 2, label: "Prepare", hint: "Close the gaps", steps: [
-    { to: "/questions", label: "Questions" },
-    { to: "/defend", label: "Defend" },
-    { to: "/stories", label: "Story bank", short: "Stories" },
-    { to: "/practice", label: "Practice" },
-  ] },
-  { key: "prove", n: 3, label: "Prove", hint: "Show it under pressure", steps: [
-    { to: "/simulator", label: "Mock interview", short: "Mock" },
-    { to: "/interview/voice", label: "Voice mock", short: "Voice" },
-    { to: "/dashboard", label: "Readiness" },
-  ] },
+const NAV: { key: Section; to: string; label: string }[] = [
+  { key: "jobs", to: "/jobs", label: "Jobs" },
+  { key: "practice", to: "/practice", label: "Practice" },
+  { key: "mock", to: "/mock", label: "Mock interview" },
+  { key: "readiness", to: "/dashboard", label: "Readiness" },
 ];
+
+function resolveBack(to: string, search: string): string {
+  if (!to.startsWith("@job")) return to;
+  // The page's own ?job= wins, else the active job.
+  const id = new URLSearchParams(search).get("job") || getActiveJob();
+  if (!id) return "/jobs";
+  const tab = to.split(":")[1];
+  return "/jobs/" + encodeURIComponent(id) + (tab ? "?tab=" + tab : "");
+}
 
 function Logo() {
   return (
@@ -84,45 +98,44 @@ function Logo() {
   );
 }
 
-/** The signature element: the three stages, with the current one's steps. */
-function StageRail({ stage, pathname }: { stage: StageKey; pathname: string }) {
-  const cur = STAGES.findIndex((s) => s.key === stage);
+/** Avatar → a small menu: Account & plan, Pricing. Signed out: "Sign in". */
+function AccountMenu({ pathname }: { pathname: string }) {
+  const auth = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, [open]);
+
+  if (!auth.session) {
+    return <Link className={"account-link" + (pathname === "/account" ? " active" : "")} to="/account">Sign in</Link>;
+  }
+  const initial = (auth.email || "").trim().charAt(0).toUpperCase();
   return (
-    <nav className="rail srail" aria-label="Preparation stages">
-      <ol className="srail-inner">
-        {STAGES.map((s, i) => {
-          const state = i < cur ? "past" : i === cur ? "current" : "next";
-          return (
-            <li key={s.key} className={"srail-stage srail-" + state}>
-              <Link className="srail-head" to={s.steps[0].to} aria-current={state === "current" ? "step" : undefined}>
-                <span className="srail-num" aria-hidden="true">{s.n}</span>
-                <span className="srail-text" title={s.hint}>
-                  <span className="srail-label">{s.label}</span>
-                </span>
-              </Link>
-              <ul className="srail-steps" aria-label={s.label + " steps"}>
-                {s.steps.map((st) => {
-                  const on = pathname === st.to || pathname.startsWith(st.to + "/");
-                  return (
-                    <li key={st.to}>
-                      <Link to={st.to} className={"srail-step" + (on ? " on" : "")} aria-current={on ? "page" : undefined}>
-                        <span className="srail-full">{st.label}</span>
-                        <span className="srail-short" aria-hidden="true">{st.short || st.label}</span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          );
-        })}
-      </ol>
-    </nav>
+    <div className="acct" ref={ref}>
+      <button type="button" className={"account-link acct-btn" + (open || pathname === "/account" ? " active" : "")} aria-haspopup="menu" aria-expanded={open} aria-controls="acct-menu"
+        title={auth.email || "Account"} onClick={() => setOpen((o) => !o)}>
+        <span className="avatar" aria-hidden="true">{initial || "•"}</span><span className="account-text">Account</span>
+      </button>
+      {open && (
+        <div className="acct-menu" id="acct-menu" role="menu">
+          {auth.email && <p className="acct-email">{auth.email}</p>}
+          <Link role="menuitem" className="acct-item" to="/account">Account &amp; plan</Link>
+          <Link role="menuitem" className="acct-item" to="/pricing">Pricing</Link>
+        </div>
+      )}
+    </div>
   );
 }
 
 export default function App() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const auth = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -137,63 +150,41 @@ export default function App() {
     setMenuOpen(false);
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isActive = (to: string) => pathname === to || pathname.startsWith(to + "/");
   const Page = match?.route.component;
-  const initial = (auth.email || "").trim().charAt(0).toUpperCase();
-  const currentStage = match?.route.stage;
+  const section = match?.route.section;
+  const back = match?.route.back;
 
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <div className="topbar-inner">
-          <Link className="brand" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
-          <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
-            {menuOpen ? "Close" : "Menu"}
-          </button>
-          <nav id="main-nav" className={"nav snav" + (menuOpen ? " open" : "")} aria-label="Main">
-            <div className="snav-primary">
-              <Link to="/today" className={"nav-link snav-today" + (isActive("/today") ? " active" : "")} aria-current={isActive("/today") ? "page" : undefined}>
-                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="3" y="4" width="14" height="13" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M3 8h14M7 2.5v3M13 2.5v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="10" cy="12.5" r="1.6" fill="currentColor" /></svg>
-                Today
-              </Link>
-              <Link to="/jobs" className={"nav-link" + (isActive("/jobs") ? " active" : "")} aria-current={isActive("/jobs") ? "page" : undefined}>My jobs</Link>
-            </div>
-            <div className="snav-stages">
-              {STAGES.map((st) => {
-                const on = currentStage === st.key;
-                return (
-                  <div key={st.key} className={"nav-group snav-group" + (on ? " on" : "")} role="group" aria-label={st.label}>
-                    <Link to={st.steps[0].to} className={"nav-link snav-stage" + (on ? " active" : "")}>
-                      <span className="snav-num" aria-hidden="true">{st.n}</span>{st.label}
-                    </Link>
-                    <div className="snav-subs">
-                      {st.steps.map((n) => (
-                        <Link key={n.to} to={n.to} className={"nav-link snav-sub" + (isActive(n.to) ? " active" : "")} aria-current={isActive(n.to) ? "page" : undefined}>
-                          {n.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          <Link className="brand" to={auth.session ? "/jobs" : "/"} aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
+          <nav id="main-nav" className={"nav tnav" + (menuOpen ? " open" : "")} aria-label="Main">
+            {NAV.map((n) => {
+              const on = section === n.key;
+              return (
+                <Link key={n.key} to={n.to} className={"nav-link tnav-link" + (on ? " active" : "")} aria-current={on ? "page" : undefined}>{n.label}</Link>
+              );
+            })}
           </nav>
-          <Link className={"account-link" + (isActive("/account") ? " active" : "")} to="/account" title={auth.email || "Sign in"}>
-            {auth.session ? (
-              <><span className="avatar" aria-hidden="true">{initial || "•"}</span><span className="account-text">Account</span></>
-            ) : (
-              "Sign in"
-            )}
-          </Link>
+          <div className="topbar-actions">
+            <Link className="btn add-job-btn" to="/analyze" aria-label="Add a job">
+              <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
+              <span className="add-job-long">Add a job</span><span className="add-job-short" aria-hidden="true">Add</span>
+            </Link>
+            <AccountMenu pathname={pathname} />
+            <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
+              {menuOpen ? "Close" : "Menu"}
+            </button>
+          </div>
         </div>
       </header>
-
-      {match?.route.stage ? <StageRail stage={match.route.stage} pathname={pathname} /> : null}
 
       <main id="main" className={"main" + (pathname === "/" ? " main-home" : "")}>
         {match?.route.subtitle ? (
           <header className="page-head">
+            {back ? <Link className="back-link" to={resolveBack(back.to, search)}>{"←"} {back.label}</Link> : null}
             <h1>{match.route.title}</h1>
             <p>{match.route.subtitle}</p>
           </header>
@@ -212,20 +203,27 @@ export default function App() {
             <p>Interview preparation built around the one job you{"’"}re trying to land.</p>
           </div>
           <div className="footer-col">
-            <h2>Product</h2>
-            <Link to="/today">Today</Link>
-            <Link to="/analyze">Analyze a job</Link>
-            <Link to="/jobs">My jobs</Link>
-            <Link to="/stories">Story bank</Link>
-            <Link to="/interview/voice">Voice mock interview</Link>
-            <Link to="/dashboard">Interview readiness</Link>
-            <Link to="/pricing">Pricing</Link>
+            <h2>Prepare</h2>
+            <Link to="/analyze">Add a job</Link>
+            <Link to="/jobs">Jobs</Link>
+            <Link to="/practice">Practice</Link>
+            <Link to="/mock">Mock interview</Link>
+            <Link to="/dashboard">Readiness</Link>
           </div>
           <div className="footer-col">
-            <h2>Learn</h2>
-            <ExternalLink href={STUDY_URL}>Study notes</ExternalLink>
+            <h2>Practice</h2>
+            <Link to="/questions">Questions for this job</Link>
+            <Link to="/defend">Trade-off drills</Link>
+            <Link to="/stories">Your stories</Link>
+            <Link to="/practice/bank">Question bank</Link>
+          </div>
+          <div className="footer-col">
+            <h2>More</h2>
+            <Link to="/debrief">Interview debrief</Link>
+            <Link to="/offers">Compare offers</Link>
             <Link to="/example">Sample walkthrough</Link>
-            <Link to="/practice">Question bank</Link>
+            <ExternalLink href={STUDY_URL}>Study notes</ExternalLink>
+            <Link to="/pricing">Pricing</Link>
           </div>
           <div className="footer-col">
             <h2>Company</h2>

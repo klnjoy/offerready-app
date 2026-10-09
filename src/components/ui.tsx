@@ -151,7 +151,7 @@ export function JobBanner({ title, hasJobs, note }: { title?: string; hasJobs?: 
         <>
           <span className="job-banner-label">No active job selected</span>{" "}
           <Link className="btn btn-small" to="/analyze">
-            Choose a job
+            Add a job
           </Link>
         </>
       )}

@@ -6,7 +6,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { QUESTION_BANK_URL, docsUrl } from "../config";
 import { getHistory, record, weakTopicScores } from "../lib/progressStore";
-import { ExternalLink, Link } from "../lib/router";
+import { ExternalLink, Link, useSearchParams } from "../lib/router";
 import { Card, Muted } from "../components/ui";
 
 interface BankItem {
@@ -146,11 +146,20 @@ export default function PracticePage() {
 }
 
 function Setup({ bank, onStart }: { bank: BankItem[]; onStart(s: Session): void }) {
-  const [mode, setMode] = useState<Mode>("practice");
+  const params = useSearchParams();
+  // ?mode= and ?topic= preselect (old /practice?mode=… links and gap → practice).
+  const [mode, setMode] = useState<Mode>(() => { const m = params.get("mode"); return m && m in MODES ? (m as Mode) : "practice"; });
   const [track, setTrack] = useState<Track>("all");
-  const [topic, setTopic] = useState("All");
+  const wantTopic = (params.get("topic") || "").trim();
+  const [topic, setTopic] = useState(() => {
+    if (!wantTopic) return "All";
+    const w = wantTopic.toLowerCase();
+    const all = Array.from(new Set(bank.map((q) => q.topic)));
+    const word = (needle: string, hay: string) => new RegExp("(^|[^a-z0-9])" + needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^a-z0-9]|$)").test(hay);
+    return all.find((t) => t.toLowerCase() === w) || all.find((t) => word(w, t.toLowerCase()) || word(t.toLowerCase(), w)) || "All";
+  });
   const [count, setCount] = useState(10);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(() => (wantTopic && topic === "All" ? "No bank questions are tagged “" + wantTopic + "” yet, so all topics are selected. Questions for this job cover it directly." : ""));
 
   const pool = useMemo(() => (track === "all" ? bank : bank.filter((q) => (q.tracks || []).includes(track))), [bank, track]);
   const topics = useMemo(() => ["All", ...Array.from(new Set(pool.map((q) => q.topic))).sort()], [pool]);
@@ -217,7 +226,7 @@ function Setup({ bank, onStart }: { bank: BankItem[]; onStart(s: Session): void 
               </tbody>
             </table>
           </div>
-          <Muted small>Saved in this browser. Job-based Interview Readiness lives on your <Link to="/dashboard">dashboard</Link>.</Muted>
+          <Muted small>Saved in this browser. Your score for each job is in <Link to="/dashboard">Readiness</Link>.</Muted>
         </div>
       )}
     </div>
@@ -423,7 +432,7 @@ function Summary({
       <div className="row wrap">
         {weakItems.length > 0 && <button type="button" className="btn btn-primary" onClick={() => onRetry(weakItems)}>Retry {weakItems.length} I rated low</button>}
         <button type="button" className={"btn" + (weakItems.length ? " btn-ghost" : " btn-primary")} onClick={onNew}>New session</button>
-        <Link className="btn btn-ghost" to="/defend">Defend a decision {"→"}</Link>
+        <Link className="btn btn-ghost" to="/defend">Try a trade-off drill {"→"}</Link>
       </div>
     </div>
   );

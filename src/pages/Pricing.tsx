@@ -1,11 +1,21 @@
 /* Pricing: Free vs Pro, built from the same PLAN_MATRIX / LIMITS the server
  * enforces (api/_lib/plans.js), so the page can't drift from real limits.
- * The price is a display label from config (VITE_PRO_PRICE_LABEL); Stripe
- * holds the real amount. Upgrade goes through /account?upgrade=1 (checkout). */
+ * Prices are display labels from config (VITE_PRO_PRICE_LABEL,
+ * VITE_PRO_ANNUAL_PRICE_LABEL, VITE_SPRINT_PRICE_LABEL); Stripe holds the real
+ * amounts. Which options exist comes from the API (only configured prices are
+ * sold). Upgrade goes through /account?upgrade=1&option=… (checkout). */
 
-import { PRO_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
+import { useState } from "react";
+import { PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SPRINT_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
+import { annualSavingsPct, shortDate, splitLabel, useBilling } from "../lib/billing";
 import { LIMITS, PLAN_MATRIX, usePlan, type Feature } from "../lib/plans";
 import { Link } from "../lib/router";
+
+const SPRINT_POINTS = [
+  "Everything in Pro for 30 days",
+  "One payment. No subscription, nothing to cancel",
+  "Buy again before it ends to add 30 more days",
+];
 
 const FREE_POINTS = [
   "Study library, question banks and practice mode",
@@ -47,10 +57,24 @@ function Cell({ value }: { value: string }) {
 
 export default function PricingPage() {
   const p = usePlan();
+  const b = useBilling();
+  const opts = b.info ? b.info.options : null; // null = unknown (offline / old API): plain monthly as before
+  const hasMonthly = !opts || opts.includes("monthly");
+  const hasAnnual = !!opts && opts.includes("annual");
+  const hasSprint = !!opts && opts.includes("sprint");
+  const hasPro = hasMonthly || hasAnnual;
+  const showToggle = hasMonthly && hasAnnual;
+  const save = showToggle ? annualSavingsPct() : null;
+  const [picked, setPicked] = useState<"monthly" | "annual">("monthly");
+  const cycle: "monthly" | "annual" = !hasMonthly && hasAnnual ? "annual" : hasAnnual ? picked : "monthly";
+
+  const source = b.info?.pro_source || null;
   const onPro = p.signedIn && p.plan === "pro";
+  const onSub = onPro && source === "subscription";
+  const onSprint = onPro && source === "sprint";
   const onFree = p.signedIn && p.plan === "free" && !p.loading;
-  const [amount, ...rest] = PRO_PRICE_LABEL.split(" ");
-  const per = rest.join(" ");
+  const [amount, per] = splitLabel(cycle === "annual" ? PRO_ANNUAL_PRICE_LABEL : PRO_PRICE_LABEL);
+  const [sAmount, sPer] = splitLabel(SPRINT_PRICE_LABEL);
 
   return (
     <div className="page pricing">
@@ -58,12 +82,22 @@ export default function PricingPage() {
         <p className="pr-eyebrow">Pricing</p>
         <h1>Free to start. Pro when your interview is real.</h1>
         <p className="pr-lede">
-          Learn, analyze a job and practice for free. Upgrade when you have an interview on the calendar and want an AI
+          Learn, add a job and practise for free. Upgrade when you have an interview on the calendar and want an AI
           interviewer that pushes back.
         </p>
+        {showToggle && (
+          <div className="bl-toggle" role="group" aria-label="Billing period">
+            <button type="button" aria-pressed={cycle === "monthly"} className={cycle === "monthly" ? "on" : ""} onClick={() => setPicked("monthly")}>
+              Monthly
+            </button>
+            <button type="button" aria-pressed={cycle === "annual"} className={cycle === "annual" ? "on" : ""} onClick={() => setPicked("annual")}>
+              Annual{save ? <span className="bl-save">save {save}%</span> : null}
+            </button>
+          </div>
+        )}
       </header>
 
-      <div className="pr-plans">
+      <div className={"pr-plans" + (hasSprint && hasPro ? " pr-plans-3" : "")}>
         <section className="card pr-plan" aria-labelledby="pr-free">
           <div className="pr-plan-top">
             <h2 id="pr-free">Free</h2>
@@ -78,30 +112,62 @@ export default function PricingPage() {
               <li key={t}><Check />{t}</li>
             ))}
           </ul>
-          <Link className="btn btn-block" to="/analyze">{p.signedIn ? "Analyze a job" : "Start free"}</Link>
+          <Link className="btn btn-block" to="/analyze">{p.signedIn ? "Add a job" : "Start free"}</Link>
         </section>
 
-        <section className="card pr-plan pr-plan-pro" aria-labelledby="pr-pro">
-          <div className="pr-plan-top">
-            <h2 id="pr-pro">Pro</h2>
-            {onPro ? <span className="pill pill-ok">Your plan</span> : <span className="pr-tag">For a real interview</span>}
-          </div>
-          <p className="pr-price">
-            <span className="pr-amount">{amount}</span> {per && <span className="pr-per">{per}</span>}
-          </p>
-          <p className="muted">Practice the way the interview actually goes, as often as you need.</p>
-          <ul className="pr-points">
-            {PRO_POINTS.map((t) => (
-              <li key={t}><Check />{t}</li>
-            ))}
-          </ul>
-          {onPro ? (
-            <Link className="btn btn-block" to="/account">Manage your plan</Link>
-          ) : (
-            <Link className="btn btn-primary btn-block" to="/account?upgrade=1">Upgrade to Pro</Link>
-          )}
-          <p className="pr-fine">Cancel anytime. Secure checkout by Stripe.</p>
-        </section>
+        {hasPro && (
+          <section className="card pr-plan pr-plan-pro" aria-labelledby="pr-pro">
+            <div className="pr-plan-top">
+              <h2 id="pr-pro">Pro</h2>
+              {onSub || (onPro && !onSprint) ? <span className="pill pill-ok">Your plan</span> : <span className="pr-tag">For a real interview</span>}
+            </div>
+            <p className="pr-price">
+              <span className="pr-amount">{amount}</span> {per && <span className="pr-per">{per}</span>}
+            </p>
+            <p className="muted">
+              {cycle === "annual" ? "Billed once a year. " : ""}Practice the way the interview actually goes, as often as you need.
+            </p>
+            <ul className="pr-points">
+              {PRO_POINTS.map((t) => (
+                <li key={t}><Check />{t}</li>
+              ))}
+            </ul>
+            {onPro && !onSprint ? (
+              <Link className="btn btn-block" to="/account">Manage your plan</Link>
+            ) : (
+              <Link className="btn btn-primary btn-block" to={"/account?upgrade=1&option=" + cycle}>
+                {onSprint ? (cycle === "annual" ? "Switch to annual" : "Switch to monthly") : cycle === "annual" ? "Upgrade to Pro, yearly" : "Upgrade to Pro"}
+              </Link>
+            )}
+            <p className="pr-fine">Cancel anytime. Secure checkout by Stripe.</p>
+          </section>
+        )}
+
+        {hasSprint && (
+          <section className="card pr-plan pr-plan-sprint" aria-labelledby="pr-sprint">
+            <div className="pr-plan-top">
+              <h2 id="pr-sprint">Interview Sprint</h2>
+              {onSprint ? <span className="pill pill-ok">Ends {shortDate(b.info?.pro_expires_at)}</span> : <span className="bl-pass">30-day pass</span>}
+            </div>
+            <p className="pr-price">
+              <span className="pr-amount">{sAmount}</span> {sPer && <span className="pr-per">{sPer}</span>}
+            </p>
+            <p className="muted">A 30-day pass, one-time. For when the interview is weeks away, not months.</p>
+            <ul className="pr-points">
+              {SPRINT_POINTS.map((t) => (
+                <li key={t}><Check />{t}</li>
+              ))}
+            </ul>
+            {onSub ? (
+              <Link className="btn btn-block" to="/account">You have Pro</Link>
+            ) : (
+              <Link className={"btn btn-block" + (hasPro ? "" : " btn-primary")} to="/account?upgrade=1&option=sprint">
+                {onSprint ? "Extend 30 days" : "Get the 30-day pass"}
+              </Link>
+            )}
+            <p className="pr-fine">Doesn’t renew. Secure checkout by Stripe.</p>
+          </section>
+        )}
       </div>
 
       <section className="card pr-compare" aria-labelledby="pr-compare-h">
@@ -153,11 +219,22 @@ export default function PricingPage() {
         <details>
           <summary>Can I cancel anytime?</summary>
           <p>
-            Yes. Cancel from the Stripe customer portal (the “Manage subscription” link in any Stripe receipt email)
-            {SUPPORT_EMAIL ? <>, or email <a href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> and we’ll cancel it for you</> : <>, or email us and we’ll cancel it for you</>}.
+            Yes. Open <Link to="/account">Account</Link> and choose <strong>Manage billing</strong> to cancel, switch
+            between monthly and annual, or update your card
+            {SUPPORT_EMAIL ? <>. You can also email <a href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> and we’ll cancel it for you</> : null}.
             When Pro ends you move back to Free, and your saved jobs stay.
           </p>
         </details>
+        {hasSprint && (
+          <details>
+            <summary>How does the Interview Sprint pass work?</summary>
+            <p>
+              You pay once and get everything in Pro for 30 days. It doesn’t renew, so there’s nothing to cancel. Buying
+              another pass before it ends adds 30 days to your current end date. You can switch to a subscription any
+              time.
+            </p>
+          </details>
+        )}
         <details>
           <summary>What happens to my resume?</summary>
           <p>
@@ -171,7 +248,7 @@ export default function PricingPage() {
         </details>
         <details>
           <summary>Do I need an account for Free?</summary>
-          <p>No account is needed to read the study library or analyze a job. Sign in to save jobs, track readiness and use the AI interviewer features.</p>
+          <p>No account is needed to read the study library or see the <Link to="/example">sample walkthrough</Link>. Analyzing your own job needs a free account, and so does saving jobs, tracking readiness and the AI interviewer features.</p>
         </details>
       </section>
     </div>
