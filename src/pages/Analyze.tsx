@@ -221,7 +221,7 @@ export default function AnalyzePage() {
     if (tok) {
       const saved = await api.createJob(tok, { analysis: a, title: v.targetRole || a.seniority || "", jobDescription: v.jobDescription, model: d.model || "" });
       if (saved.status === 201 && saved.body?.job?.id) jobId = saved.body.job.id;
-      else if (saved.status === 403 && saved.body?.upgrade) meta.saveNote = <>Free includes {LIMITS.free.saved_jobs} saved job, so this one isn{"’"}t saved. <Link to="/pricing">Upgrade to Pro</Link> to keep more, or remove one in <Link to="/jobs">Jobs</Link>.</>;
+      else if (saved.status === 403 && saved.body?.upgrade) meta.saveNote = <>Free includes {LIMITS.free.saved_jobs} saved job, so this one isn{"’"}t saved. <Link to="/pricing">Get a pass</Link> to keep more, or remove one in <Link to="/jobs">Jobs</Link>.</>;
       else meta.saveNote = saved.status === 0 ? "Couldn’t reach the server to save this job. Try “Save this job” below." : saved.body?.error || "Couldn’t save this job. Try “Save this job” below.";
     } else {
       meta.saveNote = <>Sign in to save this job and get a day-by-day plan. <Link to="/account">Sign in</Link></>;
@@ -508,7 +508,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
       setActiveJob(res.body.job.id);
       navigate("/jobs/" + encodeURIComponent(res.body.job.id) + "?added=1");
     } else if (res.status === 403 && res.body?.upgrade) {
-      setSaveMsg({ text: <>Free includes {LIMITS.free.saved_jobs} saved job. <Link to="/pricing">Upgrade to Pro</Link> to save more, or remove one in <Link to="/jobs">Jobs</Link>.</> });
+      setSaveMsg({ text: <>Free includes {LIMITS.free.saved_jobs} saved job. <Link to="/pricing">Get a pass</Link> to save more, or remove one in <Link to="/jobs">Jobs</Link>.</> });
     } else if (res.status === 401) setSaveMsg({ text: <>Please <Link to="/account">sign in</Link> to save this job.</> });
     else if (res.status === 0) setSaveMsg({ text: "Couldn't reach the server. Please try again.", err: true });
     else setSaveMsg({ text: res.body?.error || "Couldn't save this job. Please try again.", err: true });

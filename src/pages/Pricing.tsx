@@ -1,50 +1,33 @@
-/* Pricing: Free vs Pro, built from the same PLAN_MATRIX / LIMITS the server
- * enforces (api/_lib/plans.js), so the page can't drift from real limits.
- * Prices are display labels from config (VITE_PRO_PRICE_LABEL,
- * VITE_PRO_ANNUAL_PRICE_LABEL, VITE_SPRINT_PRICE_LABEL); Stripe holds the real
- * amounts. Which options exist comes from the API (only configured prices are
- * sold). Upgrade goes through /account?upgrade=1&option=… (checkout).
+/* Pricing: Free plus one-time passes that never auto-renew, and a mock pack.
+ * Allowances come from lib/passes (mirrors api/_lib/passes.js, which the
+ * server enforces); prices are display labels from config (PRICE_LABELS),
+ * Stripe holds the real amounts. Which options can be bought comes from the
+ * API (only configured prices are sold). Buying goes through
+ * /account?upgrade=1&option=… (checkout).
  *
- * When the Sprint pass is on sale it is the recommended paid option and sits
- * before Pro; with an interview date saved for any job (lib/interviewDates)
- * its card says how far away the interview is. */
+ * With an interview date saved for any job (lib/interviewDates), the page
+ * suggests the shortest pass that covers it. Monthly/annual subscriptions are
+ * shown only when the deployment still sells them. */
 
-import { useState } from "react";
-import { PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SPRINT_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
-import { annualSavingsPct, shortDate, splitLabel, useBilling } from "../lib/billing";
-import { LIMITS, PLAN_MATRIX, usePlan, type Feature } from "../lib/plans";
+import { PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
+import type { BillingOption, PassKind } from "../lib/api";
+import { shortDate, useBilling } from "../lib/billing";
+import { LIMITS, PLAN_MATRIX, featureNoun, usePlan, type Feature } from "../lib/plans";
+import { MOCK_PACK, PASSES, PASS_ORDER, POPULAR, passForDays, passName, perDay, type PassDef } from "../lib/passes";
 import { daysUntil, useInterviewDates } from "../lib/interviewDates";
 import { Link } from "../lib/router";
 
-const SPRINT_POINTS = [
-  "Everything in Pro for 30 days",
-  "One payment. No subscription, nothing to cancel",
-  "Buy again before it ends to add 30 more days",
-];
+/** Rows of the compare table, in PLAN_MATRIX order and wording. */
+const ROWS = PLAN_MATRIX.filter((r) => r.feature !== "library");
+
+/** The four numbers each pass card leads with. */
+const CARD_FEATURES: Feature[] = ["voice_mock", "ai_grading", "saved_jobs", "analyses"];
 
 const FREE_POINTS = [
   "Study library, question banks and practice mode",
   `${LIMITS.free.saved_jobs} saved job and ${LIMITS.free.analyses} job analyses a month`,
-  "Day-by-day plan to your interview date",
   `${LIMITS.free.ai_grading} AI answer gradings and ${LIMITS.free.voice_mock} voice mock interview a month`,
-  `${LIMITS.free.story_ai} STAR story coaching sessions a month`,
-];
-
-const PRO_POINTS = [
-  "Everything in Free",
-  "Unlimited saved jobs",
-  "The full defend-your-decision scenario library",
-  "Scenarios generated for your exact job",
-  `Up to ${LIMITS.pro.voice_mock} voice mock interviews and ${LIMITS.pro.ai_grading} AI gradings a month`,
-  "Calendar export for your prep plan",
-];
-
-const FAIR_USE: { feature: Feature; label: string }[] = [
-  { feature: "analyses", label: "job analyses" },
-  { feature: "ai_grading", label: "AI answer gradings" },
-  { feature: "voice_mock", label: "voice mock sessions" },
-  { feature: "custom_scenarios", label: "generated scenarios" },
-  { feature: "story_ai", label: "story coaching sessions" },
+  "Day-by-day plan to your interview date",
 ];
 
 function Check() {
@@ -65,11 +48,25 @@ function nearestInterview(dates: Record<string, string>): number | null {
   return best;
 }
 
-function sprintFit(days: number): string {
-  if (days === 0) return "Your interview is today. Good luck: you’ve got this.";
-  const when = days === 1 ? "tomorrow" : "in " + days + " days";
-  if (days <= 30) return "Your interview is " + when + ". The Sprint pass covers it, with no renewal.";
-  return "Your interview is " + when + ". Start a Sprint pass when you’re 30 days out, or add a second pass to cover the rest.";
+function fitLine(days: number, kind: PassKind): string {
+  const when = days === 0 ? "today" : days === 1 ? "tomorrow" : "in " + days + " days";
+  return `Your interview is ${when}. The ${PASSES[kind].name} covers it, with nothing to cancel afterwards.`;
+}
+
+const CARD_NOUNS: Partial<Record<Feature, [string, string]>> = { voice_mock: ["mock interview", "mock interviews"] };
+
+function amount(def: PassDef, f: Feature): string {
+  const v = def.limits[f];
+  const w = CARD_NOUNS[f];
+  if (v === null) return "Unlimited " + (w ? w[1] : featureNoun(f, 2));
+  return `${v} ${w ? w[v === 1 ? 0 : 1] : featureNoun(f, v)}`;
+}
+
+function cell(v: number | null | undefined, monthly: boolean): string {
+  if (v === undefined) return "";
+  if (v === null) return "Included";
+  if (v === 0) return "—";
+  return monthly ? `${v} / month` : String(v);
 }
 
 function Cell({ value }: { value: string }) {
@@ -80,192 +77,205 @@ function Cell({ value }: { value: string }) {
 export default function PricingPage() {
   const p = usePlan();
   const b = useBilling();
-  const opts = b.info ? b.info.options : null; // null = unknown (offline / old API): plain monthly as before
-  const hasMonthly = !opts || opts.includes("monthly");
-  const hasAnnual = !!opts && opts.includes("annual");
-  const hasSprint = !!opts && opts.includes("sprint");
-  const hasPro = hasMonthly || hasAnnual;
-  const showToggle = hasMonthly && hasAnnual;
-  const save = showToggle ? annualSavingsPct() : null;
-  const [picked, setPicked] = useState<"monthly" | "annual">("monthly");
-  const cycle: "monthly" | "annual" = !hasMonthly && hasAnnual ? "annual" : hasAnnual ? picked : "monthly";
+  const opts = b.info ? b.info.options : null; // null = unknown (loading / offline): show every option
+  const sells = (o: BillingOption) => !opts || opts.includes(o);
+  const anyPassSold = !opts || PASS_ORDER.some((k) => opts.includes(k));
+  const subs = !!opts && (opts.includes("monthly") || opts.includes("annual"));
 
-  const source = b.info?.pro_source || null;
-  const onPro = p.signedIn && p.plan === "pro";
-  const onSub = onPro && source === "subscription";
-  const onSprint = onPro && source === "sprint";
+  const mine: PassKind | null = p.pass ? p.pass.kind : b.info?.pass_kind || null;
+  const passEnd = p.pass?.expiresAt || (b.info?.pro_source === "pass" ? b.info.pro_expires_at : null);
+  const onSub = p.plan === "pro" && b.info?.pro_source === "subscription";
   const onFree = p.signedIn && p.plan === "free" && !p.loading;
-  const [amount, per] = splitLabel(cycle === "annual" ? PRO_ANNUAL_PRICE_LABEL : PRO_PRICE_LABEL);
-  const [sAmount, sPer] = splitLabel(SPRINT_PRICE_LABEL);
+
   const [dates] = useInterviewDates();
   const days = nearestInterview(dates);
-  const fit = hasSprint && days != null && !onPro ? sprintFit(days) : "";
-  // Sprint leads the paid options whenever it's on sale.
-  const sprintFirst = hasSprint;
+  const jobs = Object.keys(dates).length;
+  const suggested = passForDays(days, jobs);
+  const fit = days != null && !mine ? fitLine(days, suggested) : "";
+  const highlight: PassKind = days != null && !mine ? suggested : POPULAR;
 
   return (
     <div className="page pricing">
       <header className="pr-hero">
         <p className="pr-eyebrow">Pricing</p>
-        <h1>{hasSprint ? "Free to start. A pass for the interview you’ve booked." : "Free to start. Pro when your interview is real."}</h1>
+        <h1>Pay once for your interview. Nothing renews.</h1>
         <p className="pr-lede">
-          {hasSprint
-            ? "Learn, add a job and practise for free. When an interview is on the calendar, a 30-day Sprint pass covers the run-up with one payment and nothing to cancel."
-            : "Learn, add a job and practise for free. Upgrade when you have an interview on the calendar and want an AI interviewer that pushes back."}
+          Interview prep has an end date, so OfferReady doesn’t charge by the month. Pick a pass for the length of
+          your search. Every pass includes everything, with an allowance sized to its length.
         </p>
-        {showToggle && (
-          <div className="bl-toggle" role="group" aria-label="Billing period">
-            <button type="button" aria-pressed={cycle === "monthly"} className={cycle === "monthly" ? "on" : ""} onClick={() => setPicked("monthly")}>
-              Monthly
-            </button>
-            <button type="button" aria-pressed={cycle === "annual"} className={cycle === "annual" ? "on" : ""} onClick={() => setPicked("annual")}>
-              Annual{save ? <span className="bl-save">save {save}%</span> : null}
-            </button>
-          </div>
-        )}
+        {fit ? <p className="pr-fit" role="status">{fit}</p> : null}
+        {mine && passEnd ? (
+          <p className="pr-fit" role="status">
+            You have the {passName(mine)} until {shortDate(passEnd)}. A new pass starts when it ends, and its allowance is added right away.
+          </p>
+        ) : null}
       </header>
 
-      <div className={"pr-plans" + (hasSprint && hasPro ? " pr-plans-3" : "")}>
-        <section className="card pr-plan" aria-labelledby="pr-free">
+      <div className="pr-plans pr-passes">
+        {PASS_ORDER.map((k) => {
+          const def = PASSES[k];
+          const rec = k === highlight;
+          const day = perDay(def);
+          const isMine = mine === k;
+          const sold = sells(k);
+          return (
+            <section key={k} className={"card pr-plan pr-pass" + (rec ? " pr-rec" : "")} aria-labelledby={"pr-" + k}>
+              {rec ? <p className="pr-rec-tag">{days != null && !mine ? "Fits your interview date" : "Most popular"}</p> : null}
+              <div className="pr-plan-top">
+                <h2 id={"pr-" + k}>{def.name}</h2>
+                {isMine ? <span className="pill pill-ok">Your pass</span> : <span className="pr-days">{def.days} days</span>}
+              </div>
+              <p className="pr-price">
+                <span className="pr-amount">{def.price}</span> <span className="pr-per">one-time</span>
+              </p>
+              <p className="pr-forwho">{def.fit}{day ? <span className="pr-perday"> · about {day} a day</span> : null}</p>
+              <ul className="pr-points">
+                {CARD_FEATURES.map((f) => (
+                  <li key={f}><Check />{amount(def, f)}</li>
+                ))}
+                <li><Check />Full trade-off scenario library</li>
+              </ul>
+              {sold ? (
+                <Link className={"btn btn-block" + (rec ? " btn-primary" : "")} to={"/account?upgrade=1&option=" + k}>
+                  {mine ? "Add after my pass" : "Get this pass"}
+                </Link>
+              ) : (
+                <button type="button" className="btn btn-block" disabled>Coming soon</button>
+              )}
+              <p className="pr-fine">Doesn’t renew. Secure checkout by Stripe.</p>
+            </section>
+          );
+        })}
+      </div>
+
+      <section className="card pr-addon" aria-labelledby="pr-pack-h">
+        <div>
+          <h2 id="pr-pack-h">{MOCK_PACK.name}</h2>
+          <p className="muted">
+            {MOCK_PACK.amount} extra voice mock interviews for {MOCK_PACK.price}, on Free or any pass. They never expire and are
+            used only after your plan’s own mock interviews run out.
+          </p>
+        </div>
+        {sells(MOCK_PACK.kind) ? (
+          <Link className="btn" to={"/account?upgrade=1&option=" + MOCK_PACK.kind}>Add {MOCK_PACK.amount} mock interviews</Link>
+        ) : (
+          <button type="button" className="btn" disabled>Coming soon</button>
+        )}
+      </section>
+
+      <section className="card pr-free" aria-labelledby="pr-free">
+        <div>
           <div className="pr-plan-top">
             <h2 id="pr-free">Free</h2>
             {onFree && <span className="pill pill-info">Your plan</span>}
           </div>
-          <p className="pr-price">
-            <span className="pr-amount">$0</span> <span className="pr-per">forever</span>
-          </p>
-          <p className="muted">Everything you need to understand a role and start preparing.</p>
-          <ul className="pr-points">
+          <p className="muted">Everything you need to understand a role and start preparing. Limits reset each month.</p>
+          <ul className="pr-points pr-points-inline">
             {FREE_POINTS.map((t) => (
               <li key={t}><Check />{t}</li>
             ))}
           </ul>
-          <Link className="btn btn-block" to="/analyze">{p.signedIn ? "Add a job" : "Start free"}</Link>
-        </section>
-
-        {hasSprint && (
-          <section className={"card pr-plan pr-plan-sprint" + (sprintFirst ? " pr-rec" : "")} aria-labelledby="pr-sprint">
-            {sprintFirst && !onPro ? <p className="pr-rec-tag">Recommended if your interview is booked</p> : null}
-            <div className="pr-plan-top">
-              <h2 id="pr-sprint">Interview Sprint</h2>
-              {onSprint ? <span className="pill pill-ok">Ends {shortDate(b.info?.pro_expires_at)}</span> : <span className="bl-pass">30-day pass</span>}
-            </div>
-            <p className="pr-price">
-              <span className="pr-amount">{sAmount}</span> {sPer && <span className="pr-per">{sPer}</span>}
-            </p>
-            <p className="muted">One payment for 30 days of Pro. Sized for one interview loop, not a subscription.</p>
-            {fit ? <p className="pr-fit" role="status">{fit}</p> : null}
-            <ul className="pr-points">
-              {SPRINT_POINTS.map((t) => (
-                <li key={t}><Check />{t}</li>
-              ))}
-            </ul>
-            {onSub ? (
-              <Link className="btn btn-block" to="/account">You have Pro</Link>
-            ) : (
-              <Link className="btn btn-primary btn-block" to="/account?upgrade=1&option=sprint">
-                {onSprint ? "Extend 30 days" : "Get the 30-day pass"}
-              </Link>
-            )}
-            <p className="pr-fine">Doesn’t renew. Secure checkout by Stripe.</p>
-          </section>
-        )}
-
-        {hasPro && (
-          <section className={"card pr-plan pr-plan-pro" + (sprintFirst ? " pr-plan-pro-alt" : "")} aria-labelledby="pr-pro">
-            <div className="pr-plan-top">
-              <h2 id="pr-pro">Pro</h2>
-              {onSub || (onPro && !onSprint) ? <span className="pill pill-ok">Your plan</span> : <span className="pr-tag">{sprintFirst ? "For a longer search" : "For a real interview"}</span>}
-            </div>
-            <p className="pr-price">
-              <span className="pr-amount">{amount}</span> {per && <span className="pr-per">{per}</span>}
-            </p>
-            <p className="muted">
-              {cycle === "annual" ? "Billed once a year. " : ""}Practice the way the interview actually goes, as often as you need.
-            </p>
-            <ul className="pr-points">
-              {PRO_POINTS.map((t) => (
-                <li key={t}><Check />{t}</li>
-              ))}
-            </ul>
-            {onPro && !onSprint ? (
-              <Link className="btn btn-block" to="/account">Manage your plan</Link>
-            ) : (
-              <Link className={"btn btn-block" + (sprintFirst ? "" : " btn-primary")} to={"/account?upgrade=1&option=" + cycle}>
-                {onSprint ? (cycle === "annual" ? "Switch to annual" : "Switch to monthly") : cycle === "annual" ? "Upgrade to Pro, yearly" : "Upgrade to Pro"}
-              </Link>
-            )}
-            <p className="pr-fine">Cancel anytime. Secure checkout by Stripe.</p>
-          </section>
-        )}
-
-      </div>
+        </div>
+        <Link className="btn" to="/analyze">{p.signedIn ? "Add a job" : "Start free"}</Link>
+      </section>
 
       <section className="card pr-compare" aria-labelledby="pr-compare-h">
-        <h2 id="pr-compare-h">Compare plans</h2>
+        <h2 id="pr-compare-h">What each plan includes</h2>
         <div className="table-wrap">
-          <table className="pr-table">
+          <table className="pr-table pr-table-passes">
             <thead>
               <tr>
                 <th scope="col">Feature</th>
                 <th scope="col">Free</th>
-                <th scope="col">Pro</th>
+                {PASS_ORDER.map((k) => <th scope="col" key={k} className={k === highlight ? "pr-col-rec" : ""}>{PASSES[k].name}</th>)}
               </tr>
             </thead>
             <tbody>
-              {PLAN_MATRIX.map((r) => (
-                <tr key={r.feature}>
-                  <th scope="row">{r.label}</th>
-                  <td><Cell value={r.free} /></td>
-                  <td><Cell value={r.pro} /></td>
-                </tr>
-              ))}
+              <tr>
+                <th scope="row">Price</th>
+                <td>$0</td>
+                {PASS_ORDER.map((k) => <td key={k} className={k === highlight ? "pr-col-rec" : ""}>{PASSES[k].price} once</td>)}
+              </tr>
+              <tr>
+                <th scope="row">Length</th>
+                <td>Always</td>
+                {PASS_ORDER.map((k) => <td key={k} className={k === highlight ? "pr-col-rec" : ""}>{PASSES[k].days} days</td>)}
+              </tr>
+              {ROWS.map((r) => {
+                const f = r.feature as Feature;
+                return (
+                  <tr key={r.feature}>
+                    <th scope="row">{r.label}</th>
+                    <td><Cell value={f === "premium_scenarios" ? "Previews" : f === "prep_plan" ? "Included" : cell(LIMITS.free[f], f !== "saved_jobs")} /></td>
+                    {PASS_ORDER.map((k) => (
+                      <td key={k} className={k === highlight ? "pr-col-rec" : ""}>
+                        <Cell value={f === "premium_scenarios" ? "Full library" : f === "prep_plan" ? "Included + calendar" : cell(PASSES[k].limits[f], false)} />
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-        <p className="hint">Monthly limits follow the calendar month (UTC) and reset on the 1st. Unused uses don’t roll over.</p>
+        <p className="hint">
+          Pass numbers are for the whole pass, not per month. Saved jobs is how many you can keep at once. A use counts
+          only when the AI result comes back; failed or timed-out requests aren’t counted.
+        </p>
       </section>
 
-      <section className="card pr-fair" aria-labelledby="pr-fair-h">
-        <h2 id="pr-fair-h">What counts as fair use</h2>
-        <p>
-          Pro limits are generous caps, not a meter you need to watch. They sit far above what a focused interview
-          prep uses, and exist to keep AI costs sustainable and stop automated abuse.
-        </p>
-        <ul className="pr-fair-list">
-          {FAIR_USE.map((f) => (
-            <li key={f.feature}>
-              <strong>{LIMITS.pro[f.feature]}</strong> {f.label} a month
-            </li>
-          ))}
-        </ul>
-        <p className="hint">
-          A use counts only when the AI result comes back. Failed or timed-out requests aren’t counted. If you reach a
-          cap, it resets on the 1st{SUPPORT_EMAIL ? <> {"—"} or <a href={"mailto:" + SUPPORT_EMAIL}>write to us</a> if you need more for a real reason</> : null}.
-        </p>
-      </section>
+      {subs && (
+        <section className="card pr-subs" aria-labelledby="pr-subs-h">
+          <h2 id="pr-subs-h">Prefer a subscription?</h2>
+          <p className="muted">
+            Pro is also available as a subscription
+            {opts?.includes("monthly") ? <> at {PRO_PRICE_LABEL}</> : null}
+            {opts?.includes("monthly") && opts?.includes("annual") ? " or " : opts?.includes("annual") ? " at " : ""}
+            {opts?.includes("annual") ? PRO_ANNUAL_PRICE_LABEL : null}, with monthly fair-use limits. Cancel anytime.
+          </p>
+          <div className="row wrap">
+            {onSub ? <Link className="btn" to="/account">Manage your subscription</Link> : (
+              <>
+                {opts?.includes("monthly") && <Link className="btn btn-ghost" to="/account?upgrade=1&option=monthly">Monthly</Link>}
+                {opts?.includes("annual") && <Link className="btn btn-ghost" to="/account?upgrade=1&option=annual">Yearly</Link>}
+              </>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="pr-faq" aria-labelledby="pr-faq-h">
         <h2 id="pr-faq-h">Questions</h2>
         <details>
-          <summary>Can I cancel anytime?</summary>
+          <summary>Does a pass renew automatically?</summary>
           <p>
-            Yes. Open <Link to="/account">Account</Link> and choose <strong>Manage billing</strong> to cancel, switch
-            between monthly and annual, or update your card
-            {SUPPORT_EMAIL ? <>. You can also email <a href={"mailto:" + SUPPORT_EMAIL}>{SUPPORT_EMAIL}</a> and we’ll cancel it for you</> : null}.
-            When Pro ends you move back to Free, and your saved jobs stay.
+            No. You pay once and the pass ends on its own date. There’s no subscription, so there’s nothing to cancel and
+            no surprise charge after you get the offer. When it ends you move back to Free, and your saved jobs stay.
           </p>
         </details>
-        {hasSprint && (
-          <details>
-            <summary>How does the Interview Sprint pass work?</summary>
-            <p>
-              You pay once and get everything in Pro for 30 days. It doesn’t renew, so there’s nothing to cancel. Buying
-              another pass before it ends adds 30 days to your current end date. You can switch to a subscription any
-              time.
-            </p>
-          </details>
-        )}
+        <details>
+          <summary>What if my search takes longer?</summary>
+          <p>
+            Buy another pass any time. It starts the day your current pass ends, so you don’t lose any days, and its
+            allowance is added to what you have left straight away.
+          </p>
+        </details>
+        <details>
+          <summary>Why do passes have limits?</summary>
+          <p>
+            Every AI grading and mock interview costs us to run, so each pass includes a fixed allowance for its whole
+            length. The numbers sit well above what a focused prep uses. If you run out of mock interviews, a mock pack
+            adds {MOCK_PACK.amount} more{SUPPORT_EMAIL ? <>, or <a href={"mailto:" + SUPPORT_EMAIL}>write to us</a> if you need more of something for a real reason</> : null}.
+          </p>
+        </details>
+        <details>
+          <summary>Which pass should I pick?</summary>
+          <p>
+            One interview booked: the {PASSES.job.name}. A few interviews in the next month: the {PASSES.pass30.name}.
+            A full job search: the {PASSES.pass90.name}, which most people choose. Preparing over many months: the {PASSES.pass365.name}.
+            {anyPassSold ? null : " Passes open for checkout soon."}
+          </p>
+        </details>
         <details>
           <summary>Does OfferReady help during a live interview?</summary>
           <p>
@@ -278,13 +288,9 @@ export default function PricingPage() {
         <details>
           <summary>What happens to my resume?</summary>
           <p>
-            Your resume is read in your browser and never stored. Only its text goes with the analysis you ask for, and
-            it isn’t saved to your account.
+            Your resume is read in your browser. Its text goes only with the analysis you ask for, and it’s saved to your
+            account only if you turn on resume sync.
           </p>
-        </details>
-        <details>
-          <summary>What happens when I hit a Free limit?</summary>
-          <p>Nothing is lost. The feature shows an upgrade card until your limit resets on the 1st of the month, and everything else keeps working.</p>
         </details>
         <details>
           <summary>Do I need an account for Free?</summary>

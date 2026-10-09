@@ -1,17 +1,18 @@
-/* Account: sign in/out, and the Upgrade-to-Pro checkout bridge (was
- * content/assets/upgrade.js). ?upgrade=1[&option=monthly|annual|sprint]
- * starts checkout once signed in (no option: monthly when sold, else the first
- * configured option). Checkout itself is created server-side
+/* Account: sign in/out, and the checkout bridge (was
+ * content/assets/upgrade.js). ?upgrade=1[&option=job|pass30|pass90|pass365|mock10|monthly|annual]
+ * starts checkout once signed in (no option: the 90-day pass when sold, else
+ * the first configured option; "sprint" is the old name of pass30). Checkout itself is created server-side
  * (/api/billing/checkout); "Manage billing" opens the Stripe portal
  * (/api/billing/portal). */
 
 import { useEffect, useRef, useState } from "react";
-import { API_ENABLED, DOCS_BASE, PRICING_URL, PRO_ANNUAL_PRICE_LABEL, PRO_PRICE_LABEL, SPRINT_PRICE_LABEL, SUPPORT_EMAIL } from "../config";
+import { API_ENABLED, DOCS_BASE, PRICING_URL, SUPPORT_EMAIL } from "../config";
 import * as api from "../lib/api";
 import type { BillingInfo, BillingOption } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { invalidateBilling, shortDate, useBilling } from "../lib/billing";
 import { PLAN_MATRIX, featureNoun, usePlan, type Feature } from "../lib/plans";
+import { MOCK_PACK, PASSES, POPULAR, passName } from "../lib/passes";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { downloadText } from "../lib/analysisExport";
 import { installState, promptInstall, subscribePwa } from "../lib/pwa";
@@ -25,14 +26,15 @@ type Banner = { text: string; tone: "info" | "ok" | "err" } | null;
 type Want = BillingOption | "auto" | null;
 
 function parseOption(v: string | null): Want {
-  return v === "monthly" || v === "annual" || v === "sprint" ? v : "auto";
+  if (v === "sprint") return "pass30";
+  return v && api.BILLING_OPTIONS.includes(v as BillingOption) ? (v as BillingOption) : "auto";
 }
 
-/** No explicit option: monthly when sold, else the first configured one. */
+/** No explicit option: the most popular pass when sold, else the first configured one. */
 function resolveOption(want: Want, info: BillingInfo | null): BillingOption {
   if (want && want !== "auto") return want;
-  if (info && info.options.length && !info.options.includes("monthly")) return info.options[0];
-  return "monthly";
+  if (info && info.options.length && !info.options.includes(POPULAR)) return info.options[0];
+  return POPULAR;
 }
 
 export default function AccountPage() {
@@ -82,12 +84,12 @@ export default function AccountPage() {
         started.current = false;
         setBanner({ text: "Please sign in below, then try again.", tone: "info" });
       } else if (res.status === 503) {
-        setBanner({ text: "Pro isn’t open for checkout yet — opening the waitlist…", tone: "info" });
+        setBanner({ text: "Passes aren’t open for checkout yet — opening the waitlist…", tone: "info" });
         window.location.href = PRICING_URL;
       } else if (res.status === 0) {
         setBanner({ text: "Couldn’t reach the billing service. Please try again.", tone: "err" });
       } else if (res.status === 409) {
-        setBanner({ text: res.body?.error || "You already have Pro. Use Manage billing to change it.", tone: "info" });
+        setBanner({ text: res.body?.error || "You already have a subscription. Use Manage billing to change it.", tone: "info" });
       } else {
         setBanner({ text: res.body?.error || "Couldn’t start checkout. Please try again.", tone: "err" });
       }
@@ -162,12 +164,11 @@ export default function AccountPage() {
       ) : (
         <Card className="plan-card">
           <div>
-            <h2>OfferReady Pro</h2>
-            <p className="muted">The full trade-off drill library, AI answer grading, scenarios generated for your exact job, and more saved jobs.</p>
+            <h2>OfferReady passes</h2>
+            <p className="muted">Pay once for the length of your search: the full trade-off drill library, AI answer grading, voice mock interviews and scenarios for your exact job. Nothing renews.</p>
           </div>
           <div className="row wrap">
-            <button type="button" className="btn btn-primary" onClick={() => { started.current = false; setWantsUpgrade(true); }}>Upgrade to Pro</button>
-            <Link className="btn btn-ghost" to="/pricing">Compare Free and Pro</Link>
+            <Link className="btn btn-primary" to="/pricing">See passes</Link>
           </div>
         </Card>
       )}
@@ -405,7 +406,7 @@ function UsageMeter({ feature, used, limit, unknown }: { feature: Feature; used:
   if (limit === 0) {
     return (
       <li className="meter meter-locked">
-        <div className="meter-top"><span>{label}</span><span className="pill pill-info">Pro</span></div>
+        <div className="meter-top"><span>{label}</span><span className="pill pill-info">With a pass</span></div>
       </li>
     );
   }
@@ -424,11 +425,15 @@ function UsageMeter({ feature, used, limit, unknown }: { feature: Feature; used:
   );
 }
 
-/** "Pro · renews monthly", "Pro · ends Nov 8", "Pro Sprint · ends Oct 30". */
-function sourceLine(b: BillingInfo | null): string | null {
+/** "90-day pass · ends Jan 7", "Pro · renews monthly", "Pro · ends Nov 8". */
+function sourceLine(b: BillingInfo | null, passEnd?: string): string | null {
   if (!b || !b.pro_source) return null;
-  const end = shortDate(b.pro_expires_at);
-  if (b.pro_source === "sprint") return "Pro Sprint" + (end ? " · ends " + end : "");
+  const end = shortDate(b.pro_expires_at || passEnd);
+  if (b.pro_source === "pass") {
+    const queued = Math.max(0, (b.pass_kinds?.length || 1) - 1);
+    return passName(b.pass_kind) + (end ? " · ends " + end : "") + (queued ? ` · ${queued} more queued` : "") + " · doesn’t renew";
+  }
+  if (b.pro_source === "sprint") return "30-day pass" + (end ? " · ends " + end : "") + " · doesn’t renew";
   if (b.cancel_at_period_end) return "Pro" + (end ? " · ends " + end : " · cancels at period end");
   return "Pro · renews " + (b.pro_interval === "year" ? "yearly" : "monthly") + (end ? " · next on " + end : "");
 }
@@ -447,28 +452,34 @@ function PlanUsageCard({ billing, refreshBilling, onUpgrade, onPortal }: {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isPro = p.plan === "pro";
-  const onSprint = isPro && billing?.pro_source === "sprint";
+  const source = billing?.pro_source || null;
+  const onPass = isPro && (!!p.pass || source === "pass" || source === "sprint");
+  const onSub = isPro && source === "subscription";
   const opts = billing ? billing.options : [];
+  const sells = (o: BillingOption) => !billing || opts.includes(o);
   const anyUnknown = METER_FEATURES.some((f) => p.usage[f]?.unknown);
-  const resets = p.resetsAt
+  const resets = p.resetsAt && !onPass
     ? new Date(p.resetsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", timeZone: "UTC" })
     : null;
-  const line = isPro ? sourceLine(billing) : null;
+  const line = isPro ? sourceLine(billing, p.pass?.expiresAt) : null;
+  const passKind = p.pass?.kind || billing?.pass_kind || null;
+  const title = p.loading ? "Loading…" : onPass ? passName(passKind || "pass30") : isPro ? "OfferReady Pro" : "Free";
+  const days = p.pass ? Math.ceil((Date.parse(p.pass.expiresAt) - Date.now()) / 86400000) : null;
 
   return (
     <Card className="plan-usage">
       <div className="plan-usage-head">
         <div>
           <span className="plan-usage-kicker">Current plan</span>
-          <h2>{p.loading ? "Loading…" : onSprint ? "OfferReady Pro Sprint" : isPro ? "OfferReady Pro" : "Free"}</h2>
+          <h2>{title}</h2>
           {line && <p className="bl-source">{line}</p>}
         </div>
-        {!p.loading && <span className={"pill " + (isPro ? "pill-ok" : "pill-info")}>{onSprint ? "Sprint" : isPro ? "Pro" : "Free"}</span>}
+        {!p.loading && <span className={"pill " + (isPro ? "pill-ok" : "pill-info")}>{onPass ? (days != null && days > 0 ? days + (days === 1 ? " day left" : " days left") : "Pass") : isPro ? "Pro" : "Free"}</span>}
       </div>
       {!p.loading && (
         <>
           <p className="muted small">
-            {isPro ? "Fair-use limits this month" : "Your usage this month"}
+            {onPass ? "Used in this pass" : isPro ? "Fair-use limits this month" : "Your usage this month"}
             {resets ? ` · resets ${resets}` : ""}
           </p>
           <ul className="meters">
@@ -477,24 +488,27 @@ function PlanUsageCard({ billing, refreshBilling, onUpgrade, onPortal }: {
               return <UsageMeter key={f} feature={f} used={u ? u.used : 0} limit={u ? u.limit : null} unknown={!u || u.unknown} />;
             })}
           </ul>
+          {p.mockCredits > 0 && (
+            <p className="bl-credits"><strong>{p.mockCredits}</strong> extra mock {p.mockCredits === 1 ? "interview" : "interviews"} from mock packs. They never expire and are used after your plan’s own.</p>
+          )}
           {anyUnknown && <p className="hint">Usage counts aren’t available right now. Nothing is blocked while they’re unavailable.</p>}
         </>
       )}
-      {onSprint ? (
+      {onPass ? (
         <div className="plan-usage-cta">
           <p className="muted">
-            Your pass doesn’t renew. Add 30 more days ({SPRINT_PRICE_LABEL.split(" ")[0]}){opts.includes("monthly") ? <>, or switch to monthly Pro ({PRO_PRICE_LABEL}) so it keeps going</> : null}.
+            Your pass doesn’t renew, so there’s nothing to cancel. Another pass starts when this one ends, and its allowance is added right away.
           </p>
           <div className="row wrap">
-            {opts.includes("sprint") && <button type="button" className="btn btn-primary" onClick={() => onUpgrade("sprint")}>Extend 30 days</button>}
-            {opts.includes("monthly") && <button type="button" className="btn btn-ghost" onClick={() => onUpgrade("monthly")}>Switch to monthly</button>}
-            {billing?.portal && <button type="button" className="btn btn-ghost" onClick={onPortal}>Receipts and billing</button>}
+            <Link className="btn btn-primary" to="/pricing">Add another pass</Link>
+            {sells(MOCK_PACK.kind) && <button type="button" className="btn btn-ghost" onClick={() => onUpgrade(MOCK_PACK.kind)}>Add {MOCK_PACK.amount} mock interviews ({MOCK_PACK.price})</button>}
+            {billing?.portal && <button type="button" className="btn btn-ghost" onClick={onPortal}>Receipts</button>}
           </div>
         </div>
-      ) : isPro ? (
+      ) : onSub ? (
         billing?.portal ? (
           <div className="plan-usage-cta">
-            <p className="muted">Update your card, switch between monthly and annual, see invoices or cancel in the Stripe customer portal.</p>
+            <p className="muted">Update your card, see invoices or cancel in the Stripe customer portal.</p>
             <div className="row wrap">
               <button type="button" className="btn btn-primary" onClick={onPortal}>Manage billing</button>
             </div>
@@ -507,19 +521,12 @@ function PlanUsageCard({ billing, refreshBilling, onUpgrade, onPortal }: {
       ) : (
         <div className="plan-usage-cta">
           <p className="muted">
-            Pro unlocks the full scenario library, scenarios generated for your job and higher limits for{" "}
-            {opts.length && !opts.includes("monthly") && opts.includes("annual") ? PRO_ANNUAL_PRICE_LABEL : PRO_PRICE_LABEL}
-            {opts.includes("sprint") ? <>, or get a 30-day pass for {SPRINT_PRICE_LABEL.split(" ")[0]}, one-time</> : null}.
+            Get a pass for the length of your search. The {PASSES[POPULAR].name} is {PASSES[POPULAR].price}, one-time, and nothing renews.
           </p>
           <div className="row wrap">
-            {(!billing || opts.includes("monthly") || opts.includes("annual")) && (
-              <button type="button" className="btn btn-primary" onClick={() => onUpgrade()}>Upgrade to Pro</button>
-            )}
-            {opts.includes("sprint") && (
-              <button type="button" className={"btn " + (opts.length === 1 ? "btn-primary" : "btn-ghost")} onClick={() => onUpgrade("sprint")}>Get the 30-day pass</button>
-            )}
-            <Link className="btn btn-ghost" to="/pricing">Compare plans</Link>
-            {billing?.portal && <button type="button" className="btn btn-ghost" onClick={onPortal}>Manage billing</button>}
+            <Link className="btn btn-primary" to="/pricing">See passes</Link>
+            {sells(MOCK_PACK.kind) && <button type="button" className="btn btn-ghost" onClick={() => onUpgrade(MOCK_PACK.kind)}>Just {MOCK_PACK.amount} mock interviews ({MOCK_PACK.price})</button>}
+            {billing?.portal && <button type="button" className="btn btn-ghost" onClick={onPortal}>Receipts</button>}
           </div>
         </div>
       )}

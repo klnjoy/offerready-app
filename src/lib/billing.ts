@@ -20,10 +20,13 @@ export function invalidateBilling() {
   listeners.forEach((l) => l());
 }
 
-const EMPTY: Omit<BillingInfo, "options"> = { portal: false, pro_source: null, pro_expires_at: null, pro_interval: null, cancel_at_period_end: false };
+const EMPTY: Omit<BillingInfo, "options"> = { portal: false, pro_source: null, pro_expires_at: null, pro_interval: null, cancel_at_period_end: false, pass_kind: null, pass_kinds: [] };
 
 function cleanOptions(v: unknown): BillingOption[] {
-  return Array.isArray(v) ? (v.filter((o) => o === "monthly" || o === "annual" || o === "sprint") as BillingOption[]) : [];
+  if (!Array.isArray(v)) return [];
+  // "sprint" is the old name of the 30-day pass (older API deployments).
+  const out = v.map((o) => (o === "sprint" ? "pass30" : o)).filter((o) => api.BILLING_OPTIONS.includes(o as BillingOption)) as BillingOption[];
+  return Array.from(new Set(out));
 }
 
 export function useBilling(): { info: BillingInfo | null; loading: boolean; refresh(): void } {

@@ -170,9 +170,13 @@ export interface PlanResponse {
   usage: Record<string, PlanUsageEntry>;
   usage_known?: boolean;
   plan_known?: boolean;
-  limits?: Record<"free" | "pro", Record<string, number | null>>;
+  limits?: { free?: Record<string, number | null>; pro?: Record<string, number | null>; passes?: Record<string, Record<string, number | null>> };
   period_start?: string;
   period_end?: string;
+  /** Live one-time pass(es): the one in effect now, every live one, and when the last ends. */
+  pass?: { kind: PassKind; kinds: PassKind[]; starts_at: string; expires_at: string; since: string } | null;
+  /** Mock pack credits left (never expire). */
+  credits?: { voice_mock?: number };
 }
 
 /** 403 body from any limited endpoint when the user is over quota. */
@@ -184,6 +188,10 @@ export interface QuotaError {
   limit?: number | null;
   plan?: "free" | "pro";
   resets_at?: string;
+  /** The pass the user is on, when the limit is a pass allowance. */
+  pass?: PassKind;
+  /** A mock pack would help (voice mock interviews). */
+  pack?: boolean;
 }
 
 export function getPlan(token: string) {
@@ -445,18 +453,25 @@ export function tailorResume(token: string | null, req: TailorRequest) {
 
 // ---- billing options + portal (api/billing/*, api/me/plan billing block) -----
 
-export type BillingOption = "monthly" | "annual" | "sprint";
+export type PassKind = "job" | "pass30" | "pass90" | "pass365";
+export type PackKind = "mock10";
+/** One-time passes and packs; monthly/annual subscriptions only when configured. */
+export type BillingOption = PassKind | PackKind | "monthly" | "annual";
+export const BILLING_OPTIONS: BillingOption[] = ["job", "pass30", "pass90", "pass365", "mock10", "monthly", "annual"];
 
 export interface BillingInfo {
   /** Checkout options this deployment sells. */
   options: BillingOption[];
   /** A Stripe customer exists, so the billing portal can open. */
   portal: boolean;
-  pro_source: "subscription" | "sprint" | null;
-  /** Renewal / period end for a subscription; the end of a sprint pass. */
+  pro_source: "subscription" | "pass" | "sprint" | null;
+  /** Renewal / period end for a subscription; the end of the last pass. */
   pro_expires_at: string | null;
   pro_interval?: "month" | "year" | null;
   cancel_at_period_end?: boolean;
+  /** The pass in effect now, and every live pass (queued ones included). */
+  pass_kind?: PassKind | null;
+  pass_kinds?: PassKind[];
 }
 
 export type PlanWithBilling = PlanResponse & { billing?: BillingInfo };

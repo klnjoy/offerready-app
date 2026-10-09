@@ -37,6 +37,17 @@ export const PRO_ANNUAL_PRICE_LABEL = (env.VITE_PRO_ANNUAL_PRICE_LABEL || "").tr
 /** 30-day Interview Sprint pass label (STRIPE_SPRINT_PRICE_ID, one-time). Display only. */
 export const SPRINT_PRICE_LABEL = (env.VITE_SPRINT_PRICE_LABEL || "").trim() || "$19 one-time · 30 days";
 
+/** One-time pass and pack prices as shown in the app (display only: Stripe
+ * holds the amount, via STRIPE_PASS_*_PRICE_ID / STRIPE_MOCK_PACK_PRICE_ID on
+ * the API). Keep them in sync with the Stripe prices. */
+export const PRICE_LABELS = {
+  job: (env.VITE_PRICE_JOB || "").trim() || "$19",
+  pass30: (env.VITE_PRICE_PASS30 || "").trim() || "$29",
+  pass90: (env.VITE_PRICE_PASS90 || "").trim() || "$59",
+  pass365: (env.VITE_PRICE_PASS365 || "").trim() || "$99",
+  mock10: (env.VITE_PRICE_MOCK10 || "").trim() || "$15",
+} as const;
+
 /** Optional support address for billing questions (cancel by email). */
 export const SUPPORT_EMAIL = (env.VITE_SUPPORT_EMAIL || "").trim();
 
