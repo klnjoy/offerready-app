@@ -21,6 +21,7 @@ import { OFFLINE_SCENARIOS } from "../data/offlineScenarios";
 import { AuthForm } from "../components/AuthForm";
 import { Card, ErrorText } from "../components/ui";
 import { JobPicker } from "../components/JobPicker";
+import { FeedbackView } from "../components/FeedbackView";
 import type { Analysis, AnswerFeedback, JobRow, Scenario, ScenarioNode } from "../types";
 import { track } from "../lib/track";
 
@@ -552,7 +553,7 @@ function Runner({
         </div>
       </div>
       <PersonalizeHint node={node} personalize={personalize} step={path.length} />
-      <NodeBody key={node.id} node={node} offline={offline}
+      <NodeBody key={node.id} node={node} offline={offline} topic={scenario.title}
         onScored={(v) => setAiScores((a) => ({ ...a, [node.id]: v }))}
         onRate={(v) => { const r = { ...ratings, [node.id]: v }; setRatings(r); advance(node.next, r); }}
         onNext={(next) => advance(next)}
@@ -576,8 +577,8 @@ function PersonalizeHint({ node, personalize, step }: { node: ScenarioNode; pers
 }
 
 function NodeBody({
-  node, offline, onRate, onNext, onFinish, onScored,
-}: { node: ScenarioNode; offline: boolean; onRate(v: number): void; onNext(next?: string): void; onFinish(): void; onScored(score: number): void }) {
+  node, offline, topic, onRate, onNext, onFinish, onScored,
+}: { node: ScenarioNode; offline: boolean; topic?: string; onRate(v: number): void; onNext(next?: string): void; onFinish(): void; onScored(score: number): void }) {
   const auth = useAuth();
   const [secs, setSecs] = useState<number | null>(null);
   useEffect(() => {
@@ -640,7 +641,7 @@ function NodeBody({
     setGradeNote("");
     if (a.length < 15) { setGradeNote("Type a few sentences first — then I'll grade it like an interviewer would."); return; }
     setGrading(true);
-    const res = await api.gradeAnswer(await auth.getAccessToken(), { prompt: node.prompt, signals: node.signals || [], model: node.model || "", answer: a });
+    const res = await api.gradeAnswer(await auth.getAccessToken(), { prompt: node.prompt, signals: node.signals || [], model: node.model || "", answer: a, topic: topic || "" });
     setGrading(false);
     if (res.status === 200 && res.body?.feedback) {
       setFeedback(res.body.feedback);
@@ -727,18 +728,10 @@ function NodeBody({
 }
 
 function FeedbackCard({ f }: { f: AnswerFeedback }) {
-  const score = typeof f.score === "number" ? f.score : 0;
-  const tone = score >= 80 ? "strong" : score >= 55 ? "mid" : "weak";
   return (
-    <div className={"fb fb-" + tone}>
-      <div className="fb-head">
-        <span className="fb-score">{score}%</span>
-        <span className="fb-verdict">{f.verdict || ""}</span>
-      </div>
-      {(f.covered || []).length > 0 && (<><div className="field-label">What held up</div><ul className="fb-ok">{f.covered!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
-      {(f.missing || []).length > 0 && (<><div className="field-label">What was missing</div><ul className="fb-miss">{f.missing!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
+    <FeedbackView f={f}>
       {f.followup && (<div className="fb-followup"><div className="field-label">The interviewer would push back</div><p>{f.followup}</p><p className="muted small">Say your answer to this out loud before you move on.</p></div>)}
-    </div>
+    </FeedbackView>
   );
 }
 

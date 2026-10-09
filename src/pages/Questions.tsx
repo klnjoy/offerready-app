@@ -325,7 +325,7 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
                 </button>
                 {isOpen && (
                   <div className="qw-body">
-                    <AnswerCoach prompt={q.prompt} model={q.model_answer} signals={q.signals} autoFocus onResult={(score, how) => onResult(q, score, how)} />
+                    <AnswerCoach prompt={q.prompt} model={q.model_answer} signals={q.signals} topic={String(q.category || "")} autoFocus onResult={(score, how) => onResult(q, score, how)} />
                   </div>
                 )}
               </li>

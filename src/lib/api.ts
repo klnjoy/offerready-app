@@ -164,7 +164,7 @@ export function generateScenario(
   });
 }
 
-export function gradeAnswer(token: string | null, p: { prompt: string; signals: string[]; model: string; answer: string }) {
+export function gradeAnswer(token: string | null, p: { prompt: string; signals: string[]; model: string; answer: string; topic?: string }) {
   return call<{ ok: boolean; feedback: AnswerFeedback }>("/api/premium/grade-answer", {
     method: "POST",
     token,

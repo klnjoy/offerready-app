@@ -367,7 +367,7 @@ function PracticeQ({ item, onPick }: { item: BankItem; onPick(v: number): void }
   return (
     <>
       {API_ENABLED ? (
-        <AnswerCoach prompt={item.q} model={plainModel(item.a)} autoFocus />
+        <AnswerCoach prompt={item.q} model={plainModel(item.a)} topic={item.topic} autoFocus />
       ) : null}
       <div className="row">
         <button type="button" className={"btn " + (API_ENABLED ? "btn-ghost" : "btn-primary")} disabled={revealed} onClick={() => setRevealed(true)}>

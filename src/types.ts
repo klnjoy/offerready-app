@@ -153,10 +153,27 @@ export interface Scenario {
   jobId?: string;
 }
 
+export interface FeedbackCriterion {
+  id: string;
+  label: string;
+  weight: number;
+  /** 0 missing · 1 vague · 2 solid (senior) · 3 staff level */
+  rating: 0 | 1 | 2 | 3;
+  /** Quote from the answer that earned the rating (checked by the server). */
+  evidence?: string;
+  note?: string;
+}
+
 export interface AnswerFeedback {
   score?: number;
   verdict?: string;
   covered?: string[];
   missing?: string[];
   followup?: string;
+  /** Rubric grading (api/_lib/gradeAnswer.js v2). */
+  level?: "staff" | "senior" | "almost" | "not_yet";
+  criteria?: FeedbackCriterion[];
+  staff_upgrade?: string;
+  rubric?: { id: string; label: string; version: string };
+  caps?: string[];
 }

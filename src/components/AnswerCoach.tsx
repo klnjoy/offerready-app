@@ -9,6 +9,7 @@ import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { invalidatePlan } from "../lib/plans";
 import { UpgradeCard } from "./PlanGate";
+import { FeedbackView } from "./FeedbackView";
 import type { AnswerFeedback } from "../types";
 
 const SELF = [
@@ -17,8 +18,10 @@ const SELF = [
   { label: "Missed it", score: 30 },
 ];
 
-export function AnswerCoach({ prompt, model, signals, onResult, autoFocus }: {
+export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus }: {
   prompt: string;
+  /** Category / topic hint so the grader picks the right rubric. */
+  topic?: string;
   model?: string;
   signals?: string[];
   onResult?(score: number, how: "ai" | "self"): void;
@@ -54,7 +57,7 @@ export function AnswerCoach({ prompt, model, signals, onResult, autoFocus }: {
     setNote(""); setLimit(""); setFb(null);
     if (a.length < 15) { setNote("Write a few sentences first: the main points you'd say out loud."); return; }
     setBusy(true);
-    const res = await api.gradeAnswer(await auth.getAccessToken(), { prompt: q, signals: isFollowup ? [] : signals || [], model: isFollowup ? "" : model || "", answer: a });
+    const res = await api.gradeAnswer(await auth.getAccessToken(), { prompt: q, signals: isFollowup ? [] : signals || [], model: isFollowup ? "" : model || "", answer: a, topic: topic || "" });
     setBusy(false);
     if (res.status === 200 && res.body?.feedback) {
       setFb(res.body.feedback);
@@ -108,13 +111,7 @@ export function AnswerCoach({ prompt, model, signals, onResult, autoFocus }: {
       {note && <p className="hint">{note}</p>}
       {limit && <UpgradeCard feature="ai_grading" message={limit} />}
       {fb && (
-        <div className={"fb fb-" + ((fb.score ?? 0) >= 80 ? "strong" : (fb.score ?? 0) >= 55 ? "mid" : "weak")} role="status">
-          <div className="fb-head">
-            <span className="fb-score">{fb.score ?? 0}%</span>
-            <span className="fb-verdict">{fb.verdict || ""}</span>
-          </div>
-          {(fb.covered || []).length > 0 && (<><div className="field-label">What held up</div><ul className="fb-ok">{fb.covered!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
-          {(fb.missing || []).length > 0 && (<><div className="field-label">What was missing</div><ul className="fb-miss">{fb.missing!.map((x, i) => <li key={i}>{x}</li>)}</ul></>)}
+        <FeedbackView f={fb}>
           {fb.followup && (
             <div className="fb-followup">
               <div className="field-label">The interviewer would ask next</div>
@@ -122,7 +119,7 @@ export function AnswerCoach({ prompt, model, signals, onResult, autoFocus }: {
               <button type="button" className="btn btn-small" onClick={followUp}>Answer the follow-up</button>
             </div>
           )}
-        </div>
+        </FeedbackView>
       )}
       {shown && hasModel && (
         <div className="model">

@@ -10,6 +10,11 @@ import {
   type Debrief, type DebriefQuestion, type Outcome, type Rating, type RoundType,
 } from "../lib/debrief";
 import { deleteDebrief, newId, upsertDebrief, useDebriefs } from "../lib/debriefStore";
+import { syncSharedDebrief, unshareDebrief } from "../lib/communityShare";
+import { getOutcomes } from "../lib/jobOutcomes";
+import { useAuth } from "../lib/auth";
+import { track } from "../lib/track";
+import { submitOutcome } from "../components/OutcomeCheckIn";
 import { formatDay, getInterviewDate, localDay, setInterviewDate } from "../lib/interviewDates";
 import { setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
@@ -58,6 +63,7 @@ export default function DebriefPage() {
 
 function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initialJob: string; openNew: boolean }) {
   const navigate = useNavigate();
+  const auth = useAuth();
   const all = useDebriefs();
   const today = localDay();
   const [jobId, setJobId] = useState(initialJob);
@@ -77,6 +83,9 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
     setEditing({
       id: newId(), jobId, date, round: list[0]?.nextRound || "technical", interviewers: "", questions: [], feeling: 0,
       outcome: "waiting", nextDate: "", nextRound: "", notes: "", createdAt: new Date().toISOString(), updatedAt: "",
+      company: job?.company || all.find((x) => x.jobId === jobId && x.company)?.company || "",
+      // Keep the user's last choice about sharing.
+      share: !!all.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0]?.share,
     });
     setFlash([]);
   };
@@ -96,7 +105,14 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
 
   const save = (d: Debrief) => {
     const saved = { ...d, updatedAt: new Date().toISOString() };
+    const before = all.find((x) => x.id === d.id);
     const next = upsertDebrief(saved);
+    track("debrief_saved", { round: saved.round, outcome: saved.outcome, questions: saved.questions.length, shared: !!saved.share });
+    if (saved.share || before?.share) void syncSharedDebrief(saved, job);
+    // A final result logged here answers the "How did it go?" check-in too.
+    if ((saved.outcome === "offer" || saved.outcome === "rejected") && getOutcomes()[jobId]?.outcome !== saved.outcome) {
+      void submitOutcome(job, saved.outcome, getInterviewDate(jobId) || saved.date, auth.getAccessToken);
+    }
     const msgs = ["Saved your " + ROUND_LABELS[d.round].toLowerCase() + " debrief."];
     const cur = getInterviewDate(jobId);
     const eff = dateAfterDebrief(saved, cur, today);
@@ -194,7 +210,7 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
           </div>
         ) : (
           list.map((d) => (
-            <DebriefCard key={d.id} d={d} job={{ title, company: job.company }} onEdit={(x) => { setEditing(x); setFlash([]); }} onDelete={(x) => deleteDebrief(x.id)} />
+            <DebriefCard key={d.id} d={d} job={{ title, company: job.company }} onEdit={(x) => { setEditing(x); setFlash([]); }} onDelete={(x) => { deleteDebrief(x.id); if (x.share) void unshareDebrief(x.id); }} />
           ))
         )}
       </section>
@@ -226,6 +242,7 @@ function DebriefEditor({ initial, jobTitle, today, onCancel, onSave }: {
   const submit = () => {
     if (!d.date) return setErr("Add the interview date.");
     if (d.outcome === "next" && d.nextDate && d.nextDate < today && d.nextDate !== initial.nextDate) return setErr("The next round date is in the past. Pick a future date or leave it empty.");
+    if (d.share && (d.company || "").trim().length < 2) return setErr("Add the company name to share this round, or untick sharing.");
     setErr("");
     // Include a question still sitting in the input.
     const pending = draftQ.trim() ? draftQ.split(/\n+/).map((s) => s.trim()).filter(Boolean).map((text) => ({ id: newId("q"), text, rating: "" as const, note: "" })) : [];
@@ -341,10 +358,28 @@ function DebriefEditor({ initial, jobTitle, today, onCancel, onSave }: {
           <textarea className="input sb-textarea" rows={2} maxLength={2000} value={d.notes} placeholder="Team, scope, what they seemed to care about, follow-ups you promised" onChange={(e) => set("notes", e.target.value)} />
         </label>
 
+        <fieldset className="dto-field dto-fs dto-share">
+          <legend className="field-label">Help others prepare <span className="muted">(optional)</span></legend>
+          <label className="dto-share-check">
+            <input type="checkbox" checked={!!d.share} onChange={(e) => set("share", e.target.checked)} />
+            <span>Share the questions from this round anonymously</span>
+          </label>
+          {d.share && (
+            <label className="dto-field">
+              <span className="field-label">Company</span>
+              <input className="input" type="text" value={d.company || ""} maxLength={80} placeholder="e.g. Stripe" onChange={(e) => set("company", e.target.value)} />
+            </label>
+          )}
+          <p className="small muted">
+            Shared: the company, round type, month, your questions and how each went, and the outcome. Never shared: your name, the interviewers, your notes or the exact date.
+            Other users will only see a company{"’"}s questions once at least 3 people have shared for it. You can un-share any time.
+          </p>
+        </fieldset>
+
         <div className="row">
           <button type="submit" className="btn btn-primary">Save debrief</button>
           <button type="button" className="btn btn-ghost" onClick={onCancel}>Cancel</button>
-          <span className="small muted">Saved on this device only.</span>
+          <span className="small muted">Interviewers and notes stay private to you.</span>
         </div>
       </form>
     </section>
