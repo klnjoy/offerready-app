@@ -22,6 +22,16 @@ export const KEYS = {
   prepPlan: "offerready.prepPlan.v1",
   /** STAR story bank */
   stories: "offerready.stories.v1",
+  /** Post-interview debriefs (Debrief[], see lib/debrief.ts) */
+  debriefs: "offerready.debriefs.v1",
+  /** Job offers being compared (Offer[], see lib/offers.ts) */
+  offers: "offerready.offers.v1",
+} as const;
+
+/** sessionStorage hand-off from Check fit to Tailor (resume text, read once
+ * and removed; never written to localStorage). */
+export const SESSION_KEYS = {
+  tailorHandoff: "offerready.tailor.handoff.v1",
 } as const;
 
 export function readString(key: string): string | null {

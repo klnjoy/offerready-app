@@ -22,6 +22,11 @@
  *  6. Competencies the job needs that have no STAR story get a "write a
  *     story" task, every other work day from day 1 (spread evenly when
  *     the plan is too short for that).
+ *  6b. Questions that went badly in a REAL interview (from a debrief,
+ *     lib/debrief.ts) get a "revisit" task as early as possible and spaced
+ *     reviews +2 and +5 days later. They are placed before gap study so a
+ *     short plan to the next round still covers them; with only a light day
+ *     left, the first one becomes a light re-read.
  *  7. Every non-light day is topped up to at least 3 tasks with question
  *     drills and flashcards, and capped at 5 (overflow moves to the next
  *     day that has room, never onto the light day).
@@ -60,6 +65,8 @@ export interface PlanInput {
   weakTopics?: { topic: string; score: number }[];
   /** Competencies the job needs without a STAR story yet. */
   storyGaps?: string[];
+  /** Questions answered badly in real interviews (debriefs), newest first. */
+  debriefTopics?: { topic: string; round?: string; date?: string; note?: string }[];
   hasFit?: boolean;
   questionCount?: number;
   hasDefend?: boolean;
@@ -181,6 +188,27 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
     const target = workDays.find((i) => i >= 1) ?? 0;
     place(target, (d) => mk(d, "defend", "first", { title: "Defend one decision", detail: "Make the call, then hold it while the interviewer pushes back.", to: "/defend" + jobQ, minutes: 20 }));
   }
+
+  // 4b. Questions that went badly in a real interview: revisit first.
+  const deb = uniq((input.debriefTopics || []).map((t) => t && t.topic)).slice(0, 4);
+  const debInfo = new Map((input.debriefTopics || []).filter((t) => t && t.topic).map((t) => [t.topic.trim().toLowerCase(), t]));
+  deb.forEach((topic, j) => {
+    const info = debInfo.get(topic.toLowerCase());
+    const where = info && info.round ? " in your " + info.round.toLowerCase() + (info.date ? " (" + info.date + ")" : "") : " in your last interview";
+    const to = job ? "/debrief?job=" + job : "/debrief";
+    let placed = 0;
+    [0, 2, 5].forEach((off, n) => {
+      const r = (j % 2) + off;
+      if (r >= total || (lightIdx >= 0 && r >= lightIdx)) return;
+      const used = place(r, (d) => mk(d, "review", "debrief-" + topic, n === 0
+        ? { title: "Revisit: " + topic, detail: "This went badly" + where + ". Write a stronger answer, then say it out loud in two minutes.", to, minutes: 20 }
+        : { title: "Review again: " + topic, detail: "Spaced review of a question that tripped you up. Answer it without notes.", to, minutes: 10 }));
+      if (used >= 0) placed++;
+    });
+    if (!placed && j === 0 && light >= 0) {
+      place(light, (d) => mk(d, "light", "debrief-" + topic, { title: "Re-read your answer: " + topic, detail: "It went badly last round. Read your notes once; no new material.", to, minutes: 10 }), true);
+    }
+  });
 
   // 5. Gap study, weakest first, with spaced reviews.
   const gaps = uniq(input.gaps).slice(0, 8);

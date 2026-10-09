@@ -31,6 +31,12 @@ export const PRICING_URL = DOCS_BASE + "assets/pricing.html";
  * on the API), so keep the two in sync. */
 export const PRO_PRICE_LABEL = (env.VITE_PRO_PRICE_LABEL || "").trim() || "$12 / month";
 
+/** Annual Pro label (STRIPE_PRO_ANNUAL_PRICE_ID on the API). Display only. */
+export const PRO_ANNUAL_PRICE_LABEL = (env.VITE_PRO_ANNUAL_PRICE_LABEL || "").trim() || "$96 / year";
+
+/** 30-day Interview Sprint pass label (STRIPE_SPRINT_PRICE_ID, one-time). Display only. */
+export const SPRINT_PRICE_LABEL = (env.VITE_SPRINT_PRICE_LABEL || "").trim() || "$19 one-time · 30 days";
+
 /** Optional support address for billing questions (cancel by email). */
 export const SUPPORT_EMAIL = (env.VITE_SUPPORT_EMAIL || "").trim();
 

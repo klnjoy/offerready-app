@@ -21,7 +21,8 @@ export type Feature =
   | "custom_scenarios"  // AI-generated Defend scenarios
   | "premium_scenarios" // the Pro Defend scenario library
   | "story_ai"          // AI help mapping/strengthening STAR stories
-  | "prep_plan";        // day-by-day plan to an interview date
+  | "prep_plan"         // day-by-day plan to an interview date
+  | "resume_tailor";    // AI resume bullet tailoring for a job
 
 export interface Usage { used: number; limit: number | null; unknown?: boolean } // null = unlimited; unknown = server couldn't count
 
@@ -45,12 +46,13 @@ export const PLAN_MATRIX: { feature: Feature | "library"; label: string; free: s
   { feature: "premium_scenarios", label: "Defend-your-decision scenario library", free: "Previews", pro: "Full library" },
   { feature: "custom_scenarios", label: "Scenarios generated for your job", free: "—", pro: "40 / month" },
   { feature: "story_ai", label: "STAR story bank coaching", free: "3 / month", pro: "150 / month" },
+  { feature: "resume_tailor", label: "Resume tailoring for a job", free: "2 / month", pro: "100 / month" },
 ];
 
 /** Monthly limits; must match api/_lib/plans.js LIMITS. null = unlimited. */
 export const LIMITS: Record<Plan, Record<Feature, number | null>> = {
-  free: { saved_jobs: 1, analyses: 3, ai_grading: 5, voice_mock: 1, custom_scenarios: 0, premium_scenarios: 0, story_ai: 3, prep_plan: null },
-  pro: { saved_jobs: null, analyses: 60, ai_grading: 400, voice_mock: 40, custom_scenarios: 40, premium_scenarios: null, story_ai: 150, prep_plan: null },
+  free: { saved_jobs: 1, analyses: 3, ai_grading: 5, voice_mock: 1, custom_scenarios: 0, premium_scenarios: 0, story_ai: 3, prep_plan: null, resume_tailor: 2 },
+  pro: { saved_jobs: null, analyses: 60, ai_grading: 400, voice_mock: 40, custom_scenarios: 40, premium_scenarios: null, story_ai: 150, prep_plan: null, resume_tailor: 100 },
 };
 
 /** [singular, plural] nouns for limit messages ("1 of 1 voice sessions"). */
@@ -63,6 +65,7 @@ export const FEATURE_NOUNS: Record<Feature, [string, string]> = {
   premium_scenarios: ["premium scenario", "premium scenarios"],
   story_ai: ["story coaching session", "story coaching sessions"],
   prep_plan: ["prep plan", "prep plans"],
+  resume_tailor: ["resume tailoring run", "resume tailoring runs"],
 };
 
 export function featureNoun(f: Feature, n: number | null): string {

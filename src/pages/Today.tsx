@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { API_ENABLED } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { ROUND_LABELS, debriefReviewTopics, debriefStats, debriefsForJob, statsLine } from "../lib/debrief";
+import { useDebriefs } from "../lib/debriefStore";
 import { countdownLabel, daysUntil, formatDay, localDay, useInterviewDate } from "../lib/interviewDates";
 import { allDoneDays, ensurePlanState, setTaskDone, type JobPlanState } from "../lib/planProgress";
 import { usePlan } from "../lib/plans";
@@ -123,6 +125,7 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
   const [state, setState] = useState<JobPlanState>(() => ensurePlanState(jobId, date, today));
   const [doneDays, setDoneDays] = useState<string[]>(allDoneDays);
   const [showAll, setShowAll] = useState(false);
+  const debriefs = useDebriefs();
 
   useEffect(() => { setActiveJob(jobId); }, [jobId]);
   useEffect(() => { setState(ensurePlanState(jobId, date, today)); }, [jobId, date, today]);
@@ -160,8 +163,10 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
     const needed = neededCompetencies(a, detail.job.title || "");
     const sGaps = storyGaps(needed, loadStories().filter((s) => !s.jobIds.length || s.jobIds.includes(jobId)));
     const top3 = needed.slice(0, 3).map((n) => n.label);
+    // Questions that went badly in logged interviews (debriefs) → reviews.
+    const debriefTopics = debriefReviewTopics(debriefs, jobId, localDay()).map((t) => ({ ...t, round: ROUND_LABELS[t.round], date: formatDay(t.date, { month: "short", day: "numeric" }) }));
     const prep: PrepPlan = buildPrepPlan({
-      start: state.start, interviewDate: date || null, jobId, gaps, weakTopics: weak, storyGaps: sGaps,
+      start: state.start, interviewDate: date || null, jobId, gaps, weakTopics: weak, storyGaps: sGaps, debriefTopics,
       hasFit: !!gap, questionCount: detail.questions.length, hasDefend,
     });
     return {
@@ -169,7 +174,7 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
       hasAnalysis: !!a && !!(a.roleSummary || (a.coreSkills || []).length),
       storyGap: sGaps.find((g) => top3.includes(g)),
     };
-  }, [detail, date, state.start, state.done, jobId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [detail, date, state.start, state.done, jobId, debriefs]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (t: PlanTask, on: boolean) => {
     const next = setTaskDone(jobId, t.id, on, today);
@@ -179,6 +184,10 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
 
   const days = daysUntil(date, today);
   const passed = days != null && days < 0;
+  const dStats = debriefStats(debriefs, jobId, today);
+  // The interview on the current date hasn't been logged yet.
+  const unlogged = !!date && days != null && days <= 0 && !debriefsForJob(debriefs, jobId).some((d) => d.date === date);
+  const logTo = "/debrief?job=" + encodeURIComponent(jobId) + "&new=1";
 
   const head = (
     <TodayHead>
@@ -201,10 +210,12 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
   const tasks = todayDay ? todayDay.tasks : [];
   const catchUp = carryOver(prep, today, state.done);
   const firstOpen = [...tasks, ...catchUp].find((t) => !state.done[t.id]);
-  const next = nextBestAction({
-    jobId, hasAnalysis: derived.hasAnalysis, hasFit: !!detail.gap, questionCount: detail.questions.length, practised: derived.practised,
-    hasDefend: derived.hasDefend, storyGap: derived.storyGap, mockRecent: derived.mockRecent, readiness: derived.readiness, firstOpen,
-  });
+  const next: Next = unlogged && passed
+    ? { label: "Log how your interview went", why: "Note the questions while you still remember them. The ones that went badly come back in your plan, and a next round date re-plans up to it.", to: logTo, cta: "Log interview" }
+    : nextBestAction({
+      jobId, hasAnalysis: derived.hasAnalysis, hasFit: !!detail.gap, questionCount: detail.questions.length, practised: derived.practised,
+      hasDefend: derived.hasDefend, storyGap: derived.storyGap, mockRecent: derived.mockRecent, readiness: derived.readiness, firstOpen,
+    });
   const doneToday = tasks.filter((t) => state.done[t.id]).length;
   const upcoming = prep.days.filter((d) => d.date > today);
   const visibleUpcoming = showAll ? upcoming : upcoming.slice(0, 6);
@@ -227,7 +238,7 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
       {head}
 
       <div className="td-top">
-        <DateCard date={date} days={days} onSet={setDate} />
+        <DateCard date={date} days={days} onSet={setDate} logTo={unlogged || (days != null && days <= 0) ? logTo : ""} />
         <section className={"td-next" + (next.tone === "done" ? " td-next-done" : "")} aria-labelledby="td-next-h">
           <span className="td-eyebrow">Do this next</span>
           <h2 id="td-next-h">{next.label}</h2>
@@ -252,6 +263,14 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
         </div>
       </div>
 
+      {dStats.rounds > 0 && (
+        <div className="td-debrief" role="status">
+          <span className="td-debrief-mark" aria-hidden="true">{dStats.rounds}</span>
+          <span className="td-debrief-text">{statsLine(dStats)}{dStats.bad ? " · " + dStats.bad + " to revisit" : ""}</span>
+          <Link className="btn btn-small" to={"/debrief?job=" + encodeURIComponent(jobId)}>Debrief</Link>
+        </div>
+      )}
+
       <section className="card td-tasks" aria-labelledby="td-tasks-h">
         <div className="td-sec-head">
           <div>
@@ -265,7 +284,7 @@ function TodayForJob({ jobId, jobs, onSwitch }: { jobId: string; jobs: JobRow[];
         </div>
         {(prep.defaulted || passed) && (
           <div className="td-note">
-            {passed ? "Your interview date has passed. Set the next one to re-plan." : "This is a 14-day plan. Set your interview date and the plan fits the days you have."}
+            {passed ? <>Your interview date has passed. <Link to={logTo}>Log how it went</Link>, or set the next date to re-plan.</> : "This is a 14-day plan. Set your interview date and the plan fits the days you have."}
           </div>
         )}
         <ul className="td-list">
@@ -352,7 +371,7 @@ function TaskItem({ t, done, onToggle }: { t: PlanTask; done: boolean; onToggle(
   );
 }
 
-function DateCard({ date, days, onSet }: { date: string; days: number | null; onSet(iso: string | null): void }) {
+function DateCard({ date, days, onSet, logTo }: { date: string; days: number | null; onSet(iso: string | null): void; logTo?: string }) {
   const [editing, setEditing] = useState(!date);
   const [val, setVal] = useState(date);
   useEffect(() => { setVal(date); setEditing(!date); }, [date]);
@@ -369,6 +388,7 @@ function DateCard({ date, days, onSet }: { date: string; days: number | null; on
           </div>
           <p className="muted small">{formatDay(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</p>
           <div className="row">
+            {logTo && <Link className="btn btn-primary btn-small td-log-btn" to={logTo}>Log interview</Link>}
             <button type="button" className="btn btn-small" onClick={() => setEditing(true)}>Change date</button>
           </div>
         </>

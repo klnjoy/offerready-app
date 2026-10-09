@@ -1,4 +1,12 @@
-/* Analyze My Job (was content/assets/analyze.js, mounted on #analyze-app). */
+/* Analyze My Job (was content/assets/analyze.js, mounted on #analyze-app).
+ *
+ * Analysis needs a (free) account: the API answers 401 {signin:true} without
+ * one. Signed-out visitors can still paste a job; on submit they get an inline
+ * sign-in card, the role + JD are kept in sessionStorage (survives the OAuth
+ * redirect), and the analysis runs by itself once they're signed in. The
+ * resume text is kept in memory only (never written to storage), so it
+ * survives email sign-in but not a Google/GitHub redirect. The sample analysis
+ * and /example walkthrough stay public. */
 
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { API_ENABLED, docsUrl } from "../config";
@@ -12,6 +20,8 @@ import { ExternalLink, Link, useLocation, useNavigate, useSearchParams } from ".
 import { KEYS, readJSON, removeKey, writeJSON } from "../lib/storage";
 import { SAMPLE_ANALYSIS } from "../data/sampleAnalysis";
 import { Bullets, Card, Chips, ErrorText, Section, StatusPill } from "../components/ui";
+import { SignInCard } from "../components/AuthForm";
+import { LIMITS } from "../lib/plans";
 import type { Analysis, Skill } from "../types";
 
 const LOADING_STEPS = [
@@ -47,6 +57,38 @@ type View =
   | { kind: "form"; prefill?: Partial<FormValues>; error?: string }
   | { kind: "loading" }
   | { kind: "result"; analysis: Analysis; meta: ResultMeta };
+
+// ---- pending analysis across sign-in -----------------------------------------
+
+const PENDING_KEY = "offerready.analyze.pending.v1";
+const PENDING_TTL_MS = 6 * 60 * 60 * 1000;
+let pendingResume = ""; // memory only: the resume is never stored
+
+interface Pending { targetRole: string; jobDescription: string; at: number }
+
+function readPending(): Pending | null {
+  try {
+    const p = JSON.parse(sessionStorage.getItem(PENDING_KEY) || "null") as Pending | null;
+    if (!p || typeof p.jobDescription !== "string" || !p.jobDescription.trim()) return null;
+    if (Date.now() - (p.at || 0) > PENDING_TTL_MS) { sessionStorage.removeItem(PENDING_KEY); return null; }
+    return p;
+  } catch {
+    return null;
+  }
+}
+
+function writePending(v: FormValues) {
+  pendingResume = v.resume || "";
+  try {
+    sessionStorage.setItem(PENDING_KEY, JSON.stringify({ targetRole: v.targetRole || "", jobDescription: v.jobDescription, at: Date.now() }));
+  } catch {
+    /* blocked storage: the in-page state still works for email sign-in */
+  }
+}
+
+function clearPending() {
+  try { sessionStorage.removeItem(PENDING_KEY); } catch { /* ignore */ }
+}
 
 // ---- local signals (no JD/resume text at rest) -----------------------------
 
@@ -99,9 +141,41 @@ export default function AnalyzePage() {
   const [view, setView] = useState<View>(() => {
     const shared = readSharedAnalysis(location.hash);
     if (shared) return { kind: "result", analysis: shared, meta: { shared: true } };
+    const pending = readPending();
+    if (pending) return { kind: "form", prefill: { targetRole: pending.targetRole, jobDescription: pending.jobDescription, resume: pendingResume } };
     const role = params.get("role");
     return { kind: "form", prefill: role ? { targetRole: role.slice(0, 200) } : undefined };
   });
+  // Show the inline sign-in card (a submit while signed out, or a 401).
+  const [needSignIn, setNeedSignIn] = useState(false);
+  const gateRef = useRef<HTMLDivElement | null>(null);
+  const resumed = useRef(false);
+
+  const askSignIn = (v: FormValues) => {
+    writePending(v);
+    setView({ kind: "form", prefill: v });
+    setNeedSignIn(true);
+  };
+
+  useEffect(() => {
+    if (!needSignIn) return;
+    const t = setTimeout(() => gateRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    return () => clearTimeout(t);
+  }, [needSignIn]);
+
+  // Signed in with a pending job (email sign-in here, or back from OAuth): run it.
+  useEffect(() => {
+    if (!auth.ready || !auth.session || resumed.current) return;
+    const p = readPending();
+    if (!p) { setNeedSignIn(false); return; }
+    if (view.kind !== "form") return;
+    resumed.current = true;
+    setNeedSignIn(false);
+    clearPending();
+    const resume = pendingResume;
+    pendingResume = "";
+    analyze({ targetRole: p.targetRole, jobDescription: p.jobDescription, resume });
+  }, [auth.ready, auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const analyze = async (payload: FormValues) => {
     setView({ kind: "loading" });
@@ -113,6 +187,12 @@ export default function AnalyzePage() {
     }
     if (res.status === 0) {
       setView({ kind: "form", prefill: payload, error: "Couldn't reach the analysis service. Check your connection and try again." });
+      return;
+    }
+    if (res.status === 401 && auth.configured) {
+      // Session expired (or never existed): keep the text, sign in, then rerun.
+      resumed.current = false;
+      askSignIn(payload);
       return;
     }
     if (res.status < 200 || res.status >= 300) {
@@ -150,11 +230,27 @@ export default function AnalyzePage() {
               setView({ kind: "result", analysis: SAMPLE_ANALYSIS, meta: { demo: true, note: "Live analysis isn't configured on this site yet, so here's a sample." } });
               return;
             }
+            if (auth.configured && auth.ready && !auth.session) {
+              resumed.current = false;
+              askSignIn(v);
+              return;
+            }
             analyze(v);
           }}
+          onDraft={needSignIn ? (v) => writePending(v) : undefined}
           onSample={() => setView({ kind: "result", analysis: SAMPLE_ANALYSIS, meta: { demo: true } })}
           onResume={(s) => setView({ kind: "result", analysis: s.analysis, meta: { model: s.model, restored: true } })}
         />
+      )}
+      {view.kind === "form" && needSignIn && !auth.session && (
+        <div className="az-signin" ref={gateRef}>
+          <SignInCard title="Sign in to analyze this job. It’s free.">
+            <p className="muted">
+              Your job description is kept on this page. As soon as you’re signed in, the analysis starts by itself.
+            </p>
+            <p className="muted small">Free includes {LIMITS.free.analyses} job analyses a month.</p>
+          </SignInCard>
+        </div>
       )}
       {view.kind === "loading" && <AnalyzeLoading />}
       {view.kind === "result" && (
@@ -172,18 +268,23 @@ export default function AnalyzePage() {
 }
 
 function AnalyzeForm({
-  prefill, error, onSubmit, onSample, onResume,
+  prefill, error, onSubmit, onSample, onResume, onDraft,
 }: {
   prefill?: Partial<FormValues>;
   error?: string;
   onSubmit(v: FormValues): void;
   onSample(): void;
   onResume(s: SavedAnalysis): void;
+  /** While the sign-in card is up: keep the pending copy in sync with edits. */
+  onDraft?(v: FormValues): void;
 }) {
   const [role, setRole] = useState(prefill?.targetRole || "");
   const [jd, setJd] = useState(prefill?.jobDescription || "");
   const [cv, setCv] = useState(prefill?.resume || "");
   const [err, setErr] = useState(error || "");
+  useEffect(() => {
+    if (onDraft && jd.trim()) onDraft({ targetRole: role.trim(), jobDescription: jd.trim(), resume: cv.trim() });
+  }, [role, jd, cv]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saved, setSaved] = useState<SavedAnalysis | null>(() => {
     if (prefill) return null;
     const s = readJSON<SavedAnalysis | null>(KEYS.analysis, null);

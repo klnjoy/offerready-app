@@ -23,15 +23,18 @@ const TodayPage = lazy(() => import("./pages/Today"));
 const StoriesPage = lazy(() => import("./pages/Stories"));
 const VoiceMockPage = lazy(() => import("./pages/VoiceMock"));
 const PricingPage = lazy(() => import("./pages/Pricing"));
+const TailorPage = lazy(() => import("./pages/Tailor"));
+const DebriefPage = lazy(() => import("./pages/Debrief"));
+const OffersPage = lazy(() => import("./pages/Offers"));
 
-type StageKey = "understand" | "prepare" | "prove";
+type StageKey = "understand" | "prepare" | "prove" | "decide";
 
 interface Route {
   path: string;
   title: string;
   /** One line under the page title. Omit to let the screen render its own header. */
   subtitle?: string;
-  /** Which of the three stages this screen belongs to — shows the stage rail. */
+  /** Which of the four stages this screen belongs to — shows the stage rail. */
   stage?: StageKey;
   component: ComponentType<Record<string, string>>;
 }
@@ -43,6 +46,7 @@ const ROUTES: Route[] = [
   { path: "/jobs", title: "My jobs", subtitle: "Every role you’re preparing for, with its progress and the next step.", component: MyJobsPage },
   { path: "/jobs/:id", title: "Job", component: JobDetailPage },
   { path: "/fit", title: "Check my fit", stage: "understand", subtitle: "Compare your resume with a saved job. Your resume is read in your browser and never stored.", component: CheckFitPage },
+  { path: "/tailor", title: "Tailor your resume", stage: "understand", subtitle: "Rewrite your resume bullets for one job’s skills and gaps, without inventing anything. Your resume is never stored.", component: TailorPage },
   { path: "/questions", title: "Practice questions", stage: "prepare", subtitle: "Interview questions written for this job and the gaps in your analysis, saved to the job.", component: QuestionsPage },
   { path: "/defend", title: "Defend your decisions", stage: "prepare", subtitle: "Make the call, then hold it while the interviewer pushes on trade-offs, constraints and incidents.", component: DefendPage },
   { path: "/stories", title: "Story bank", stage: "prepare", subtitle: "Your STAR stories, mapped to what each job asks for.", component: StoriesPage },
@@ -50,16 +54,19 @@ const ROUTES: Route[] = [
   { path: "/simulator", title: "Mock interview", stage: "prove", subtitle: "A mixed loop across areas and levels. Answer out loud, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
   { path: "/interview/voice", title: "Voice mock interview", stage: "prove", subtitle: "Answer out loud. The interviewer follows up on what you actually said.", component: VoiceMockPage },
   { path: "/dashboard", title: "Interview readiness", stage: "prove", subtitle: "One blended score per job, built from your resume match, practice and preparation.", component: DashboardPage },
+  { path: "/debrief", title: "Interview debrief", stage: "decide", subtitle: "Log each round while it’s fresh. Questions that went badly come back in your plan, and the next round date moves it forward.", component: DebriefPage },
+  { path: "/offers", title: "Compare offers", stage: "decide", subtitle: "Put your offers side by side on year-1 and annualised pay, then plan the negotiation.", component: OffersPage },
   { path: "/account", title: "Account", component: AccountPage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
-/** The three stages and their steps: the rail and the menu both read this. */
+/** The four stages and their steps: the rail and the menu both read this. */
 const STAGES: { key: StageKey; n: number; label: string; hint: string; steps: { to: string; label: string; short?: string }[] }[] = [
   { key: "understand", n: 1, label: "Understand", hint: "What the role needs", steps: [
     { to: "/analyze", label: "Analyze" },
     { to: "/fit", label: "Check fit" },
+    { to: "/tailor", label: "Tailor resume", short: "Tailor" },
   ] },
   { key: "prepare", n: 2, label: "Prepare", hint: "Close the gaps", steps: [
     { to: "/questions", label: "Questions" },
@@ -71,6 +78,10 @@ const STAGES: { key: StageKey; n: number; label: string; hint: string; steps: { 
     { to: "/simulator", label: "Mock interview", short: "Mock" },
     { to: "/interview/voice", label: "Voice mock", short: "Voice" },
     { to: "/dashboard", label: "Readiness" },
+  ] },
+  { key: "decide", n: 4, label: "Decide", hint: "After the interview", steps: [
+    { to: "/debrief", label: "Debrief" },
+    { to: "/offers", label: "Offers" },
   ] },
 ];
 
@@ -84,7 +95,7 @@ function Logo() {
   );
 }
 
-/** The signature element: the three stages, with the current one's steps. */
+/** The signature element: the four stages, with the current one's steps. */
 function StageRail({ stage, pathname }: { stage: StageKey; pathname: string }) {
   const cur = STAGES.findIndex((s) => s.key === stage);
   return (
@@ -216,9 +227,12 @@ export default function App() {
             <Link to="/today">Today</Link>
             <Link to="/analyze">Analyze a job</Link>
             <Link to="/jobs">My jobs</Link>
+            <Link to="/tailor">Tailor your resume</Link>
             <Link to="/stories">Story bank</Link>
             <Link to="/interview/voice">Voice mock interview</Link>
             <Link to="/dashboard">Interview readiness</Link>
+            <Link to="/debrief">Interview debrief</Link>
+            <Link to="/offers">Compare offers</Link>
             <Link to="/pricing">Pricing</Link>
           </div>
           <div className="footer-col">

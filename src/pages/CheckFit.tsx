@@ -8,7 +8,8 @@ import { useAuth } from "../lib/auth";
 import { setActiveJob } from "../lib/readiness";
 import { extractResume, type ExtractedResume } from "../lib/resumeExtract";
 import { displayJobTitle } from "../lib/roles";
-import { Link } from "../lib/router";
+import { Link, useNavigate } from "../lib/router";
+import { SESSION_KEYS } from "../lib/storage";
 import { useJobs } from "../lib/useJobs";
 import { Card, Chips, ErrorText, JobBanner, Loading, Muted, NextAction, ScoreBar, ScoreHead } from "../components/ui";
 import type { GapResult, JobRow } from "../types";
@@ -31,6 +32,7 @@ export default function CheckFitPage() {
   const [hydrating, setHydrating] = useState(false);
   const [view, setView] = useState<View>({ kind: "form" });
   const initialized = useRef(false);
+  const navigate = useNavigate();
 
   // Seed from the job list once; preselect + hydrate the active job.
   useEffect(() => {
@@ -81,6 +83,18 @@ export default function CheckFitPage() {
     else setView({ kind: "form", error: res.body?.error || "Couldn't complete the gap analysis. Please try again." });
   };
 
+  /** Hand the in-memory resume text to Tailor through sessionStorage (read
+   * once and removed there). Never localStorage: the resume isn't stored. */
+  const tailor = (r: GapResult) => {
+    try {
+      sessionStorage.setItem(SESSION_KEYS.tailorHandoff, JSON.stringify({
+        jobId: form.jobId || "", resumeText: form.resumeText.slice(0, 8000),
+        keywords: [...(r.missingSkills || []), ...(r.missingKeywords || []), ...(r.strengths || [])].slice(0, 25),
+      }));
+    } catch { /* blocked storage: Tailor starts empty and asks for a paste */ }
+    navigate("/tailor" + (form.jobId ? "?job=" + encodeURIComponent(form.jobId) : ""));
+  };
+
   const activeJob = jobs.find((j) => j.id === form.jobId);
   const activeTitle = activeJob ? displayJobTitle(activeJob) : form.jobId ? "Untitled role" : "";
 
@@ -94,7 +108,7 @@ export default function CheckFitPage() {
       )}
       {view.kind === "submitting" && <Loading>Comparing your resume against the job{"…"}</Loading>}
       {view.kind === "result" && (
-        <FitResult result={view.result} saved={view.saved} jobId={form.jobId} onAgain={() => setView({ kind: "form" })} />
+        <FitResult result={view.result} saved={view.saved} jobId={form.jobId} onAgain={() => setView({ kind: "form" })} onTailor={() => tailor(view.result)} />
       )}
     </div>
   );
@@ -201,7 +215,7 @@ function FitForm({
   );
 }
 
-function FitResult({ result: r, saved, jobId, onAgain }: { result: GapResult; saved: boolean; jobId: string; onAgain(): void }) {
+function FitResult({ result: r, saved, jobId, onAgain, onTailor }: { result: GapResult; saved: boolean; jobId: string; onAgain(): void; onTailor(): void }) {
   const score = r.matchScore || 0;
   const missing = [
     { label: "⚠ Skills not found in your resume", items: r.missingSkills || [] },
@@ -236,6 +250,15 @@ function FitResult({ result: r, saved, jobId, onAgain }: { result: GapResult; sa
           <Muted small>{"“"}Not found{"”"} means this wasn{"’"}t shown in your uploaded resume {"—"} it isn{"’"}t a judgment of your ability. Treat these as recommended preparation areas.</Muted>
         </Card>
       )}
+      <Card className="fit-tailor">
+        <div className="fit-tailor-row">
+          <div className="stack-sm">
+            <strong>Close the keyword gap on paper</strong>
+            <Muted small>Rewrite your resume bullets for this job{"’"}s skills and gaps, without inventing anything. Your resume goes straight to Tailor and is never stored.</Muted>
+          </div>
+          <button type="button" className="btn btn-primary fit-tailor-btn" onClick={onTailor}>Tailor my resume for this job</button>
+        </div>
+      </Card>
       {jobId && saved ? (
         <Card><Muted>{"✓"} Saved to this job. It{"’"}s on your <Link to="/dashboard">dashboard</Link> and any device you sign in from.</Muted></Card>
       ) : !jobId ? (

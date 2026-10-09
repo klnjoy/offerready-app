@@ -2,6 +2,8 @@
  * questions + readiness (was renderJob() in content/assets/jobs.js). */
 
 import { useEffect, useState } from "react";
+import { debriefStats, debriefsForJob, statsLine } from "../lib/debrief";
+import { useDebriefs } from "../lib/debriefStore";
 import { countdownLabel, daysUntil, formatDay, localDay, useInterviewDate } from "../lib/interviewDates";
 import { docsUrl } from "../config";
 import * as api from "../lib/api";
@@ -10,6 +12,7 @@ import { setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
 import { SignInCard } from "../components/AuthForm";
+import { DebriefCard } from "../components/DebriefHistory";
 import { Card, Chips, Disclaimer, Loading, Stat, StatGrid } from "../components/ui";
 import type { JobDetail } from "../types";
 
@@ -73,6 +76,7 @@ function JobView({ data }: { data: JobDetail }) {
       <div className="row wrap">
         <Link className="btn btn-primary" to="/fit">{gap ? "Re-run gap analysis" : "Run gap analysis"}</Link>
         <Link className="btn btn-primary" to="/questions">{questions.length ? "Review / regenerate questions" : "Generate questions"}</Link>
+        <Link className="btn btn-ghost" to={"/debrief?job=" + encodeURIComponent(job.id) + "&new=1"}>Log interview</Link>
         <Link className="btn btn-ghost" to="/today">Today{"’"}s plan</Link>
         <Link className="btn btn-ghost" to="/dashboard">Readiness dashboard</Link>
       </div>
@@ -100,8 +104,33 @@ function JobView({ data }: { data: JobDetail }) {
           ))}
         </Card>
       )}
+      <DebriefSection jobId={job.id} title={title} company={job.company} />
       <Disclaimer />
     </div>
+  );
+}
+
+/** This job's logged interview rounds (local debriefs), newest first. */
+function DebriefSection({ jobId, title, company }: { jobId: string; title: string; company?: string }) {
+  const all = useDebriefs();
+  const list = debriefsForJob(all, jobId);
+  const stats = debriefStats(all, jobId, localDay());
+  return (
+    <section className="stack-sm jd-debriefs" aria-labelledby="jd-deb-h">
+      <div className="dto-hist-bar">
+        <h3 id="jd-deb-h">Interview rounds</h3>
+        <span className="small muted">{list.length ? statsLine(stats) : "None logged yet"}</span>
+      </div>
+      {list.length === 0 ? (
+        <Card>
+          <p className="muted">After each interview, log the questions and how they went. Bad answers come back in your plan, and a next round date re-plans up to it.</p>
+          <div className="row"><Link className="btn btn-primary btn-small" to={"/debrief?job=" + encodeURIComponent(jobId) + "&new=1"}>Log an interview</Link></div>
+        </Card>
+      ) : (
+        list.slice(0, 4).map((d) => <DebriefCard key={d.id} d={d} job={{ title, company }} compact />)
+      )}
+      {list.length > 4 && <Link className="small" to={"/debrief?job=" + encodeURIComponent(jobId)}>See all {list.length} rounds</Link>}
+    </section>
   );
 }
 
