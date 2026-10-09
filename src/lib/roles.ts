@@ -5,6 +5,7 @@
  * two classifiers were duplicated verbatim in the old scripts; here they share
  * one rule set (classifyFamily). Mirrors the server logic in api/_lib/jobs.js. */
 
+import { docsUrl } from "../config";
 import type { Analysis, JobRow } from "../types";
 
 export type ScenarioCategory =
@@ -264,4 +265,49 @@ export function usableTitle(v: unknown): string {
 export function displayJobTitle(j: Pick<JobRow, "title" | "seniority"> | string | null | undefined): string {
   if (typeof j === "string") return usableTitle(j) || "Untitled role";
   return usableTitle(j?.title) || usableTitle(j?.seniority) || "Untitled role";
+}
+
+// ---- role guides ----------------------------------------------------------
+
+export interface RoleGuide { label: string; url: string }
+
+/* Study-site role guides (personal-docs/Path_*.md, published under
+ * Personal-SourceCode/). Matched on the job TITLE only, not the JD body, so a
+ * Product Manager posting that mentions LLMs doesn't get an engineering guide. */
+const GUIDE_PAGES = {
+  fde: ["Forward Deployed Engineer", "Path_FDE.html"],
+  aiPlatform: ["AI Platform Engineer", "Path_AI_Platform_Engineer.html"],
+  data: ["Data Platform Engineer", "Path_Data_Platform.html"],
+  staff: ["Staff / Principal AI Architect", "Path_Staff_Principal_Architect.html"],
+  aiEngineer: ["AI Engineer", "Path_AI_Engineer.html"],
+} as const;
+
+/** Which guide a role title points to, or null when none fits. Pure. */
+export function roleGuideKey(title: string): keyof typeof GUIDE_PAGES | null {
+  const t = " " + String(title || "").toLowerCase().replace(/[-_/,()]+/g, " ").replace(/\s+/g, " ") + " ";
+  if (!t.trim()) return null;
+  if (/\b(forward deployed|fde|fdse)\b/.test(t)) return "fde";
+  // Engineering roles only: managers, recruiters, designers etc. get no guide.
+  if (!/\b(engineer|engineering|developer|architect|sre|mlops|llmops)\b/.test(t)) return null;
+  const ai = /\b(ai|a\.i\.|genai|gen ai|generative|llm|llms|ml|machine learning|applied ai|agentic|agents?|rag|nlp|model)\b/.test(t);
+  if (/\b(mlops|llmops|inference|model serving)\b/.test(t) || (ai && /\b(platform|infrastructure|infra)\b/.test(t))) return "aiPlatform";
+  if (/\b(data|analytics|etl|dbt|snowflake|databricks|warehouse|lakehouse)\b/.test(t)) return "data";
+  if (!ai) return null;
+  if (/\b(staff|principal|distinguished|architect)\b/.test(t)) return "staff";
+  return "aiEngineer";
+}
+
+/** The study-site role guide for a job, or null when no guide matches. */
+export function roleGuideFor(
+  job: (Partial<Pick<JobRow, "title" | "seniority">> & { analysis?: Analysis | null }) | null | undefined,
+): RoleGuide | null {
+  if (!job) return null;
+  const title = usableTitle(job.title) || deriveRoleTitle(undefined, job.analysis || null);
+  if (!title) return null;
+  // A bare level stored separately ("Staff") still counts toward the level.
+  const level = isLevelOnly(job.seniority) ? String(job.seniority) : "";
+  const key = roleGuideKey((level && !title.toLowerCase().includes(level.toLowerCase()) ? level + " " : "") + title);
+  if (!key) return null;
+  const [label, page] = GUIDE_PAGES[key];
+  return { label, url: docsUrl("Personal-SourceCode/" + page) };
 }

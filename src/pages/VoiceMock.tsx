@@ -6,7 +6,12 @@
  * typing fallback; speechSynthesis for the interviewer's voice.
  * AI: POST /api/premium/mock-turn (sign-in; turn 0 = one voice_mock session).
  * Without the API (signed out, not configured, over quota and declined) the
- * session runs from the local question bank and you rate yourself. */
+ * session runs from the local question bank and you rate yourself.
+ *
+ * v2: a system design whiteboard (components/Whiteboard, sent as a text
+ * description with the answer), "Keep asking why" depth drill (up to 3
+ * chained follow-ups, capped server-side), and a printable report + share
+ * summary built locally (lib/interviewReport). */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SIM_BANK } from "../data/simulatorBank";
@@ -26,6 +31,11 @@ import { Link } from "../lib/router";
 import { readJSON, writeJSON } from "../lib/storage";
 import { useJobs } from "../lib/useJobs";
 import { getSavedResume, skillsInResume } from "../lib/savedResume";
+import Whiteboard from "../components/Whiteboard";
+import {
+  buildReportHtml, buildReportMarkdown, buildShareSummary, cleanDiagram, describeDiagram, diagramToSvg, isEmptyDiagram, reportFileName,
+  type Diagram, type ReportInput,
+} from "../lib/interviewReport";
 import {
   createRecognizer, detectSupport, onVoicesChanged, speak, startMicMeter, stopSpeaking,
   type MicMeter, type Recognizer,
@@ -57,6 +67,20 @@ const DIMS: { k: keyof MockScores; label: string }[] = [
   { k: "relevance", label: "Relevance" },
   { k: "communication", label: "Communication" },
 ];
+type Depth = "normal" | "deep";
+const DEPTHS: { id: Depth; label: string; desc: string; max: number }[] = [
+  { id: "normal", label: "Normal", desc: "One follow-up when an answer needs it.", max: 1 },
+  { id: "deep", label: "Deep: keep asking why", desc: "Up to 3 chained follow-ups on why, trade-offs, failure modes and numbers. Catches rehearsed answers.", max: 3 },
+];
+const maxFollowupsFor = (d: Depth | undefined) => (d === "deep" ? 3 : 1);
+/** Offline (question bank) probes for Deep mode, one level deeper each time. */
+const DEEP_PROBES = [
+  "Why that approach over the obvious alternative? What did you give up by choosing it?",
+  "What's the first thing that fails in what you just described, and how would you find out?",
+  "Put numbers on it. Roughly what scale, latency, cost or impact are we talking about, and how would you measure it?",
+];
+/** A design question in a mixed loop (AI-written questions carry no kind). */
+const DESIGN_RE = /^\s*(design|architect)\b|\b(design|architect)\s+(a|an|the)\b|\bhow would you (design|architect)\b/i;
 const typeLabel = (t: MockType) => TYPES.find((x) => x.id === t)?.label || "Mixed";
 const styleOf = (s: MockStyle) => STYLES.find((x) => x.id === s) || STYLES[1];
 const initials = (name: string) => name.split(/\s+/).map((p) => p[0] || "").join("").slice(0, 2).toUpperCase();
@@ -175,8 +199,9 @@ interface Prefs {
   silenceSec: number;
   coach: boolean;
   typeAnswers: boolean;
+  depth: Depth;
 }
-const DEFAULT_PREFS: Prefs = { type: "behavioral", length: 3, style: "neutral", voiceURI: "", muted: false, silenceSec: 3, coach: true, typeAnswers: false };
+const DEFAULT_PREFS: Prefs = { type: "behavioral", length: 3, style: "neutral", voiceURI: "", muted: false, silenceSec: 3, coach: true, typeAnswers: false, depth: "normal" };
 
 interface JobCtx {
   id: string;
@@ -198,6 +223,11 @@ interface Answer {
   outline: string[];
   /** 1–5 self rating when AI feedback wasn't available. */
   selfRating?: number;
+  /** 0 = main question, n = n-th follow-up (absent on v1 sessions). */
+  depth?: number;
+  /** Whiteboard at submit time (system design questions). */
+  diagram?: Diagram;
+  diagramText?: string;
 }
 
 interface SessionRec {
@@ -212,11 +242,14 @@ interface SessionRec {
   answers: Answer[];
   mains: string[];
   saved?: boolean;
+  depth?: Depth;
 }
 
 interface Cur {
   mainIndex: number;
   isFollowup: boolean;
+  /** 0 = main question, n = n-th chained follow-up. */
+  depth: number;
   text: string;
   topic: string;
   outline: string[];
@@ -235,6 +268,13 @@ function saveSession(rec: SessionRec) {
   const list = readSessions().filter((s) => s.id !== rec.id);
   list.unshift(rec);
   writeJSON(SESSIONS_KEY, list.slice(0, MAX_SESSIONS));
+}
+
+const answerDepth = (a: Answer) => (typeof a.depth === "number" ? a.depth : a.isFollowup ? 1 : 0);
+function isDesignQ(type: MockType, q: Pick<BankQ, "kind" | "text"> | undefined): boolean {
+  if (type === "system_design") return true;
+  if (type !== "mixed" || !q) return false;
+  return q.kind === "system_design" || DESIGN_RE.test(q.text);
 }
 
 const answerScores = (a: Answer): MockScores | null =>
@@ -406,7 +446,7 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
               {([3, 5] as const).map((n) => (
                 <label key={n} className={"vm-seg-opt" + (prefs.length === n ? " on" : "")}>
                   <input type="radio" name="vm-len" checked={prefs.length === n} onChange={() => setPrefs({ length: n })} />
-                  {n} questions <span className="small muted">~{n * 4} min</span>
+                  {n} questions <span className="small muted">~{n * (prefs.depth === "deep" ? 6 : 4)} min</span>
                 </label>
               ))}
             </div>
@@ -424,6 +464,19 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
             <p className="hint">{styleOf(prefs.style).desc}</p>
           </fieldset>
         </div>
+
+        <fieldset className="vm-field">
+          <legend className="field-label">Follow-up depth</legend>
+          <div className="vm-choices vm-choices-2">
+            {DEPTHS.map((d) => (
+              <label key={d.id} className={"vm-choice vm-depth-choice" + (prefs.depth === d.id ? " on" : "")}>
+                <input type="radio" name="vm-depth" value={d.id} checked={prefs.depth === d.id} onChange={() => setPrefs({ depth: d.id })} />
+                <span className="vm-choice-title"><DepthPips n={d.max} of={3} /> {d.label}</span>
+                <span className="vm-choice-desc">{d.desc}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <details className="vm-more">
           <summary>Voice and feedback settings</summary>
@@ -460,10 +513,10 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
         <PlanGate feature="voice_mock">
           <div className="vm-start-row">
             <div>
-              <strong>{typeLabel(prefs.type)} · {prefs.length} questions · {styleOf(prefs.style).label} interviewer</strong>
+              <strong>{typeLabel(prefs.type)} · {prefs.length} questions · {styleOf(prefs.style).label} interviewer{prefs.depth === "deep" ? " · Deep follow-ups" : ""}</strong>
               <p className="hint">
                 {signedIn
-                  ? "Each session counts once toward your monthly voice mock sessions, however many follow-ups you get."
+                  ? "Each session counts once toward your monthly voice mock sessions, however many follow-ups you get." + (prefs.type === "system_design" || prefs.type === "mixed" ? " Design questions come with a whiteboard." : "")
                   : <>Signed out, you{"’"}ll practice from the question bank and rate yourself. <Link to="/account">Sign in</Link> for AI follow-ups and scoring.</>}
               </p>
             </div>
@@ -474,6 +527,15 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
 
       <RecentSessions sessions={sessions} onOpen={onOpen} />
     </div>
+  );
+}
+
+/** Small depth indicator: `n` filled of `of`. */
+function DepthPips({ n, of, label }: { n: number; of: number; label?: string }) {
+  return (
+    <span className="vm-depth-pips" aria-hidden={label ? undefined : true} aria-label={label} role={label ? "img" : undefined}>
+      {Array.from({ length: of }, (_, i) => <i key={i} className={i < n ? "on" : ""} />)}
+    </span>
   );
 }
 
@@ -590,7 +652,8 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
     bank: bankFor(prefs.type, 8, job?.skills || []),
     planned: !!initialMains || !!carry,
     answers: [] as Answer[],
-    followupUsed: false,
+    /** Whiteboard per main question; follow-ups keep refining the same sketch. */
+    diagrams: {} as Record<number, Diagram>,
     next: null as Cur | null,
     at: Date.now(),
   });
@@ -598,7 +661,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
   const rerender = () => setTick((n) => n + 1);
 
   const first = S.current.mains[0];
-  const [cur, setCur] = useState<Cur>({ mainIndex: 0, isFollowup: false, text: first.text, topic: first.topic, outline: first.outline, bankFollowup: first.followup });
+  const [cur, setCur] = useState<Cur>({ mainIndex: 0, isFollowup: false, depth: 0, text: first.text, topic: first.topic, outline: first.outline, bankFollowup: first.followup });
   const [step, setStep] = useState<Step>("asking");
   const [finalText, setFinalText] = useState("");
   const [interim, setInterim] = useState("");
@@ -607,7 +670,9 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
   const [levels, setLevels] = useState<number[]>(() => new Array(28).fill(0));
   const [error, setError] = useState("");
   const [last, setLast] = useState<Answer | null>(null);
-    const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("");
+  const [drawOpen, setDrawOpen] = useState(false);
+  const [boardCount, setBoardCount] = useState(0);
 
   const recRef = useRef<Recognizer | null>(null);
   const meterRef = useRef<MicMeter | null>(null);
@@ -622,6 +687,10 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
 
   const total = length;
   const target = cur.isFollowup ? FOLLOWUP_TARGET_SEC : MAIN_TARGET_SEC;
+  const maxF = maxFollowupsFor(prefs.depth);
+  const deep = maxF > 1;
+  const board = isDesignQ(prefs.type, S.current.mains[cur.mainIndex]);
+  const fuLabel = (d: number) => (deep ? `Follow-up ${d} of ${maxF}` : "Follow-up");
 
   // Ask each question: show it, speak it (unless muted), then wait for the answer.
   useEffect(() => {
@@ -631,7 +700,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
     const room = document.querySelector(".vm-room");
     if (room && room.getBoundingClientRect().top < 0) room.scrollIntoView({ block: "start" });
     setFinalText(""); setInterim(""); setDraft(""); setError(""); setSecs(0);
-    setStatus((cur.isFollowup ? "Follow-up: " : `Question ${cur.mainIndex + 1}: `) + cur.text);
+    setStatus((cur.isFollowup ? fuLabel(cur.depth) + ": " : `Question ${cur.mainIndex + 1}: `) + cur.text);
     (async () => {
       if (!muted && support.synthesis) await speak(cur.text, { voiceURI: prefs.voiceURI });
       // The user may have started answering mid-question; don't clobber that.
@@ -665,6 +734,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName || "";
       if (/^(INPUT|TEXTAREA|SELECT|BUTTON|A|SUMMARY)$/.test(tag) || el?.isContentEditable) return;
+      if (el && typeof el.closest === "function" && el.closest(".wb")) return; // whiteboard owns its keys
       if (e.code === "Space" || e.key === " ") {
         if (typed) return;
         if (stepRef.current === "ready" || stepRef.current === "asking") { e.preventDefault(); startAnswer(); }
@@ -748,9 +818,12 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
       delivery.length = estSec < target * 0.35 ? "short" : estSec > target * 1.3 ? "long" : "good";
     }
     const answer: Answer = {
-      mainIndex: cur.mainIndex, isFollowup: cur.isFollowup, question: cur.text, topic: cur.topic,
+      mainIndex: cur.mainIndex, isFollowup: cur.isFollowup, depth: cur.depth, question: cur.text, topic: cur.topic,
       transcript, typed: wasTyped, delivery, feedback: null, outline: cur.outline,
     };
+    const sketch = board ? s.diagrams[cur.mainIndex] : undefined;
+    const diagramText = sketch && !isEmptyDiagram(sketch) ? describeDiagram(sketch) : "";
+    if (sketch && diagramText) { answer.diagram = cleanDiagram(sketch); answer.diagramText = diagramText; }
     setStatus("The interviewer is considering your answer.");
 
     let resp: MockTurnResponse | null = null;
@@ -765,7 +838,9 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
           session_id: s.sid, session_token: s.token || undefined, turn_index: s.turnIndex,
           type: prefs.type, style: prefs.style, length: (total === 5 ? 5 : 3),
           question: cur.text, transcript: transcript.slice(0, 6000),
-          is_followup: cur.isFollowup, allow_followup: !cur.isFollowup && !s.followupUsed, need_next: needNext,
+          is_followup: cur.isFollowup, allow_followup: cur.depth < maxF, need_next: needNext,
+          max_followups: maxF, followup_depth: cur.depth,
+          diagram: diagramText ? diagramText.slice(0, 2000) : undefined,
           history, job: job ? { title: job.title, company: job.company, seniority: job.seniority, skills: job.skills } : null,
         });
         if (res.status === 200 && res.body?.feedback) {
@@ -787,7 +862,6 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
           s.answers.push(answer);
           setLast(answer);
           s.next = computeNext(null);
-          if (s.next?.isFollowup) s.followupUsed = true;
           setStep("upgrade");
           rerender();
           return;
@@ -806,7 +880,6 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
     s.answers.push(answer);
     setLast(answer);
     s.next = computeNext(resp);
-    if (s.next?.isFollowup) s.followupUsed = true;
     // Coach mode, or no AI scores (needs a self-rating): show feedback before moving on.
     if (prefs.coach || !answer.feedback) { setStep("review"); rerender(); }
     else advance();
@@ -819,9 +892,16 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
 
   function computeNext(resp: MockTurnResponse | null): Cur | null {
     const s = S.current;
-    const canFollow = !cur.isFollowup && !s.followupUsed;
-    if (canFollow && resp?.followup) return { mainIndex: cur.mainIndex, isFollowup: true, text: resp.followup, topic: cur.topic, outline: [] };
-    if (canFollow && !resp && cur.bankFollowup) return { mainIndex: cur.mainIndex, isFollowup: true, text: cur.bankFollowup, topic: cur.topic, outline: [] };
+    // Chained follow-ups: Normal allows 1 per main question, Deep up to 3
+    // (the server enforces the same cap).
+    const canFollow = cur.depth < maxF;
+    const nd = cur.depth + 1;
+    if (canFollow && resp?.followup) return { mainIndex: cur.mainIndex, isFollowup: true, depth: nd, text: resp.followup, topic: cur.topic, outline: [] };
+    if (canFollow && !resp) {
+      // Question bank: its own follow-up first, then generic deeper probes in Deep mode.
+      const text = nd === 1 ? (cur.bankFollowup || (deep ? DEEP_PROBES[0] : "")) : deep ? DEEP_PROBES[Math.min(nd - 1, DEEP_PROBES.length - 1)] : "";
+      if (text) return { mainIndex: cur.mainIndex, isFollowup: true, depth: nd, text, topic: cur.topic, outline: [] };
+    }
     const ni = cur.mainIndex + 1;
     if (ni >= total) return null;
     let q = s.mains[ni];
@@ -830,7 +910,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
       q = s.bank.find((b) => !used.has(b.text)) || s.bank[ni % s.bank.length];
       s.mains[ni] = q;
     }
-    return { mainIndex: ni, isFollowup: false, text: q.text, topic: q.topic, outline: q.outline, bankFollowup: q.followup };
+    return { mainIndex: ni, isFollowup: false, depth: 0, text: q.text, topic: q.topic, outline: q.outline, bankFollowup: q.followup };
   }
 
   function advance() {
@@ -839,7 +919,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
     s.next = null;
     setTypeThis(false);
     if (!n) { finish(); return; }
-    if (!n.isFollowup) s.followupUsed = false;
+    if (!n.isFollowup) { setDrawOpen(false); setBoardCount(0); }
     setCur(n);
   }
 
@@ -849,7 +929,7 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
     const rec: SessionRec = {
       id: s.sid + (initialMains ? "_r" + Date.now().toString(36) : ""), at: s.at, jobId: job?.id || "", jobTitle: job?.title || "",
       type: prefs.type, style: prefs.style, length: total, mode: s.answers.some((a) => a.feedback) ? "ai" : "offline",
-      answers: s.answers, mains: s.mains.slice(0, total).map((m) => m.text),
+      answers: s.answers, mains: s.mains.slice(0, total).map((m) => m.text), depth: prefs.depth,
     };
     onFinish(rec, s.token ? { sid: s.sid, token: s.token, turnIndex: s.turnIndex } : undefined);
   }
@@ -863,13 +943,13 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
   const s = S.current;
   const progressPct = Math.round(((cur.mainIndex + (step === "review" ? 1 : 0)) / total) * 100);
   const live = [finalText, interim].filter(Boolean).join(" ");
-  const nextLabel = !s.next ? "See summary" : s.next.isFollowup ? "Continue to the follow-up" : "Next question";
+  const nextLabel = !s.next ? "See summary" : s.next.isFollowup ? (deep ? `Continue to follow-up ${s.next.depth} of ${maxF}` : "Continue to the follow-up") : "Next question";
 
   return (
     <div className="stack">
       <div className="vm-topbar">
         <div className="vm-topbar-info">
-          <span className="progress-label">Question {cur.mainIndex + 1} of {total}{cur.isFollowup ? " · follow-up" : ""} · {typeLabel(prefs.type)}</span>
+          <span className="progress-label">Question {cur.mainIndex + 1} of {total}{cur.isFollowup ? (deep ? " · " + fuLabel(cur.depth) : " · follow-up") : ""} · {typeLabel(prefs.type)}</span>
           <div className="bar" aria-hidden="true"><div style={{ width: progressPct + "%" }} /></div>
         </div>
         <div className="row">
@@ -884,23 +964,52 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
 
       {s.mode === "offline" && s.offlineNote && <div className="vm-notice vm-notice-warn" role="status">{s.offlineNote} Rate yourself after each answer.</div>}
 
+      <div className={"vm-stage" + (board ? " has-board" : "")}>
       <section className="card vm-room" aria-labelledby="vm-q">
         <div className="vm-interviewer">
           <div className={"vm-avatar" + (step === "asking" && !muted ? " speaking" : "")} aria-hidden="true">{initials(persona.name)}</div>
           <div className="vm-who">
             <strong>{persona.name}</strong>
-            <span className="small muted">Interviewer · {persona.label}{job?.title ? " · " + job.title : ""}</span>
+            <span className="small muted">Interviewer · {persona.label}{deep ? " · keeps asking why" : ""}{job?.title ? " · " + job.title : ""}</span>
           </div>
           {step === "asking" && !muted && support.synthesis && (
             <button type="button" className="btn btn-small btn-ghost vm-skip" onClick={() => { stopSpeaking(); }}>Skip</button>
           )}
         </div>
-        {cur.isFollowup && <span className="vm-followup-tag">Follow-up</span>}
-        <p id="vm-q" className="vm-question">{cur.text}</p>
-        {(step === "ready" || step === "recording") && support.synthesis && (
-          <button type="button" className="link-btn small vm-replay" onClick={() => speak(cur.text, { voiceURI: prefs.voiceURI })}>Replay question</button>
+        {cur.isFollowup && (
+          <span className={"vm-followup-tag" + (deep ? " vm-depth-tag" : "")}>
+            {deep && <DepthPips n={cur.depth} of={maxF} />}{fuLabel(cur.depth)}
+          </span>
         )}
+        <p id="vm-q" className="vm-question">{cur.text}</p>
+        <div className="vm-room-actions">
+          {(step === "ready" || step === "recording") && support.synthesis && (
+            <button type="button" className="link-btn small vm-replay" onClick={() => speak(cur.text, { voiceURI: prefs.voiceURI })}>Replay question</button>
+          )}
+          {board && (
+            <button type="button" className={"btn btn-small vm-draw-toggle" + (drawOpen ? " on" : "")} aria-expanded={drawOpen} aria-controls="vm-board" onClick={() => setDrawOpen(!drawOpen)}>
+              <PenIcon /> {drawOpen ? "Hide whiteboard" : "Draw"}{!drawOpen && boardCount ? ` (${boardCount})` : ""}
+            </button>
+          )}
+        </div>
       </section>
+
+      {board && (
+        <aside id="vm-board" className={"card vm-board" + (drawOpen ? " open" : "")} aria-label="Whiteboard">
+          <div className="vm-board-head">
+            <div>
+              <h2 className="vm-board-title">Whiteboard</h2>
+              <p className="hint">Sketch while you talk. Your diagram goes to the interviewer with your answer{cur.isFollowup ? " and carries over to follow-ups" : ""}.</p>
+            </div>
+          </div>
+          <Whiteboard
+            key={"wb-" + cur.mainIndex}
+            initial={s.diagrams[cur.mainIndex]}
+            label={`Whiteboard for question ${cur.mainIndex + 1}`}
+            onChange={(d) => { s.diagrams[cur.mainIndex] = d; setBoardCount(d.nodes.length); }}
+          />
+        </aside>
+      )}
 
       <section className={"card vm-answer" + (step === "recording" ? " is-recording" : "")} aria-label="Your answer">
         {(step === "asking" || step === "ready") && !typed && (
@@ -976,8 +1085,17 @@ function Session({ prefs, job, length, initialMains, carry, onExit, onFinish }: 
 
         {error && <p className="error" role="alert">{error}</p>}
       </section>
+      </div>
       <p className="vm-sr" aria-live="polite">{status}</p>
     </div>
+  );
+}
+
+function PenIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M10.5 2.5l3 3L6 13H3v-3z M9 4l3 3" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
   );
 }
 
@@ -1084,6 +1202,30 @@ function AnswerFeedback({ a, onRate }: { a: Answer; onRate?(n: number): void }) 
 
 // ------------------------------------------------------------------ summary ---
 
+function DiagramSnapshot({ a, id }: { a: Answer; id: string }) {
+  if (!a.diagram || !a.diagramText) return null;
+  // diagramToSvg escapes every label, so the markup is safe to inject.
+  const svg = diagramToSvg(cleanDiagram(a.diagram), { idPrefix: "vm" + id, title: "Your whiteboard for this answer", maxWidth: 560 });
+  return (
+    <div className="vm-snap">
+      <div className="field-label">Your whiteboard</div>
+      <div className="vm-snap-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+      <details className="vm-snap-details">
+        <summary>What the interviewer read</summary>
+        <pre className="vm-snap-text">{a.diagramText}</pre>
+      </details>
+    </div>
+  );
+}
+
+function DocIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path d="M4 1.5h5.5L13 5v9.5H4z M9.5 1.5V5H13 M6 8.5h5 M6 11h5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; onBack(): void; onSaved(r: SessionRec): void; onPracticeAgain(q: BankQ): void }) {
   const auth = useAuth();
   const st = useMemo(() => sessionStats(rec), [rec]);
@@ -1104,12 +1246,60 @@ function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; o
     return out.slice(0, 3);
   }, [rec, st]);
 
+  const [shareMsg, setShareMsg] = useState("");
+  const report = useMemo<ReportInput>(() => ({
+    at: rec.at, jobTitle: rec.jobTitle, typeLabel: typeLabel(rec.type), styleLabel: styleOf(rec.style).label,
+    depthLabel: rec.depth === "deep" ? "Deep (up to 3 follow-ups)" : "Normal",
+    mode: rec.mode, overall: st.overall,
+    dims: st.dims ? DIMS.map((d) => ({ label: d.label, value: (st.dims as MockScores)[d.k] })) : null,
+    delivery: del, fixes, best: st.best?.question, weakest: st.weakest?.question,
+    turns: rec.answers.map((a) => {
+      const sc = answerScores(a);
+      return {
+        mainIndex: a.mainIndex, depth: answerDepth(a), question: a.question, transcript: a.transcript, typed: a.typed,
+        scores: sc ? DIMS.map((d) => ({ label: d.label, value: sc[d.k] })) : null, selfRated: !a.feedback && !!a.selfRating,
+        strengths: a.feedback?.strengths || [], improve: a.feedback?.improve || [], outline: a.outline || [],
+        delivery: a.delivery, diagram: a.diagram ? cleanDiagram(a.diagram) : null, diagramText: a.diagramText,
+      };
+    }),
+  }), [rec, st, del, fixes]);
+
+  const download = (body: string, type: string, name: string) => {
+    const url = URL.createObjectURL(new Blob([body], { type }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
+  const openReport = () => {
+    const html = buildReportHtml(report);
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    const w = window.open(url, "_blank");
+    if (!w) { download(html, "text/html", reportFileName(report, "html")); setShareMsg("Pop-ups are blocked, so the report was downloaded as an HTML file. Open it and print to PDF."); }
+    else setShareMsg("Report opened in a new tab. Use “Print or save as PDF” there.");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+  const downloadMd = () => { download(buildReportMarkdown(report), "text/markdown", reportFileName(report, "md")); setShareMsg("Markdown report downloaded."); };
+  const copyShare = async () => {
+    const text = buildShareSummary(report);
+    let ok = false;
+    try { await navigator.clipboard.writeText(text); ok = true; } catch { /* fall back */ }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { ok = document.execCommand("copy"); } catch { ok = false; }
+      ta.remove();
+    }
+    setShareMsg(ok ? "Copied a short summary (no transcripts). Paste it to your mentor." : "Couldn’t copy automatically. Download the .md report instead.");
+  };
+
   const weakMain = st.weakest || st.best;
   const practiceQ = (): BankQ | null => {
     if (!weakMain) return null;
     const text = rec.mains[weakMain.mainIndex] || weakMain.question;
     const mainAns = rec.answers.find((a) => a.mainIndex === weakMain.mainIndex && !a.isFollowup);
-    return { text, topic: weakMain.topic, kind: rec.type === "mixed" ? "technical" : (rec.type as BankQ["kind"]), outline: mainAns?.outline || [] };
+    return { text, topic: weakMain.topic, kind: rec.type === "mixed" ? (DESIGN_RE.test(text) ? "system_design" : "technical") : (rec.type as BankQ["kind"]), outline: mainAns?.outline || [] };
   };
 
   const save = async () => {
@@ -1189,6 +1379,19 @@ function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; o
           {rec.saved && <Link className="btn btn-ghost" to="/dashboard">Readiness →</Link>}
         </div>
         {saveMsg && <p className="hint" role="status">{saveMsg}</p>}
+
+        <div className="vm-share">
+          <div className="vm-share-copy">
+            <strong>Keep a copy or share it</strong>
+            <span className="hint">A printable report with every question, transcript, follow-up and feedback{rec.answers.some((a) => a.diagramText) ? ", plus your whiteboard" : ""}. Built on your device; nothing is uploaded.</span>
+          </div>
+          <div className="vm-share-actions">
+            <button type="button" className="btn" onClick={openReport}><DocIcon /> Download report</button>
+            <button type="button" className="btn btn-ghost" onClick={downloadMd}>.md</button>
+            <button type="button" className="btn btn-ghost" onClick={copyShare}>Copy share summary</button>
+          </div>
+          {shareMsg && <p className="hint vm-share-msg" role="status">{shareMsg}</p>}
+        </div>
       </section>
 
       <section className="card">
@@ -1196,13 +1399,17 @@ function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; o
         <div className="vm-transcripts">
           {rec.answers.map((a, i) => {
             const sc = answerScores(a);
+            const dep = answerDepth(a);
+            const prev = rec.answers.slice(0, i).reverse().find((x) => x.mainIndex === a.mainIndex && x.diagramText);
+            const showDiagram = !!a.diagramText && (!prev || prev.diagramText !== a.diagramText);
             return (
-              <details key={i} className="vm-turn" open={i === 0}>
+              <details key={i} className={"vm-turn" + (dep ? " vm-turn-fu" : "")} open={i === 0}>
                 <summary>
-                  <span className="vm-turn-q"><span className="vm-turn-tag">{a.isFollowup ? "Follow-up" : "Q" + (a.mainIndex + 1)}</span>{a.question}</span>
+                  <span className="vm-turn-q"><span className={"vm-turn-tag" + (dep ? " fu" : "")}>{dep ? (rec.depth === "deep" ? "Follow-up " + dep : "Follow-up") : "Q" + (a.mainIndex + 1)}</span>{a.question}</span>
                   {sc && <span className="vm-turn-score">{avg(sc).toFixed(1)}/5</span>}
                 </summary>
                 <blockquote className="vm-said">{a.transcript || <em>No answer recorded.</em>}</blockquote>
+                {showDiagram && <DiagramSnapshot a={a} id={"s" + i} />}
                 <AnswerFeedback a={a} />
               </details>
             );

@@ -376,6 +376,12 @@ export interface MockTurnRequest {
   need_next: boolean;
   history: { question: string; answer: string }[];
   job?: { title?: string; company?: string; seniority?: string; skills?: string[] } | null;
+  /** Chained follow-ups allowed per main question, 1–3 (server clamps; default 1). */
+  max_followups?: number;
+  /** Depth of the question just answered: 0 = main, n = n-th follow-up. */
+  followup_depth?: number;
+  /** Whiteboard description for system design answers (≤ 2000 chars). */
+  diagram?: string;
 }
 
 export interface MockTurnResponse {
@@ -384,6 +390,8 @@ export interface MockTurnResponse {
   session_token?: string;
   feedback: MockFeedback;
   followup?: string;
+  /** Depth of the returned follow-up (1 = first follow-up), when there is one. */
+  followup_depth?: number;
   next_question?: string;
   /** Turn 0 only: the remaining main questions for the session. */
   questions?: string[];

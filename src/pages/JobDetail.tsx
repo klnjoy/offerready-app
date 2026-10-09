@@ -20,7 +20,7 @@ import { usePlan, invalidatePlan } from "../lib/plans";
 import { buildPrepPlan, carryOver, doneThisWeek, planToIcs, streakDays, type PlanTask, type PrepPlan } from "../lib/prepPlan";
 import { getHistory, weakTopicScores } from "../lib/progressStore";
 import { band, setActiveJob, weightedOverall } from "../lib/readiness";
-import { displayJobTitle } from "../lib/roles";
+import { displayJobTitle, roleGuideFor } from "../lib/roles";
 import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router";
 import { useSavedResume } from "../lib/savedResume";
 import { loadStories, neededCompetencies, storyGaps } from "../lib/stories";
@@ -273,6 +273,8 @@ function Overview({ data }: { data: JobDetail }) {
         <FitMini data={data} />
       </div>
 
+      <RoleGuideCard job={data.job} />
+
       {dStats.rounds > 0 && (
         <div className="td-debrief" role="status">
           <span className="td-debrief-mark" aria-hidden="true">{dStats.rounds}</span>
@@ -437,6 +439,22 @@ function FitMini({ data }: { data: JobDetail }) {
           <div className="row"><Link className="btn btn-primary btn-small" to={jobPath(jobId, "resume")}>Add your resume</Link></div>
         </>
       )}
+    </section>
+  );
+}
+
+/** Link to the study site's role guide when the job title matches one. */
+function RoleGuideCard({ job }: { job: JobDetail["job"] }) {
+  const guide = roleGuideFor(job);
+  if (!guide) return null;
+  return (
+    <section className="card rg-card" aria-labelledby="rg-card-h">
+      <div className="rg-card-copy">
+        <span className="td-eyebrow">Role guide</span>
+        <h2 id="rg-card-h">{guide.label}</h2>
+        <p className="muted small">How the interview loop runs, what a strong answer sounds like at senior and staff level, the questions you’re most likely to get, and a 14-day plan.</p>
+      </div>
+      <ExternalLink className="btn rg-card-go" href={guide.url}>Read the guide <span aria-hidden="true">{"↗"}</span><span className="td-sr"> (opens in a new tab)</span></ExternalLink>
     </section>
   );
 }
