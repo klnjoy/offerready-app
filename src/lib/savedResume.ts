@@ -3,7 +3,10 @@
  *
  * PRIVACY: the text lives in this browser's localStorage only (KEYS.resume).
  * It is sent to the API only for the one request that needs it (job analysis,
- * fit check, tailoring), and the server does not store it. Remove clears it. */
+ * fit check, tailoring), and the server does not store it. Remove clears it.
+ * Exception, opt-in only: when the user turns on resume sync on this device
+ * (lib/sync.ts setResumeSync), a copy is kept in their account's
+ * user_state rows (own rows only, RLS) so it follows them to other devices. */
 
 import { useCallback, useEffect, useState } from "react";
 import { KEYS, readJSON, removeKey, writeJSON } from "./storage";

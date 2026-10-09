@@ -86,3 +86,40 @@ The non-UI layer (`api.ts`, `roles.ts`, `readiness.ts`, `progressStore.ts`,
 AsyncStorage, `router.tsx` for expo-router, and re-render the screens with
 native components. If Pro is sold inside the iOS/Android app, Apple and Google
 generally require in-app purchase for digital goods rather than Stripe.
+
+## Installable app (PWA)
+
+`public/manifest.webmanifest`, the icons in `public/icons/` and a hand-written
+service worker (`public/sw.js`) make the app installable and let it open
+offline after the first visit. The worker is registered only in production
+builds, scoped to the base path (`/offerready-app/`). It caches the app shell
+and the hashed files in `/assets/`, and never caches API, Supabase or Stripe
+requests. Each build stamps its id into `sw.js` (see `vite.config.ts`), so a
+new deploy shows "Update available" in open tabs. Account → "Install the app"
+shows the browser's install prompt where supported, or iOS steps.
+
+## Error reports
+
+Uncaught errors, unhandled promise rejections and screens that crash (the
+error boundary) are reported to the Supabase table `client_errors` by
+`src/lib/errorReport.ts` (no third-party SDK). Reports are scrubbed in the
+browser first (no query strings, emails or tokens) and capped at 10 per
+browser session. Run migration `supabase/migrations/0013_client_errors.sql`
+in the `offerready` repo to create the table; until then inserts fail
+silently.
+
+Clients can only insert, so view the reports in the Supabase dashboard:
+
+- **Table Editor → `client_errors`**, sorted by `created_at`, or
+- **SQL Editor**, for example the most common errors this week:
+
+  ```sql
+  select message, route, release, count(*) as n, max(created_at) as last_seen
+  from public.client_errors
+  where created_at > now() - interval '7 days'
+  group by 1, 2, 3
+  order by n desc
+  limit 50;
+  ```
+
+To trim old rows: `delete from public.client_errors where created_at < now() - interval '90 days';`

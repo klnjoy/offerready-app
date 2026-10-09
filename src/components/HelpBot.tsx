@@ -16,11 +16,11 @@ import { API_ENABLED, STUDY_URL, docsUrl } from "../config";
 import * as api from "../lib/api";
 import { buildAppContext, contextLabel, readJobContext, startersFor } from "../lib/helpContext";
 import { useLocation, useNavigate } from "../lib/router";
-import { readJSON, writeJSON } from "../lib/storage";
+import { KEYS, onDataChanged, readJSON, readString, writeJSON, writeString } from "../lib/storage";
 import { TOPIC_GROUPS, effectiveTopic, topicLabel } from "../lib/helpTopics";
 
 const SESSION_KEY = "offerready.help.v2"; // legacy single chat, imported once
-const STORE_KEY = "offerready.help.chats.v1"; // all chats (this device)
+const STORE_KEY = KEYS.helpChats; // all chats (follows the account when signed in, lib/sync.ts)
 const UI_KEY = "offerready.help.ui.v1"; // panel open/size (this tab)
 const FEEDBACK_KEY = "offerready.help.feedback.v1";
 const MAX_CHARS = 800;
@@ -69,7 +69,7 @@ function newChat(area = "auto"): Chat {
 function loadStore(): Store {
   let s: Store | null = null;
   try {
-    const raw = JSON.parse(localStorage.getItem(STORE_KEY) || "null") as { v?: number; activeId?: string; chats?: Chat[] } | null;
+    const raw = JSON.parse(readString(STORE_KEY) || "null") as { v?: number; activeId?: string; chats?: Chat[] } | null;
     if (raw && raw.v === 1 && Array.isArray(raw.chats)) {
       s = {
         activeId: raw.activeId || "",
@@ -112,7 +112,7 @@ function saveStore(s: Store) {
       .filter((c) => c.msgs.length || c.id === s.activeId)
       .slice(0, MAX_CHATS)
       .map((c) => ({ ...c, msgs: c.msgs.filter((m) => !m.streaming || m.content).slice(-MAX_STORED_MSGS) }));
-    localStorage.setItem(STORE_KEY, JSON.stringify({ v: 1, activeId: s.activeId, chats }));
+    writeString(STORE_KEY, JSON.stringify({ v: 1, activeId: s.activeId, chats }));
   } catch {
     /* non-fatal */
   }
@@ -353,7 +353,9 @@ export function HelpBot() {
       setStore(next);
     };
     window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    // Account sync brought chats from another device.
+    const off = onDataChanged([STORE_KEY], () => onStorage({ key: STORE_KEY } as StorageEvent));
+    return () => { window.removeEventListener("storage", onStorage); off(); };
   }, []);
 
   // Open: focus the input. Close: focus back to the launcher.

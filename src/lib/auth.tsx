@@ -7,6 +7,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../config";
+import { flushSync, startSync, stopSync, wantKeepalive } from "./sync";
+
+/** fetch for the Supabase client: a page-hide sync flush goes out with
+ * keepalive (when small enough) so it survives the tab closing. */
+const clientFetch: typeof fetch = (input, init) => {
+  if (wantKeepalive() && init && typeof init.body === "string" && init.body.length < 60000) {
+    return fetch(input, { ...init, keepalive: true });
+  }
+  return fetch(input, init);
+};
 
 let client: SupabaseClient | null = null;
 function getClient(): SupabaseClient | null {
@@ -15,11 +25,18 @@ function getClient(): SupabaseClient | null {
   try {
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+      global: { fetch: clientFetch },
     });
   } catch {
     client = null;
   }
   return client;
+}
+
+/** The shared Supabase client (null when sign-in isn't configured). Used by
+ * account sync and error reporting outside React. */
+export function getSupabaseClient(): SupabaseClient | null {
+  return getClient();
 }
 
 type AuthResult = { error?: string; message?: string };
@@ -64,6 +81,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [c]);
 
+  // Account sync follows the session: start on sign-in, stop on sign-out
+  // (local data stays on the device).
+  useEffect(() => {
+    if (!c || !ready) return;
+    if (session) startSync(c, session);
+    else stopSync();
+  }, [c, ready, session]);
+
   const getAccessToken = useCallback(async () => {
     if (!c) return null;
     try {
@@ -107,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return r.error ? { error: r.error.message } : { message: "If that email exists, a reset link is on its way." };
       },
       async signOut() {
+        // Push pending changes while the session is still valid.
+        await flushSync().catch(() => {});
         if (c) await c.auth.signOut();
       },
     }),
