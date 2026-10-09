@@ -88,6 +88,21 @@ export function listJobs(token: string) {
   return call<{ ok: boolean; jobs: JobRow[] }>("/api/jobs", { token });
 }
 
+export interface JobReadiness {
+  /** Latest readiness 0-100 (half the resume match before any practice). */
+  score: number;
+  match: number | null;
+  practiced: number;
+  at: string | null;
+  /** Score a week ago, for the change arrow; null without history that old. */
+  week_ago: number | null;
+}
+
+/** Readiness for every saved job in one call (api/jobs?view=readiness). */
+export function getReadinessScores(token: string) {
+  return call<{ ok: boolean; scores: Record<string, JobReadiness> }>("/api/jobs?view=readiness", { token });
+}
+
 export function getJob(token: string, id: string) {
   return call<{ ok: boolean } & JobDetail>("/api/jobs/" + encodeURIComponent(id), { token });
 }

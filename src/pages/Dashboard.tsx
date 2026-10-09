@@ -1,4 +1,5 @@
-/* Readiness — "Are you ready?" for one job: the score and a plain verdict,
+/* Readiness. With two or more jobs and no ?job=, the overview across all jobs
+ * (ReadinessOverview). For one job: "Are you ready?": the score and a plain verdict,
  * a forecast of when you'll reach the ready line (lib/forecast.ts), what the
  * score is made of, a skills heatmap, the trend, and this week's top three.
  * The job's data comes from the API; localStorage is only an offline cache. */
@@ -13,12 +14,13 @@ import { addDays } from "../lib/prepPlan";
 import { getHistory } from "../lib/progressStore";
 import { clampInt, setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
-import { Link, useSearchParams } from "../lib/router";
+import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { KEYS, readJSON, writeJSON } from "../lib/storage";
 import { loadStories, neededCompetencies, storyGaps, type Story } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
 import { Card, Loading, Muted } from "../components/ui";
+import ReadinessOverview from "./ReadinessOverview";
 import type { GapRow, JobDetail, JobRow, PracticeRow, ProgressRow } from "../types";
 
 interface Cached {
@@ -36,6 +38,7 @@ export default function DashboardPage() {
   const auth = useAuth();
   const jobsState = useJobs();
   const params = useSearchParams();
+  const navigate = useNavigate();
   const wanted = params.get("job") || "";
   const [jobId, setJobId] = useState("");
   const [detail, setDetail] = useState<JobDetail | null>(null);
@@ -43,15 +46,13 @@ export default function DashboardPage() {
   const [nonce, setNonce] = useState(0);
   const owned = (id: string) => !!id && jobsState.jobs.some((j) => j.id === id);
 
-  // ?job= first (when it's one of yours), then the active job, then the newest.
+  // ?job= (when it's one of yours) shows that job. Otherwise one job shows
+  // itself and two or more show the overview across all of them.
   useEffect(() => {
     if (jobsState.status !== "ready" || !jobsState.jobs.length) return;
-    setJobId((cur) => (owned(cur) ? cur : owned(wanted) ? wanted : jobsState.activeId || jobsState.jobs[0].id));
-  }, [jobsState.status, jobsState.activeId, jobsState.jobs]); // eslint-disable-line react-hooks/exhaustive-deps
-  // A new ?job= link while on the page switches to that job.
-  useEffect(() => {
-    if (jobsState.status === "ready" && owned(wanted)) setJobId(wanted);
-  }, [wanted, jobsState.status]); // eslint-disable-line react-hooks/exhaustive-deps
+    setJobId(owned(wanted) ? wanted : jobsState.jobs.length === 1 ? jobsState.jobs[0].id : "");
+  }, [wanted, jobsState.status, jobsState.jobs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openJob = (id: string) => navigate("/dashboard?job=" + encodeURIComponent(id));
 
   useEffect(() => {
     if (!jobId) return;
@@ -93,9 +94,10 @@ export default function DashboardPage() {
   else if (jobsState.status === "signedout") body = <SignedOut />;
   else if (jobsState.status === "error") body = fromCache("Couldn’t reach your account, so this is your last saved snapshot.");
   else if (!jobsState.jobs.length) body = <EmptyJobs />;
+  else if (!jobId && jobsState.jobs.length > 1) body = <ReadinessOverview jobs={jobsState.jobs} />;
   else if (error) body = <Card><Muted>{error}</Muted><div className="row"><button type="button" className="btn" onClick={() => setNonce((n) => n + 1)}>Try again</button></div></Card>;
   else if (!detail) body = <Loading>Loading your readiness{"…"}</Loading>;
-  else body = <Readiness key={detail.job.id} detail={detail} jobs={jobsState.jobs} onSwitch={setJobId} />;
+  else body = <Readiness key={detail.job.id} detail={detail} jobs={jobsState.jobs} onSwitch={openJob} />;
 
   return <div className="page rd">{body}</div>;
 }
@@ -290,14 +292,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
     <div className="rd-stack">
       {note && <Card><Muted>{note}</Muted></Card>}
 
-      {jobs.length > 1 ? (
-        <div className="rd-picker">
-          <label htmlFor="rd-job">Job</label>
-          <select id="rd-job" className="input" value={detail.job.id} onChange={(e) => onSwitch(e.target.value)}>
-            {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
-          </select>
-        </div>
-      ) : null}
+      {jobs.length > 1 ? <JobSwitcher jobs={jobs} current={detail.job.id} onSwitch={onSwitch} /> : null}
 
       {/* 1. The answer */}
       <section className={"card rd-hero rd-tone-" + v.tone} aria-labelledby="rd-q">
@@ -369,6 +364,41 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
         </div>
         {m.points.length >= 2 ? <TrendChart points={m.points} today={today} interviewDate={date} f={m.forecast} /> : <TrendEmpty jobQ={m.jobQ} />}
       </section>
+    </div>
+  );
+}
+
+/** "← All jobs" plus a search box that finds any job by title or company
+ * (a dropdown of hundreds of jobs is unusable). Shows the first 8 matches. */
+function JobSwitcher({ jobs, current, onSwitch }: { jobs: JobRow[]; current: string; onSwitch(id: string): void }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const needle = q.trim().toLowerCase();
+  const matches = useMemo(
+    () => jobs.filter((j) => j.id !== current && (!needle || (displayJobTitle(j) + " " + (j.company || "")).toLowerCase().includes(needle))).slice(0, 8),
+    [jobs, current, needle],
+  );
+  const choose = (id: string) => { setQ(""); setOpen(false); onSwitch(id); };
+  return (
+    <div className="rd-switch">
+      <Link className="rd-back" to="/dashboard">{"←"} All jobs ({jobs.length})</Link>
+      <div className="rd-switch-box" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+        <input className="input" type="search" role="combobox" aria-expanded={open} aria-controls="rd-switch-list" aria-label="Switch to another job"
+          placeholder={"Switch job: search title or company…"} value={q}
+          onFocus={() => setOpen(true)} onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && matches[0]) { e.preventDefault(); choose(matches[0].id); } if (e.key === "Escape") setOpen(false); }} />
+        {open && (
+          <ul id="rd-switch-list" className="rd-switch-list" role="listbox">
+            {matches.length ? matches.map((j) => (
+              <li key={j.id} role="option" aria-selected={false}>
+                <button type="button" onClick={() => choose(j.id)}>
+                  <strong>{displayJobTitle(j)}</strong>{j.company ? <span className="muted small"> {"·"} {j.company}</span> : null}
+                </button>
+              </li>
+            )) : <li className="muted small rd-switch-none">No other job matches</li>}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
