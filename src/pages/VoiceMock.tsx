@@ -14,7 +14,10 @@
  * summary built locally (lib/interviewReport). */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SIM_BANK } from "../data/simulatorBank";
+import { SIM_BANK as BASE_BANK } from "../data/simulatorBank";
+import { SIM_BANK_EXTRA } from "../data/simulatorBankExtra";
+
+const SIM_BANK = [...BASE_BANK, ...SIM_BANK_EXTRA];
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import {
   completePractice, getJob, mockTurn,
@@ -135,7 +138,7 @@ const SYSTEM_DESIGN: BankQ[] = [
 ];
 
 const stripMd = (s: string) => s.replace(/\*\*|`/g, "");
-const TECH_BANK: BankQ[] = SIM_BANK.filter((b) => !/system design/i.test(b.area)).map((b) => ({
+const TECH_BANK: BankQ[] = SIM_BANK.filter((b) => !/system design|leadership/i.test(b.area)).map((b) => ({
   kind: "technical" as const, topic: b.topic, text: stripMd(b.q), outline: b.strong.map(stripMd),
   followup: stripMd(b.followup.split("→")[0]).trim() || undefined,
 }));

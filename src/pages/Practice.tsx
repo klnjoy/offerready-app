@@ -26,9 +26,11 @@ interface BankItem {
 const TRACKS = {
   all: { label: "All topics", desc: "Everything in the bank." },
   data: { label: "Data / Analytics Eng", desc: "SQL, warehouses, pipelines, Python, AWS." },
-  ai: { label: "AI / GenAI Engineer", desc: "RAG, agents, LangChain, MCP, Python." },
-  fde: { label: "Forward-Deployed", desc: "Python + behavioral core." },
-  lead: { label: "Delivery / Lead", desc: "Behavioral & delivery focus." },
+  ai: { label: "AI / GenAI Engineer", desc: "RAG, agents, MCP, FastAPI, AI security." },
+  fde: { label: "Forward-Deployed", desc: "Customer work, FastAPI, system design, Python." },
+  lead: { label: "Delivery / Lead", desc: "Leadership, delivery and behavioral." },
+  platform: { label: "ML / AI Platform", desc: "Kubernetes, serving, MLOps, FastAPI, RAG ops." },
+  architect: { label: "Staff / Principal Architect", desc: "System design, architecture, security, leadership." },
 } as const;
 type Track = keyof typeof TRACKS;
 
@@ -56,6 +58,14 @@ const SOURCE_LINKS: Record<string, string> = {
   MCP_Interview_QA: "MCP Interview Q&A",
   GenAI_Interview_QA: "GenAI Interview Q&A",
   Behavioral_STAR_Interview_QA: "Behavioral / STAR Interview Q&A",
+  FastAPI_Interview_QA: "FastAPI Interview Q&A",
+  System_Design_Interview_QA: "System Design Interview Q&A",
+  RAG_LLMOps_Interview_QA: "RAG & LLMOps Interview Q&A",
+  AI_Security_Interview_QA: "AI Security Interview Q&A",
+  ML_AI_Platform_Interview_QA: "ML / AI Platform Interview Q&A",
+  FDE_Customer_Interview_QA: "FDE / Customer Interview Q&A",
+  Leadership_Delivery_Interview_QA: "Leadership & Delivery Interview Q&A",
+  Architecture_Interview_QA: "Architecture Interview Q&A",
 };
 
 const EXAM_SECONDS_PER_Q = 90;
@@ -87,7 +97,7 @@ function SourceLink({ item }: { item: BankItem }) {
   if (!item.source || !SOURCE_LINKS[item.source]) return null;
   return (
     <ExternalLink className="source-link" href={docsUrl("Personal-SourceCode/" + item.source + ".html")}>
-      {"📖"} Read the full topic: {SOURCE_LINKS[item.source]} {"↗"}
+      Read the full topic: {SOURCE_LINKS[item.source]} {"↗"}
     </ExternalLink>
   );
 }
@@ -153,6 +163,8 @@ function trackForTitle(title: string): Track | null {
   const t = String(title || "").toLowerCase();
   if (!t) return null;
   if (/forward[- ]deployed|\bfde\b|solutions engineer/.test(t)) return "fde";
+  if (/architect|principal/.test(t)) return "architect";
+  if (/platform|mlops|\bml\b.*infra|infrastructure|\bsre\b|devops/.test(t)) return "platform";
   if (/\b(ai|ml|genai|llm|machine learning|nlp)\b/.test(t)) return "ai";
   if (/data|analytics|snowflake|dbt|databricks|warehouse|etl|bi\b/.test(t)) return "data";
   if (/\b(lead|manager|head|director|delivery)\b/.test(t)) return "lead";

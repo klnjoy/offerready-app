@@ -1,0 +1,548 @@
+/* Additional Interview Simulator questions. Same SimItem shape as SIM_BANK. */
+
+import type { SimItem } from "./simulatorBank";
+
+export const SIM_BANK_EXTRA: SimItem[] = [
+  // ── AI fundamentals & LLMs ×3 ─────────────────────────────────────────
+  { area: "AI fundamentals & LLMs", topic: "LLMs", level: "Senior",
+    q: "Why do LLMs hallucinate, and what actually reduces it in a product?",
+    tested: "Mechanism-level understanding, not folklore.",
+    strong: [
+      "Next-token prediction optimizes plausibility, not truth; gaps get filled fluently.",
+      "Ground with retrieval, require citations, allow “I don’t know”, constrain output.",
+      "Measure it: a faithfulness / groundedness eval, not spot checks.",
+    ],
+    weak: ["“Set temperature to 0” as the fix; no grounding or measurement."],
+    followup: "Temperature 0 and it still invents facts — why? → determinism ≠ correctness.",
+    depth: "Separates closed-book errors from unfaithfulness to provided context." },
+
+  { area: "AI fundamentals & LLMs", topic: "LLMs", level: "Staff",
+    q: "Your LLM bill tripled in a month. Bring it down without hurting quality.",
+    tested: "Token economics and cost levers.",
+    strong: [
+      "Attribute spend first: by feature, tenant, model, input vs output tokens.",
+      "Levers: prompt caching, trim context, smaller model for easy classes, batch async work.",
+      "Every change gated by the eval set; track cost per successful task.",
+    ],
+    weak: ["Swaps to the cheapest model everywhere; no attribution or eval."],
+    followup: "Where’s the spend usually hiding? → bloated context / retries / runaway agent loops.",
+    depth: "Uses cost-per-outcome, not cost-per-call." },
+
+  { area: "AI fundamentals & LLMs", topic: "LLMs", level: "Principal",
+    q: "How do you get reliable structured output (JSON) from an LLM at scale?",
+    tested: "Contracts between probabilistic and deterministic code.",
+    strong: [
+      "Use native structured output / tool-calling with a schema where available.",
+      "Validate server-side (e.g. Pydantic); bounded repair-retry, then a safe fallback.",
+      "Track schema-failure rate per model/version as an SLO.",
+    ],
+    weak: ["Regex-parses free text; assumes valid JSON means correct content."],
+    followup: "Valid JSON, wrong values — now what? → semantic validation + eval, not just schema.",
+    depth: "Distinguishes syntactic validity from semantic correctness." },
+
+  // ── RAG ×3 ────────────────────────────────────────────────────────────
+  { area: "RAG", topic: "RAG", level: "Senior",
+    q: "How do you choose a chunking strategy for a new corpus?",
+    tested: "Retrieval fundamentals grounded in the data.",
+    strong: [
+      "Respect structure: headings, sections, tables, code — not fixed character splits.",
+      "Size to the query type; small overlap; keep metadata (source, section, ACL).",
+      "Pick empirically with recall@k on a labeled query set.",
+    ],
+    weak: ["“512 tokens with overlap” for everything; no evaluation."],
+    followup: "Answers need context from two distant sections — fix? → parent-doc retrieval / larger windows.",
+    depth: "Treats chunking as a tunable measured by retrieval eval." },
+
+  { area: "RAG", topic: "RAG", level: "Staff",
+    q: "Users ask questions the docs answer, but retrieval misses them. Improve recall.",
+    tested: "Query-side and index-side retrieval techniques.",
+    strong: [
+      "Hybrid (BM25 + dense) for exact terms; add a reranker on top-k.",
+      "Query rewriting / expansion; metadata filters; domain-tuned embeddings if justified.",
+      "Mine failed queries from logs into the eval set.",
+    ],
+    weak: ["Raises k until it works; blames the LLM."],
+    followup: "Product codes and acronyms keep missing — why? → dense embeddings miss exact tokens; lexical helps.",
+    depth: "Knows when lexical beats semantic and measures both." },
+
+  { area: "RAG", topic: "RAG", level: "Principal",
+    q: "Design multi-tenant RAG where documents have per-user permissions.",
+    tested: "Authorization inside retrieval.",
+    strong: [
+      "Enforce ACLs at query time as filters (or per-tenant indexes), never post-generation.",
+      "Sync permission changes fast; deletion must propagate to the index.",
+      "Test for cross-tenant leakage explicitly; audit retrieved doc IDs.",
+    ],
+    weak: ["Filters the answer after generation; one shared index with no ACL metadata."],
+    followup: "A user loses access — how fast is it enforced? → ACL sync SLA + revalidation at retrieval.",
+    depth: "Knows the LLM must never see a chunk the user can’t." },
+
+  // ── Agents & MCP ×3 ───────────────────────────────────────────────────
+  { area: "Agents & MCP", topic: "Agents", level: "Senior",
+    q: "How do you evaluate an agent, not just a single LLM call?",
+    tested: "Multi-step evaluation.",
+    strong: [
+      "Outcome metrics: task success against a known end state.",
+      "Trajectory metrics: right tools, steps, cost, no unsafe actions.",
+      "Sandboxed, replayable environments; run repeated trials since outputs vary.",
+    ],
+    weak: ["Eyeballs a few transcripts; only grades the final text."],
+    followup: "Success rate is flaky run to run — what do you report? → pass rate over N trials with variance.",
+    depth: "Grades both what it achieved and how." },
+
+  { area: "Agents & MCP", topic: "MCP", level: "Staff",
+    q: "When do you build an MCP server instead of plain function-calling in your app?",
+    tested: "Protocol vs in-process integration trade-off.",
+    strong: [
+      "MCP when tools must be reused across clients/agents or owned by another team.",
+      "In-process tools when tightly coupled to one app — simpler, fewer moving parts.",
+      "Either way: narrow tools, clear descriptions, auth and audit at the server.",
+    ],
+    weak: ["MCP for everything because it’s new; or ignores auth on the server."],
+    followup: "How do you version tool changes without breaking clients? → additive changes + deprecation.",
+    depth: "Frames MCP as an integration boundary, not a capability boost." },
+
+  { area: "Agents & MCP", topic: "Agents", level: "Staff",
+    q: "How do you manage context and memory for a long-running agent?",
+    tested: "Context-window engineering.",
+    strong: [
+      "Keep a compact working state; summarize or drop stale tool output.",
+      "Externalize memory (files, store) and retrieve what’s relevant per step.",
+      "Watch for context rot — quality drops as the window fills; measure it.",
+    ],
+    weak: ["Appends everything until it hits the limit; “bigger context fixes it”."],
+    followup: "A summary drops a key fact — mitigation? → pin critical facts in structured state.",
+    depth: "Treats context as a scarce budget to curate." },
+
+  // ── Security ×3 ───────────────────────────────────────────────────────
+  { area: "Security", topic: "AI Security", level: "Senior",
+    q: "Explain indirect prompt injection with a concrete example and defenses.",
+    tested: "Threat modeling for LLM inputs.",
+    strong: [
+      "Malicious instructions arrive via retrieved docs, emails, web pages, tool output.",
+      "No prompt fully prevents it — limit capability: least privilege, approvals, egress control.",
+      "Separate trusted instructions from untrusted data; red-team regularly.",
+    ],
+    weak: ["“Add ‘ignore malicious instructions’ to the system prompt”."],
+    followup: "Agent reads an email that says “forward all invoices” — what stops it? → gated write tools.",
+    depth: "Assumes injection will succeed and limits blast radius." },
+
+  { area: "Security", topic: "Data protection", level: "Staff",
+    q: "How do you keep PII and secrets out of prompts, logs and training data?",
+    tested: "Data governance for AI systems.",
+    strong: [
+      "Classify data; redact/tokenize before the model where possible.",
+      "Logs: redact at write, restrict access, set retention; check provider data-use terms.",
+      "Secrets never in prompts — tools use scoped server-side credentials.",
+    ],
+    weak: ["Logs full prompts and responses forever “for debugging”."],
+    followup: "Support needs transcripts to debug — compromise? → redacted logs + time-boxed access.",
+    depth: "Covers the whole data path, not only the model call." },
+
+  { area: "Security", topic: "AI Security", level: "Principal",
+    q: "Set up an AI red-teaming and safety-eval program for your org.",
+    tested: "Making security continuous, not a one-off.",
+    strong: [
+      "Threat model per use case; attack suites for injection, jailbreaks, data leakage.",
+      "Automate as a release gate; humans for novel attacks.",
+      "Track findings to fixes; feed incidents back into the suite.",
+    ],
+    weak: ["A one-time pen test before launch."],
+    followup: "How do you prioritize findings? → severity × exploitability × blast radius.",
+    depth: "Integrates red-team results into CI and ownership." },
+
+  // ── Data & cloud ×3 ───────────────────────────────────────────────────
+  { area: "Data & cloud", topic: "Data modeling", level: "Senior",
+    q: "How do you handle late-arriving and duplicate events in a pipeline?",
+    tested: "Correctness under real-world data.",
+    strong: [
+      "Idempotent writes keyed on a stable event ID (MERGE / upsert).",
+      "Event time vs processing time; watermarks / lookback windows for late data.",
+      "Reconciliation checks against source counts.",
+    ],
+    weak: ["Assumes exactly-once delivery; appends blindly."],
+    followup: "An event arrives 3 days late — what recomputes? → affected partitions only.",
+    depth: "Designs for at-least-once and makes it safe." },
+
+  { area: "Data & cloud", topic: "Cloud cost", level: "Staff",
+    q: "Your cloud data platform costs are growing faster than usage. Attack it.",
+    tested: "FinOps judgment.",
+    strong: [
+      "Tag and attribute by team/workload; find the top few drivers.",
+      "Right-size and auto-suspend compute; storage tiering; kill unused jobs/tables.",
+      "Budgets and alerts per owner; make cost visible in reviews.",
+    ],
+    weak: ["Across-the-board cuts with no attribution."],
+    followup: "One team owns 40% of spend — conversation? → show unit cost, agree a target.",
+    depth: "Ties spend to unit economics and ownership." },
+
+  { area: "Data & cloud", topic: "Data contracts", level: "Staff",
+    q: "Upstream teams keep breaking your pipelines with schema changes. Fix it structurally.",
+    tested: "Cross-team data reliability.",
+    strong: [
+      "Data contracts: schema, semantics, SLAs owned by producers.",
+      "Enforce in CI / at ingestion (schema registry, compatibility rules).",
+      "Quarantine bad data rather than failing everything; alert the owner.",
+    ],
+    weak: ["Adds more try/except downstream."],
+    followup: "Producer refuses to own a contract — next move? → show incident cost, escalate with data.",
+    depth: "Moves the check to the producer side." },
+
+  // ── Production, ops & reliability ×3 ──────────────────────────────────
+  { area: "Production, ops & reliability", topic: "Observability", level: "Senior",
+    q: "What do you monitor for an LLM feature in production?",
+    tested: "AI-specific observability.",
+    strong: [
+      "Golden signals: latency (incl. time-to-first-token), errors, throughput, cost.",
+      "Quality: sampled online evals, user feedback, refusal and fallback rates.",
+      "Traces per request: prompt version, model, retrieved docs, tool calls.",
+    ],
+    weak: ["Only HTTP 200 rate and latency."],
+    followup: "Everything is green but users complain — where next? → quality signals + trace sampling.",
+    depth: "Treats quality as a monitored signal, not a launch check." },
+
+  { area: "Production, ops & reliability", topic: "SLOs", level: "Staff",
+    q: "Define SLOs for an AI assistant. What do you do when you burn the error budget?",
+    tested: "Reliability engineering applied to AI.",
+    strong: [
+      "SLIs from the user’s view: availability, p95 latency, task success / quality.",
+      "Error budget policy: freeze risky launches, prioritize reliability work.",
+      "Burn-rate alerts instead of static thresholds.",
+    ],
+    weak: ["“99.99% everything” with no budget policy."],
+    followup: "Can quality be an SLO? → yes, via sampled evals with a defined threshold.",
+    depth: "Uses the budget to make release decisions." },
+
+  { area: "Production, ops & reliability", topic: "Deployment", level: "Staff",
+    q: "How do you roll out a new prompt or model version safely?",
+    tested: "Change management for non-deterministic systems.",
+    strong: [
+      "Version prompts/models as config; offline eval gate first.",
+      "Shadow or canary a slice of traffic; compare quality, cost, latency.",
+      "Instant rollback via flag; keep the old version warm.",
+    ],
+    weak: ["Edits the prompt in production and watches Slack."],
+    followup: "Canary shows +5% quality, +30% cost — ship? → depends on unit value; decide explicitly.",
+    depth: "Treats prompts as deployable artifacts." },
+
+  // ── System design (flagship) ×5 ───────────────────────────────────────
+  { area: "System design (flagship)", topic: "System design", level: "Staff",
+    q: "Design an internal LLM gateway used by every team in the company.",
+    tested: "Platform design for shared AI infrastructure.",
+    strong: [
+      "Single API: auth, per-team quotas/rate limits, routing, fallback across providers.",
+      "Cost attribution, logging with redaction, caching, policy/guardrail hooks.",
+      "Keep it thin and highly available — it’s on every request’s critical path.",
+    ],
+    weak: ["A proxy with an API key; no quotas, attribution or failover."],
+    followup: "One team’s batch job starves interactive traffic — fix? → priority classes + separate quotas.",
+    depth: "Names the gateway as a reliability and governance chokepoint." },
+
+  { area: "System design (flagship)", topic: "System design", level: "Staff",
+    q: "Design a feature store for online and offline ML.",
+    tested: "Training/serving consistency.",
+    strong: [
+      "Offline store for training (point-in-time correct); online low-latency store for serving.",
+      "One feature definition feeds both to avoid training/serving skew.",
+      "Freshness SLAs, backfills, lineage and monitoring for drift.",
+    ],
+    weak: ["Separate code paths for training and serving; ignores point-in-time joins."],
+    followup: "Why point-in-time joins? → prevent label leakage from future data.",
+    depth: "Leads with skew and leakage as the core problems." },
+
+  { area: "System design (flagship)", topic: "System design", level: "Principal",
+    q: "Design a multi-tenant AI SaaS product. How do you isolate tenants?",
+    tested: "Isolation, fairness and cost at scale.",
+    strong: [
+      "Pick isolation per layer: data (row/schema/db), indexes, keys, compute — by tier.",
+      "Per-tenant quotas and noisy-neighbor protection; per-tenant cost metering.",
+      "Tenant context enforced everywhere (retrieval, cache keys, logs); BYOK for enterprise.",
+    ],
+    weak: ["Tenant ID in the prompt as the isolation mechanism."],
+    followup: "Shared cache leaks an answer across tenants — root cause? → cache key missing tenant.",
+    depth: "Trades isolation level against cost explicitly." },
+
+  { area: "System design (flagship)", topic: "System design", level: "Principal",
+    q: "Design a platform that serves both real-time and batch analytics on the same data.",
+    tested: "Unifying streaming and batch.",
+    strong: [
+      "Single source of truth (log / lakehouse tables); streaming for fresh, batch for heavy.",
+      "Same transformation logic for both where possible; reconcile outputs.",
+      "Clear freshness SLAs per consumer; cost of real-time justified per use case.",
+    ],
+    weak: ["Two independent stacks with diverging numbers."],
+    followup: "Real-time and batch totals disagree — which wins? → batch as reconciled truth; explain the gap.",
+    depth: "Questions whether each consumer really needs real-time." },
+
+  { area: "System design (flagship)", topic: "System design", level: "Staff",
+    q: "Design an evaluation platform for all LLM features in the company.",
+    tested: "Making eval a shared capability.",
+    strong: [
+      "Versioned datasets, graders (code, LLM-as-judge, human), and run history.",
+      "Runs in CI on prompt/model changes; dashboards comparing versions.",
+      "Calibrate LLM judges against human labels; feed production failures back in.",
+    ],
+    weak: ["A notebook per team; uncalibrated LLM judge treated as ground truth."],
+    followup: "How do you trust an LLM judge? → measure agreement with humans on a held-out set.",
+    depth: "Treats eval data as a product with owners." },
+
+  // ── FDE / customer ×4 ─────────────────────────────────────────────────
+  { area: "FDE / customer", topic: "Customer", level: "FDE",
+    q: "The pilot works in the demo but the customer’s real data breaks it. What do you do?",
+    tested: "Moving from demo to production with a customer.",
+    strong: [
+      "Get representative data early; build an eval set from it with the customer.",
+      "Triage failure modes, fix the top ones, report progress in their metrics.",
+      "Reset expectations honestly on what’s achievable and when.",
+    ],
+    weak: ["Keeps tuning prompts on the demo set; hides the gap."],
+    followup: "They can’t share data for compliance reasons — now? → on-prem/VPC eval or synthetic + their review.",
+    depth: "Turns the customer’s data into the acceptance test." },
+
+  { area: "FDE / customer", topic: "Customer", level: "FDE",
+    q: "A customer asks for a feature that doesn’t fit the product. How do you respond?",
+    tested: "Balancing customer success and product focus.",
+    strong: [
+      "Dig for the underlying problem; often solvable with existing capability.",
+      "If not, a scoped workaround and a clear feature request with evidence.",
+      "Say no clearly when needed; don’t fork the product silently.",
+    ],
+    weak: ["Builds a one-off custom branch to keep them happy."],
+    followup: "Three customers ask for the same thing — what changes? → pattern; bring to product with data.",
+    depth: "Acts as a feedback channel to product, not just a builder." },
+
+  { area: "FDE / customer", topic: "Customer", level: "FDE",
+    q: "You’re deploying into a customer’s locked-down environment. How do you plan it?",
+    tested: "Enterprise deployment realities.",
+    strong: [
+      "Early discovery: network/egress, identity, data residency, approval processes.",
+      "Infrastructure as code, minimal permissions, documented runbooks.",
+      "Agree ownership of ops and support after go-live.",
+    ],
+    weak: ["Assumes internet access and admin rights; finds out in week 6."],
+    followup: "Security review stalls the project — how do you unblock? → pre-filled answers + a working session.",
+    depth: "Front-loads security and ops questions." },
+
+  { area: "FDE / customer", topic: "Customer", level: "FDE",
+    q: "How do you prove ROI of an AI deployment to a customer’s exec sponsor?",
+    tested: "Business outcomes, not features.",
+    strong: [
+      "Agree baseline and success metrics before building (time saved, deflection, revenue).",
+      "Instrument usage and outcomes; compare against the baseline.",
+      "Report in their language with honest caveats and next steps.",
+    ],
+    weak: ["Reports token counts and number of prompts."],
+    followup: "Usage is high but outcomes flat — explanation? → adoption ≠ impact; find workflow gaps.",
+    depth: "Sets the metric before the build." },
+
+  // ── FastAPI & serving ×4 ──────────────────────────────────────────────
+  { area: "FastAPI & serving", topic: "FastAPI", level: "Senior",
+    q: "Your async FastAPI service has terrible latency under modest load. What’s wrong?",
+    tested: "Async pitfalls.",
+    strong: [
+      "Blocking calls in async def (sync DB/HTTP client, CPU work) stall the event loop.",
+      "Fix: async clients, plain def for sync work (threadpool), or offload CPU to workers.",
+      "Check connection pool sizes and timeouts; profile the loop.",
+    ],
+    weak: ["Adds more Uvicorn workers without finding the blocking call."],
+    followup: "How do you detect loop blocking? → asyncio debug mode / slow-callback logging, profiling.",
+    depth: "Knows def vs async def semantics in FastAPI." },
+
+  { area: "FastAPI & serving", topic: "Streaming", level: "Senior",
+    q: "Stream LLM tokens to a browser from FastAPI. What do you need to get right?",
+    tested: "Streaming (SSE) in practice.",
+    strong: [
+      "StreamingResponse / SSE with an async generator; correct event format.",
+      "Proxies and load balancers must not buffer; heartbeats for idle timeouts.",
+      "Handle client disconnects — cancel the upstream model call to save cost.",
+    ],
+    weak: ["Returns the full response at the end; ignores disconnects."],
+    followup: "SSE vs WebSockets? → SSE for one-way server push; WebSockets for bidirectional.",
+    depth: "Mentions cancellation and buffering as real failure modes." },
+
+  { area: "FastAPI & serving", topic: "API security", level: "Staff",
+    q: "Add authentication and rate limiting to a public FastAPI model API.",
+    tested: "API protection.",
+    strong: [
+      "Auth via dependencies (API keys or OAuth/JWT validation); scopes per route.",
+      "Rate limit per key in a shared store (e.g. Redis), token- or cost-based for LLMs.",
+      "Return 429 with Retry-After; request size limits; enforce at the gateway too.",
+    ],
+    weak: ["In-memory counters per process; limits on request count only."],
+    followup: "Why limit on tokens, not requests? → one request can cost 100× another.",
+    depth: "Knows per-process state breaks with multiple replicas." },
+
+  { area: "FastAPI & serving", topic: "Model serving", level: "Staff",
+    q: "Serve a GPU model behind FastAPI. How do you batch requests efficiently?",
+    tested: "Throughput vs latency in serving.",
+    strong: [
+      "Dynamic batching: collect requests up to max size or max wait, then run.",
+      "Keep the GPU in a dedicated worker/server; FastAPI stays a thin async front end.",
+      "For LLMs prefer a server with continuous batching rather than hand-rolling.",
+    ],
+    weak: ["Loads the model in each Uvicorn worker; one request per forward pass."],
+    followup: "p99 latency went up after batching — tune what? → max wait time and batch size.",
+    depth: "Separates the HTTP layer from the inference engine." },
+
+  // ── dbt & analytics engineering ×2 ────────────────────────────────────
+  { area: "dbt & analytics engineering", topic: "dbt", level: "Senior",
+    q: "Two dashboards show different revenue numbers. How do you fix it for good?",
+    tested: "Metric consistency.",
+    strong: [
+      "Trace both to their models; find the definitional difference.",
+      "Define the metric once (semantic layer / single mart) with an owner.",
+      "Tests and docs on the definition; deprecate the duplicate.",
+    ],
+    weak: ["Patches one dashboard’s SQL to match the other."],
+    followup: "Finance and Sales both claim their definition is right — then? → agree names for both, one canonical.",
+    depth: "Treats metric definitions as governed assets." },
+
+  { area: "dbt & analytics engineering", topic: "dbt", level: "Staff",
+    q: "Your dbt CI runs take an hour. Make it fast without losing safety.",
+    tested: "Scaling analytics engineering workflows.",
+    strong: [
+      "Slim CI: build only modified models and downstream (state comparison, defer).",
+      "Sample or limit data in dev/CI; run heavy tests on a schedule.",
+      "Parallelism and warehouse sizing for CI specifically.",
+    ],
+    weak: ["Skips tests in CI to save time."],
+    followup: "A change breaks an unmodified downstream model — caught? → yes if you build modified+ children.",
+    depth: "Knows state-based selection." },
+
+  // ── Databricks & Spark ×2 ─────────────────────────────────────────────
+  { area: "Databricks & Spark", topic: "Spark", level: "Senior",
+    q: "A Spark join is skewed — one task runs for an hour. Fix it.",
+    tested: "Spark performance fundamentals.",
+    strong: [
+      "Confirm in the Spark UI: one partition far larger than others.",
+      "Broadcast the small side; enable AQE skew-join handling; or salt hot keys.",
+      "Filter and pre-aggregate before the join.",
+    ],
+    weak: ["Adds more executors; the slow task stays slow."],
+    followup: "Why doesn’t more cluster help? → the skewed partition is processed by one task.",
+    depth: "Diagnoses from the UI before tuning." },
+
+  { area: "Databricks & Spark", topic: "Delta Lake", level: "Staff",
+    q: "Delta tables are slow to query and full of small files. What do you do?",
+    tested: "Table maintenance on the lakehouse.",
+    strong: [
+      "Compact (OPTIMIZE) and use clustering appropriate to query filters.",
+      "Fix the writer: fewer, larger writes; avoid over-partitioning.",
+      "Schedule maintenance; VACUUM with retention aligned to time-travel needs.",
+    ],
+    weak: ["Partitions on a high-cardinality column like user ID."],
+    followup: "Streaming job writes tiny files every minute — fix? → auto-compaction / larger triggers.",
+    depth: "Fixes the write pattern, not just the symptom." },
+
+  // ── Snowflake Cortex ×1 ───────────────────────────────────────────────
+  { area: "Snowflake Cortex", topic: "Cortex", level: "Staff",
+    q: "You want to run LLM functions over millions of rows in Snowflake. How do you control cost and quality?",
+    tested: "Batch LLM inference inside the warehouse.",
+    strong: [
+      "Pilot on a sample with an eval; pick the smallest model that meets the bar.",
+      "Process incrementally (only new/changed rows); cache results in tables.",
+      "Monitor credit usage per job; set warehouse and governance limits.",
+    ],
+    weak: ["Runs the largest model over the full table on every refresh."],
+    followup: "Results drift after a model change — guard? → pin model choice + re-run the eval.",
+    depth: "Treats LLM calls as an incremental, metered transformation." },
+
+  // ── Identity & access ×1 ──────────────────────────────────────────────
+  { area: "Identity & access (OAuth/OIDC/Okta)", topic: "Identity", level: "Senior",
+    q: "What’s the difference between an ID token and an access token, and which does your API check?",
+    tested: "OIDC vs OAuth fundamentals.",
+    strong: [
+      "ID token: proves who logged in, for the client. Access token: authorizes API calls.",
+      "API validates the access token: signature, issuer, audience, expiry, scopes.",
+      "Never accept ID tokens as API credentials.",
+    ],
+    weak: ["Treats them as interchangeable; skips audience validation."],
+    followup: "Why does audience matter? → stops a token for API A being replayed at API B.",
+    depth: "Lists the concrete validation checks." },
+
+  // ── ML / AI platform ×4 (new) ─────────────────────────────────────────
+  { area: "ML / AI platform", topic: "Kubernetes", level: "Staff",
+    q: "Teams fight over GPUs on a shared Kubernetes cluster. Design the scheduling.",
+    tested: "GPU resource management.",
+    strong: [
+      "Separate GPU node pools; taints/tolerations; requests via the GPU device plugin.",
+      "Quotas and priority classes per team; preemption for batch vs interactive.",
+      "Improve utilization: GPU sharing/partitioning where supported, bin-packing, autoscaling.",
+    ],
+    weak: ["First-come-first-served with no quotas."],
+    followup: "Training jobs hog GPUs idle overnight — fix? → idle detection + preemptible queues.",
+    depth: "Balances fairness against utilization." },
+
+  { area: "ML / AI platform", topic: "Model serving", level: "Senior",
+    q: "Explain the latency vs throughput trade-off when serving models.",
+    tested: "Serving performance intuition.",
+    strong: [
+      "Bigger batches raise throughput but add queueing latency.",
+      "For LLMs: time-to-first-token vs tokens/sec; continuous batching helps both.",
+      "Pick per workload: interactive optimizes p95 latency, offline maximizes throughput.",
+    ],
+    weak: ["Optimizes average latency only; one config for all workloads."],
+    followup: "Which metric goes in the SLO? → percentile latency for interactive, cost/throughput for batch.",
+    depth: "Uses percentiles, not averages." },
+
+  { area: "ML / AI platform", topic: "Deployment", level: "Staff",
+    q: "Canary vs shadow deployment for a new model — when do you use each?",
+    tested: "Safe model release strategies.",
+    strong: [
+      "Shadow: mirror traffic, no user impact — compare outputs, latency, cost.",
+      "Canary: small real slice with real impact — measures user outcomes.",
+      "Typical path: offline eval → shadow → canary → ramp, with automated rollback.",
+    ],
+    weak: ["Ships to 100% after offline metrics look good."],
+    followup: "Shadow can’t test a write action — why? → side effects; stub or skip them.",
+    depth: "Knows shadow doesn’t measure user behavior." },
+
+  { area: "ML / AI platform", topic: "GPU cost", level: "Principal",
+    q: "GPU spend is the biggest line in your budget. How do you cut it?",
+    tested: "Infrastructure economics for AI.",
+    strong: [
+      "Measure utilization per workload; most clusters are under-used.",
+      "Right-size models (distill/quantize), batch better, autoscale to zero where possible.",
+      "Mix capacity: reserved for baseline, spot/preemptible for fault-tolerant jobs; API vs self-host by volume.",
+    ],
+    weak: ["Negotiates a discount and stops there."],
+    followup: "When is self-hosting cheaper than an API? → sustained high utilization; include ops cost.",
+    depth: "Speaks in cost per unit of useful work." },
+
+  // ── Leadership & delivery ×3 (new) ────────────────────────────────────
+  { area: "Leadership & delivery", topic: "Delivery", level: "Staff",
+    q: "Your project is six weeks from launch and clearly slipping. What do you do?",
+    tested: "Delivery leadership under pressure.",
+    strong: [
+      "Get the real picture fast: remaining work, risks, critical path.",
+      "Options for stakeholders: cut scope, move date, add focus — with trade-offs.",
+      "Communicate early and plainly; re-plan with checkpoints.",
+    ],
+    weak: ["Asks for weekend work and hopes; tells stakeholders late."],
+    followup: "Leadership won’t move the date — next? → negotiate scope to a must-have core.",
+    depth: "Brings options, not just bad news." },
+
+  { area: "Leadership & delivery", topic: "Incidents", level: "Staff",
+    q: "You lead a major production incident. Walk through it and the postmortem.",
+    tested: "Incident command and learning culture.",
+    strong: [
+      "Clear roles (commander, comms, ops); mitigate first, root-cause later.",
+      "Regular status updates to stakeholders; timeline captured live.",
+      "Blameless postmortem: contributing factors, owned action items, follow-through.",
+    ],
+    weak: ["Everyone debugging at once; postmortem names a person to blame."],
+    followup: "Action items never get done — fix? → owners, deadlines, tracked in planning.",
+    depth: "Separates mitigation from root cause." },
+
+  { area: "Leadership & delivery", topic: "Influence", level: "Principal",
+    q: "You strongly disagree with a senior stakeholder’s technical direction. How do you handle it?",
+    tested: "Influence without authority.",
+    strong: [
+      "Understand their goals and constraints first; find shared objectives.",
+      "Make the case with data, prototypes or a written proposal with alternatives.",
+      "Escalate respectfully if needed; once decided, disagree and commit.",
+    ],
+    weak: ["Complies silently, or argues in public channels."],
+    followup: "You turn out to be right later — what now? → no “told you so”; help fix it.",
+    depth: "Shows a real example with an outcome." },
+];
