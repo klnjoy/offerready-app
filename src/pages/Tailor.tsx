@@ -1,10 +1,10 @@
 /* Tailor my resume — rewrite up to 12 bullets for one saved job's skills and
  * gaps (POST /api/premium/tailor, metered as resume_tailor).
  *
- * PRIVACY: the resume text is never written to localStorage. Check fit can
- * hand it over through sessionStorage (SESSION_KEYS.tailorHandoff), which this
- * screen reads once and removes immediately; after that it lives only in
- * component state and is sent once with the request. */
+ * The resume comes from the saved resume (lib/savedResume: this device only,
+ * entered once). An older sessionStorage hand-off (SESSION_KEYS.tailorHandoff)
+ * is still read once and removed. The text is sent once with the request and
+ * never stored on the server. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../lib/api";
@@ -13,6 +13,7 @@ import { invalidatePlan } from "../lib/plans";
 import { setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useSearchParams } from "../lib/router";
+import { useSavedResume } from "../lib/savedResume";
 import { SESSION_KEYS } from "../lib/storage";
 import {
   MAX_BULLETS, MAX_RESUME_CHARS, bulletsToText, extractBullets, finalBullets, jobKeywords, keywordCoverage, mentions, splitBullets,
@@ -22,6 +23,7 @@ import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { CopyButton } from "../components/StreamDraft";
+import { ResumeField } from "../components/ResumeField";
 import { Card, Loading, Muted } from "../components/ui";
 import type { Analysis, GapRow } from "../types";
 
@@ -61,8 +63,13 @@ export default function TailorPage() {
 
   const [jobId, setJobId] = useState("");
   const [detail, setDetail] = useState<{ analysis: Analysis | null; gap: GapRow | null } | null>(null);
-  const [resumeText] = useState<string>(() => (h?.resumeText || "").slice(0, MAX_RESUME_CHARS));
-  const [text, setText] = useState<string>(() => (h?.resumeText ? extractBullets(h.resumeText).join("\n") : ""));
+  const [saved] = useSavedResume();
+  const resumeText = (h?.resumeText || saved?.text || "").slice(0, MAX_RESUME_CHARS);
+  const [text, setText] = useState<string>(() => (resumeText ? extractBullets(resumeText).join("\n") : ""));
+  // A resume saved on this screen fills the bullets (if none were typed yet).
+  useEffect(() => {
+    if (saved?.text && !text.trim()) setText(extractBullets(saved.text).join("\n"));
+  }, [saved?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const [run, setRun] = useState<Run>({ kind: "idle" });
   const [accepted, setAccepted] = useState<Record<number, boolean>>({});
   const resultsRef = useRef<HTMLDivElement | null>(null);
@@ -125,16 +132,16 @@ export default function TailorPage() {
   if (jobs.status === "signedout") return (
     <div className="page">
       <SignInCard title="Sign in to tailor your resume">
-        <Muted>Tailoring rewrites your bullets for a saved job{"’"}s skills and gaps. Your resume is never stored.</Muted>
+        <Muted>Tailoring rewrites your bullets for a saved job{"’"}s skills and gaps. Your resume is never stored on our servers.</Muted>
       </SignInCard>
     </div>
   );
   if (jobs.status !== "ready" || !jobs.jobs.length) return (
     <div className="page">
       <Card>
-        <h2>Save a job first</h2>
-        <Muted>Tailoring targets one job{"’"}s skills and gaps. Analyze and save the job, then come back.</Muted>
-        <div className="row"><Link className="btn btn-primary" to="/analyze">Analyze a job</Link></div>
+        <h2>Add a job first</h2>
+        <Muted>Tailoring targets one job{"’"}s skills and gaps. Add the job, then come back.</Muted>
+        <div className="row"><Link className="btn btn-primary" to="/analyze">Add a job</Link></div>
       </Card>
     </div>
   );
@@ -151,7 +158,7 @@ export default function TailorPage() {
         <div className="td-sec-head">
           <div>
             <h2 id="tl-in-h">Your bullets</h2>
-            <p className="muted small">One bullet per line, up to {MAX_BULLETS}. {h?.resumeText ? "Pulled from the resume you used in Check fit." : "Paste them from your resume."}</p>
+            <p className="muted small">One bullet per line, up to {MAX_BULLETS}. {resumeText ? "Pulled from your saved resume. Edit freely." : "Add your resume once, or paste the bullets below."}</p>
           </div>
         </div>
         <div className="dto-tl-job">
@@ -162,13 +169,14 @@ export default function TailorPage() {
             </select>
           </label>
         </div>
+        {!saved && !h?.resumeText && <ResumeField compact />}
         <textarea className="input textarea dto-tl-text" rows={9} value={text} aria-label="Resume bullets, one per line"
           placeholder={"- Built ELT pipelines in Python that loaded 40 tables into Snowflake\n- Worked on data quality checks\n- Led migration of reports to a new BI tool"}
           onChange={(e) => { setText(e.target.value); if (run.kind !== "running") setRun({ kind: "idle" }); }} />
         <p className="small muted">
           {bullets.length ? bullets.length + (bullets.length === 1 ? " bullet" : " bullets") + " ready" : "No bullets yet"}
           {allLines > MAX_BULLETS ? " · only the first " + MAX_BULLETS + " are used" : ""}
-          {" · "}Your resume is never stored. It{"’"}s sent once to rewrite these bullets.
+          {" · "}Sent once to rewrite these bullets, never stored on our servers.
         </p>
 
         <Coverage label="Keyword coverage now" cov={before} total={keywords.length} loading={!detail} />
@@ -248,7 +256,7 @@ export default function TailorPage() {
 
 function Coverage({ label, cov, total, loading }: { label: string; cov: ReturnType<typeof keywordCoverage>; total: number; loading: boolean }) {
   if (loading) return <p className="small muted">Loading the job{"’"}s keywords{"…"}</p>;
-  if (!total) return <p className="small muted">This job has no skills list yet. <Link to="/analyze">Analyze it</Link> or run <Link to="/fit">Check fit</Link> first.</p>;
+  if (!total) return <p className="small muted">This job has no skills list yet. <Link to="/analyze">Add the job</Link> with its description, or check your fit on the job{"’"}s Resume tab first.</p>;
   return (
     <div className="dto-cov">
       <CoverageBar label={label} pct={cov.pct} n={cov.covered.length} total={total} />

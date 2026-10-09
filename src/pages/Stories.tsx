@@ -115,7 +115,7 @@ export default function StoriesPage() {
           <div>
             <h2 id="sb-matrix-h">Coverage {jobTitle ? <span className="sb-for">for {jobTitle}</span> : null}</h2>
             <p className="muted small">
-              {analysis ? "What this job is likely to probe, from its seniority, responsibilities and skills." : jobs.status === "ready" && !jobs.jobs.length ? "Analyze a job to see what it needs. Until then, these are the competencies most loops ask about." : "The competencies most behavioural rounds ask about."}
+              {analysis ? "What this job is likely to probe, from its seniority, responsibilities and skills." : jobs.status === "ready" && !jobs.jobs.length ? "Add a job to see what it needs. Until then, these are the competencies most loops ask about." : "The competencies most behavioural rounds ask about."}
             </p>
           </div>
           <div className="sb-score" aria-label={"Covered " + (rows.length - missing.length) + " of " + rows.length}>
@@ -264,7 +264,7 @@ function Coach({ s }: { s: Story }) {
       return;
     }
     const out = await api.streamHelp(
-      { question: coachPrompt(s), area: "all", purpose: "story_coach", context: { surface: "app", page: { title: "Story bank", path: "/stories" } } },
+      { question: coachPrompt(s), area: "all", purpose: "story_coach", context: { surface: "app", page: { title: "Your stories", path: "/stories" } } },
       (t) => setText((x) => x + t),
       c.signal,
       tok,

@@ -1,7 +1,7 @@
 /* Day-by-day preparation plan up to the interview date.
  *
  * PURE: no storage, no DOM, no React — so it can be unit-tested in node.
- * Today.tsx feeds it the job's state (gaps, practice stats, story coverage)
+ * The job page (JobDetail.tsx) feeds it the job's state (gaps, practice stats, story coverage)
  * and keeps the per-task checkmarks itself.
  *
  * How the plan is built (buildPrepPlan):
@@ -160,8 +160,8 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   }
 
   // 1. Setup on day 0.
-  if (!input.hasFit) place(0, (d) => mk(d, "setup", "fit", { title: "Check your fit against this job", detail: "Upload your resume to see your match and the gaps to close.", to: "/fit", minutes: 10 }), true);
-  if (!input.questionCount) place(0, (d) => mk(d, "setup", "questions", { title: "Generate your interview questions", detail: "A question set written for this job and its gaps.", to: "/questions", minutes: 5 }), true);
+  if (!input.hasFit) place(0, (d) => mk(d, "setup", "fit", { title: "Add your resume to see your match", detail: "See how your resume matches this job and the gaps to close first.", to: "/fit", minutes: 10 }), true);
+  if (!input.questionCount) place(0, (d) => mk(d, "setup", "questions", { title: "Get your interview questions", detail: "Questions written for this job and its gaps.", to: "/questions" + jobQ, minutes: 5 }), true);
 
   // 2. Mock days.
   mockDays.forEach((m, k) => {
@@ -169,16 +169,16 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
     place(m, (d) => mk(d, "mock", voice ? "voice" : "text", voice
       ? { title: "Voice mock interview", detail: "Full run, out loud. The interviewer follows up on what you say.", to: "/interview/voice", minutes: 40 }
       : { title: "Mock interview", detail: "A mixed loop across areas. Answer out loud, then compare with a strong answer.", to: "/simulator", minutes: 35 }));
-    place(m, (d) => mk(d, "review", "mock-" + k, { title: "Rewrite your weakest mock answer", detail: "Pick the answer you liked least and tighten it to two minutes.", to: "/practice", minutes: 15 }));
+    place(m, (d) => mk(d, "review", "mock-" + k, { title: "Rewrite your weakest mock answer", detail: "Pick the answer you liked least and tighten it to two minutes.", to: "/practice/bank", minutes: 15 }));
   });
 
   // 3. Light day (or the single day of a one-day plan).
   const light = lightIdx >= 0 ? lightIdx : total === 1 ? 0 : -1;
   if (light >= 0) {
     const gap0 = uniq(input.gaps)[0];
-    place(light, (d) => mk(d, "light", "stories", { title: "Skim your story bank", detail: "Re-read your top stories. Say each opening line out loud once.", to: "/stories", minutes: 15 }), true);
+    place(light, (d) => mk(d, "light", "stories", { title: "Skim your stories", detail: "Re-read your top stories. Say each opening line out loud once.", to: "/stories", minutes: 15 }), true);
     place(light, (d) => mk(d, "light", "gaps", { title: gap0 ? "Light review: " + gap0 : "Light review of your gaps", detail: "Notes only. No new material today.", to: job ? "/jobs/" + job : "/jobs", minutes: 15 }), true);
-    place(light, (d) => mk(d, "light", "logistics", { title: "Logistics and rest", detail: "Confirm time, link or address, and who you meet. Then stop and rest.", to: "/today", minutes: 10 }), true);
+    place(light, (d) => mk(d, "light", "logistics", { title: "Logistics and rest", detail: "Confirm time, link or address, and who you meet. Then stop and rest.", to: job ? "/jobs/" + job : "/jobs", minutes: 10 }), true);
   }
 
   const workDays = days.filter((d) => d.type === "work").map((d) => d.index);
@@ -186,7 +186,7 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   // 4. First Defend scenario on the next work day.
   if (!input.hasDefend && total > 1) {
     const target = workDays.find((i) => i >= 1) ?? 0;
-    place(target, (d) => mk(d, "defend", "first", { title: "Defend one decision", detail: "Make the call, then hold it while the interviewer pushes back.", to: "/defend" + jobQ, minutes: 20 }));
+    place(target, (d) => mk(d, "defend", "first", { title: "Trade-off drill: defend one decision", detail: "Make the call, then hold it while the interviewer pushes back.", to: "/defend" + jobQ, minutes: 20 }));
   }
 
   // 4b. Questions that went badly in a real interview: revisit first.
@@ -215,12 +215,12 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   if (workDays.length) {
     gaps.forEach((g, k) => {
       const at = workDays[k % workDays.length];
-      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "Read the notes, then explain it out loud in two minutes.", to: job ? "/jobs/" + job : "/practice", minutes: 30 }));
+      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "Read the notes, then explain it out loud in two minutes.", to: "/practice?topic=" + encodeURIComponent(g) + (job ? "&job=" + job : ""), minutes: 30 }));
       if (used < 0) return;
       [2, 5, 10].forEach((off) => {
         const r = used + off;
         if (r >= total || (lightIdx >= 0 && r >= lightIdx)) return;
-        place(r, (d) => mk(d, "review", g, { title: "Review: " + g, detail: "Spaced review. Answer one question on it without notes.", to: "/practice", minutes: 10 }));
+        place(r, (d) => mk(d, "review", g, { title: "Review: " + g, detail: "Spaced review. Answer one question on it without notes.", to: "/practice/bank?topic=" + encodeURIComponent(g), minutes: 10 }));
       });
     });
   }
@@ -231,7 +231,7 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
     [0, 3, 7, 14].forEach((off) => {
       const r = (j % 3) + off;
       if (r >= total || (lightIdx >= 0 && r >= lightIdx)) return;
-      place(r, (d) => mk(d, "review", "topic-" + t.topic, { title: "Weak area: " + t.topic, detail: "You averaged " + Math.round(t.score) + "% here. Run Weak areas mode.", to: "/practice", minutes: 15 }));
+      place(r, (d) => mk(d, "review", "topic-" + t.topic, { title: "Weak area: " + t.topic, detail: "You averaged " + Math.round(t.score) + "% here. Run Weak areas mode in the question bank.", to: "/practice/bank?mode=weak", minutes: 15 }));
     });
   });
 
@@ -251,9 +251,9 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   for (const day of days) {
     if (day.type === "light") continue;
     const fill: [string, Omit<PlanTask, "id" | "kind">][] = [
-      ["questions", { title: "Answer 3 questions out loud", detail: "From your job's question set. Time each answer.", to: "/questions", minutes: 15 }],
-      ["flashcards", { title: "Flashcards: 10 cards", detail: "Quick recall on your role's topics.", to: "/practice", minutes: 10 }],
-      ["why", { title: "Defend a trade-off", detail: "One more scenario, keep asking why.", to: "/defend" + jobQ, minutes: 15 }],
+      ["questions", { title: "Answer 3 questions out loud", detail: "From your job's question set. Time each answer.", to: "/questions" + jobQ, minutes: 15 }],
+      ["flashcards", { title: "Flashcards: 10 cards", detail: "Quick recall on your role's topics.", to: "/practice/bank?mode=flashcard", minutes: 10 }],
+      ["why", { title: "Trade-off drill", detail: "One more scenario. Keep asking yourself why.", to: "/defend" + jobQ, minutes: 15 }],
     ];
     for (const [s, t] of fill) {
       if (day.tasks.length >= MIN_PER_DAY) break;

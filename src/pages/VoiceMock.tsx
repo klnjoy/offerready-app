@@ -25,6 +25,7 @@ import { displayJobTitle } from "../lib/roles";
 import { Link } from "../lib/router";
 import { readJSON, writeJSON } from "../lib/storage";
 import { useJobs } from "../lib/useJobs";
+import { getSavedResume, skillsInResume } from "../lib/savedResume";
 import {
   createRecognizer, detectSupport, onVoicesChanged, speak, startMicMeter, stopSpeaking,
   type MicMeter, type Recognizer,
@@ -333,6 +334,7 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
   const signedIn = !!auth.session;
   const canVoice = support.recognition && !prefs.typeAnswers;
   const pickedJob = jobs.jobs.find((j) => j.id === jobId);
+  const hasCv = useMemo(() => !!getSavedResume(), []);
 
   const start = async () => {
     setStarting(true);
@@ -356,6 +358,13 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
           job.seniority = job.seniority || res.body.job.analysis?.seniority;
         }
       }
+      // Interviewers probe what's on your resume: skills the job needs that
+      // your saved resume claims go first (the resume itself isn't sent).
+      const cv = getSavedResume();
+      if (cv && job.skills.length) {
+        const mine = skillsInResume(job.skills, cv.text);
+        job.skills = [...mine, ...job.skills.filter((s) => !mine.includes(s))];
+      }
       setActiveJob(pickedJob.id);
     }
     setStarting(false);
@@ -374,6 +383,7 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
             {jobs.jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}{j.company ? " · " + j.company : ""}</option>)}
           </select>
           {jobs.status === "signedout" && <p className="hint">Sign in to tailor questions to a saved job.</p>}
+          {pickedJob && hasCv && <p className="hint">Questions lean on the skills this job needs that your saved resume shows. Your resume itself isn{"’"}t sent.</p>}
         </div>
 
         <fieldset className="vm-field">

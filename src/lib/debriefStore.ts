@@ -1,5 +1,5 @@
 /* Debrief storage (local only, KEYS.debriefs = Debrief[]). A window event
- * keeps Today, Job detail and the Debrief screen in sync. */
+ * keeps the job page and the Debrief screen in sync. */
 
 import { useCallback, useEffect, useState } from "react";
 import { KEYS, readJSON, writeJSON } from "./storage";

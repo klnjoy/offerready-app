@@ -1,8 +1,8 @@
 /* Home: the marketing page for new visitors, plus a "continue where you left
  * off" bar for signed-in users with saved jobs.
  *
- * Sections: continue bar, hero (+ a sample "Today" card drawn in HTML/CSS),
- * how it works (Understand → Prepare → Prove), feature highlights, an honest
+ * Sections: continue bar, hero (+ the 3-step journey: Add a job → Practise →
+ * Mock interview & readiness), how it works, feature highlights, an honest
  * comparison with general AI chat, Free vs Pro (from lib/plans), the study
  * library, FAQ and a closing CTA. Styles live under "Home (marketing)" in
  * styles.css; every class here is prefixed hm- so nothing leaks. */
@@ -12,88 +12,55 @@ import { STUDY_URL } from "../config";
 import { LIMITS, PLAN_MATRIX } from "../lib/plans";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
+import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
 import type { JobRow } from "../types";
 
-/* ---------- icons (1.6px line icons, inherit currentColor) ---------- */
-
-type IconName =
-  | "mic" | "calendar" | "shield" | "book" | "fit" | "gauge" | "check" | "arrow"
-  | "lock" | "target" | "layers" | "search" | "spark" | "chat" | "plus" | "ext";
-
-const PATHS: Record<IconName, ReactNode> = {
-  mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" /></>,
-  calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M8.5 14.5l2 2 4-4" /></>,
-  shield: <><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="M9 12.5l2 2 4-4.5" /></>,
-  book: <><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5M9 7.5h7M9 11h5" /></>,
-  fit: <><path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5L14.5 3Z" /><path d="M14 3v5h5M8.5 14l2.2 2.2L15.5 11.5" /></>,
-  gauge: <><path d="M4.2 17.5a8.5 8.5 0 1 1 15.6 0" /><path d="M12 13.5 15.5 9" /><circle cx="12" cy="14" r="1.4" /></>,
-  check: <path d="M5 12.5l4.2 4.2L19 7" />,
-  arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
-  lock: <><rect x="4.5" y="10.5" width="15" height="10" rx="2.5" /><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" /></>,
-  target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>,
-  layers: <><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="M3 13l9 5 9-5" /></>,
-  search: <><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4.5 4.5" /></>,
-  spark: <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18" />,
-  chat: <path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10Z" />,
-  plus: <path d="M12 5v14M5 12h14" />,
-  ext: <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />,
-};
-
-function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
-  return (
-    <svg className="hm-ico" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor"
-      strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-      {PATHS[name]}
-    </svg>
-  );
-}
-
 /* ---------- content ---------- */
 
-const STAGES: { n: string; name: string; line: string; tools: { to: string; label: string; text: string }[] }[] = [
+const STAGES: { n: string; icon: IconName; name: string; line: string; tools: { to: string; label: string; text: string }[] }[] = [
   {
-    n: "1", name: "Understand",
-    line: "Know exactly what this job is testing for, and where you stand.",
+    n: "1", icon: "briefcase", name: "Add a job",
+    line: "Paste a job link or the description, and your resume once. See what the role needs and where you stand.",
     tools: [
-      { to: "/analyze", label: "Analyze a job", text: "Paste the JD: required skills, seniority, gaps and a prep plan." },
-      { to: "/fit", label: "Check my fit", text: "Your resume against the job, read in your browser and never stored." },
+      { to: "/analyze", label: "Add a job", text: "From a link or the description: skills, gaps and your resume match." },
+      { to: "/jobs", label: "Your plan", text: "A day-by-day plan to your interview date, with one next step." },
     ],
   },
   {
-    n: "2", name: "Prepare",
-    line: "Practise the questions this interview will ask, not generic lists.",
+    n: "2", icon: "target", name: "Practise",
+    line: "Practise what this interview will ask, not generic lists. Four ways, each for a clear moment.",
     tools: [
-      { to: "/questions", label: "Questions for this job", text: "Written for the role and the gaps in your analysis." },
-      { to: "/defend", label: "Defend your decisions", text: "Scenario drills that push on trade-offs and incidents." },
-      { to: "/stories", label: "Story bank", text: "STAR stories mapped to the competencies the job needs." },
-      { to: "/practice", label: "Question bank", text: "Practice mode, flashcards and timed exams." },
+      { to: "/questions", label: "Questions for this job", text: "Likely questions written from the job and your gaps." },
+      { to: "/defend", label: "Trade-off drills", text: "Defend a design call while the interviewer pushes back." },
+      { to: "/stories", label: "Your stories", text: "STAR stories for behavioral rounds, matched to the job." },
+      { to: "/practice/bank", label: "Question bank", text: "Quick reps: flashcards, timed exams, weak topics." },
     ],
   },
   {
-    n: "3", name: "Prove",
+    n: "3", icon: "mic", name: "Mock interview & readiness",
     line: "Rehearse under pressure and see when you are actually ready.",
     tools: [
-      { to: "/interview/voice", label: "Voice mock interview", text: "Answer out loud, get follow-ups and delivery scores." },
-      { to: "/simulator", label: "Mock interview loop", text: "A mixed loop across areas and levels." },
-      { to: "/dashboard", label: "Readiness score", text: "One score per job, built from match, practice and prep." },
+      { to: "/interview/voice", label: "Voice interview", text: "Answer out loud, get follow-ups and delivery scores." },
+      { to: "/simulator", label: "Text interview", text: "A mixed loop of questions across areas and levels." },
+      { to: "/dashboard", label: "Readiness", text: "One score per job, from match, practice and prep." },
     ],
   },
 ];
 
 const FEATURES: { icon: IconName; title: string; text: string; to: string; cta: string; isNew?: boolean }[] = [
-  { icon: "mic", title: "Voice mock interview", isNew: true, to: "/interview/voice", cta: "Try a voice mock",
+  { icon: "link", title: "Add a job from a link", isNew: true, to: "/analyze", cta: "Add a job",
+    text: "Paste the job posting’s link and OfferReady reads the description for you. Or paste the description itself. Your resume is added once and reused." },
+  { icon: "mic", title: "Voice interview", isNew: true, to: "/mock", cta: "Try a mock interview",
     text: "Answer out loud. The interviewer follows up on what you actually said, then scores your content and your delivery: pace, filler words and structure." },
-  { icon: "calendar", title: "Today", isNew: true, to: "/today", cta: "Plan to your date",
-    text: "Set your interview date and get a day-by-day plan, with one clear “do this next” every time you open the app." },
-  { icon: "shield", title: "Defend your decisions", to: "/defend", cta: "Start a drill",
+  { icon: "calendar", title: "Your plan", to: "/jobs", cta: "Plan to your date",
+    text: "Set your interview date and get a day-by-day plan, with one clear “do this next” every time you open a job." },
+  { icon: "shield", title: "Trade-off drills", to: "/defend", cta: "Start a drill",
     text: "Make the call on a real scenario, then hold it while the interviewer pushes on trade-offs, constraints and incidents." },
-  { icon: "book", title: "Story bank", to: "/stories", cta: "Build your stories",
-    text: "Keep your STAR stories in one place, mapped to the competencies each job asks for, so you know which story covers which question." },
-  { icon: "fit", title: "Check my fit", to: "/fit", cta: "Check your resume",
-    text: "Compare your resume with the job to see your match and what is missing. It is read in your browser and never stored." },
+  { icon: "book", title: "Your stories", to: "/stories", cta: "Build your stories",
+    text: "Keep your STAR stories in one place, matched to what each job asks for, so you know which story answers which question." },
   { icon: "gauge", title: "Readiness score", to: "/dashboard", cta: "See readiness",
-    text: "One score per job, blended from your resume match, practice and preparation, so you can see it move as you work." },
+    text: "One score per job, blended from your resume match, practice and preparation, so you can watch it move as you work." },
 ];
 
 const COMPARE: { topic: string; chat: string; us: string }[] = [
@@ -116,7 +83,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   { q: "Is it free?",
     a: <>Yes, there is a free plan. It includes the study library, question banks and practice mode, {fmt(LIMITS.free.saved_jobs)} saved job, {fmt(LIMITS.free.analyses)} job analyses a month, the day-by-day plan to your interview date and {fmt(LIMITS.free.voice_mock)} voice mock interview a month. Pro raises the limits and unlocks the full scenario library. <Link to="/pricing">See pricing</Link>.</> },
   { q: "What happens to my resume and data?",
-    a: <>When you check your fit, your resume is read in your browser and is not stored. Saved jobs, practice and stories belong to your account so you can pick up where you left off; your data stays yours.</> },
+    a: <>Your resume is read in your browser and saved only on your device, so you add it once. When we compare it with a job, the text is used only for that analysis and is never stored on our servers. Saved jobs, practice and stories belong to your account so you can pick up where you left off; your data stays yours.</> },
   { q: "How is this different from ChatGPT, Claude or Gemini?",
     a: <>General assistants are great at answering the questions you think to ask. OfferReady is organised around one job and one date: it keeps your gaps, practice and stories, runs an interview loop with follow-ups and delivery scoring, tracks readiness, and tells you what to do next. You can still use your favourite assistant alongside it.</> },
   { q: "Which roles and levels does it cover?",
@@ -157,7 +124,7 @@ function ContinueBar() {
         ) : null}
       </div>
       <div className="hm-continue-actions">
-        <Link className="btn btn-primary" to="/today"><Icon name="calendar" size={18} /> Today</Link>
+        <Link className="btn btn-primary" to={"/jobs/" + encodeURIComponent(job.id)}><Icon name="calendar" size={18} /> Open your plan</Link>
         <Link className="btn" to="/dashboard"><Icon name="gauge" size={18} /> Readiness</Link>
         {jobs.length > 1 ? <Link className="hm-continue-all" to="/jobs">All {jobs.length} jobs</Link> : null}
       </div>
@@ -165,61 +132,33 @@ function ContinueBar() {
   );
 }
 
-/* ---------- hero product visual (sample data, decorative) ---------- */
+/* ---------- hero visual: the 3-step journey ---------- */
 
-function TodayMock() {
-  const pct = 64;
-  const r = 34;
-  const c = 2 * Math.PI * r;
+const JOURNEY: { icon: IconName; title: string; line: string; chips: string[] }[] = [
+  { icon: "briefcase", title: "Add a job", line: "Paste a job link or the description. Add your resume once.", chips: ["Your match", "Your gaps", "Your plan"] },
+  { icon: "target", title: "Practise", line: "Questions, trade-off drills and stories written for this job.", chips: ["Questions", "Trade-off drills", "Stories"] },
+  { icon: "mic", title: "Mock interview & readiness", line: "Rehearse out loud and watch one score rise to ready.", chips: ["Voice", "Follow-ups", "Readiness"] },
+];
+
+function Journey() {
   return (
-    <div className="hm-visual" role="img" aria-label="Sample Today screen: 12 days to the interview, readiness 64 percent, and three tasks for today with the next one highlighted.">
-      <div className="hm-mock" aria-hidden="true">
-        <div className="hm-mock-top">
-          <div>
-            <p className="hm-mock-kicker">Today · Day 4 of 16</p>
-            <p className="hm-mock-role">Staff AI Engineer</p>
-          </div>
-          <span className="hm-mock-sample">Sample</span>
-        </div>
-
-        <div className="hm-mock-stats">
-          <div className="hm-mock-count">
-            <span className="hm-mock-days">12</span>
-            <span className="hm-mock-dayslabel">days to your<br />interview</span>
-          </div>
-          <div className="hm-ring">
-            <svg viewBox="0 0 80 80" width="88" height="88">
-              <circle className="hm-ring-bg" cx="40" cy="40" r={r} />
-              <circle className="hm-ring-fg" cx="40" cy="40" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform="rotate(-90 40 40)" />
-            </svg>
-            <span className="hm-ring-center">
-              <span className="hm-ring-num">{pct}<small>%</small></span>
-              <span className="hm-ring-label">Readiness</span>
+    <div className="hm-visual hm-journey-wrap">
+      <ol className="hm-journey" aria-label="How OfferReady works, in three steps">
+        {JOURNEY.map((j, i) => (
+          <li key={j.title} className={"hm-jstep hm-jstep-" + (i + 1)}>
+            <span className="hm-jmark" aria-hidden="true">
+              <Icon name={j.icon} size={22} />
+              <span className="hm-jnum">{i + 1}</span>
             </span>
-          </div>
-        </div>
-
-        <div className="hm-mock-next">
-          <span className="hm-mock-nextlabel">Do this next</span>
-          <p className="hm-mock-nexttitle">Voice mock: design a RAG service</p>
-          <p className="hm-mock-nextwhy">Your biggest gap · about 25 min</p>
-        </div>
-
-        <ul className="hm-mock-tasks">
-          <li className="is-done"><span className="hm-box"><Icon name="check" size={13} /></span>Review gaps from Check my fit</li>
-          <li><span className="hm-box" />Defend: vector store trade-offs</li>
-          <li><span className="hm-box" />Add a STAR story on an incident</li>
-        </ul>
-      </div>
-
-      <div className="hm-float" aria-hidden="true">
-        <div className="hm-wave"><span /><span /><span /><span /><span /><span /><span /></div>
-        <div>
-          <p className="hm-float-title">Follow-up</p>
-          <p className="hm-float-text">“Why that chunk size? What breaks at 10x traffic?”</p>
-          <p className="hm-float-meta"><span>Pace 142 wpm</span><span>2 fillers</span></p>
-        </div>
-      </div>
+            <div className="hm-jbody">
+              <p className="hm-jtitle">{j.title}</p>
+              <p className="hm-jline">{j.line}</p>
+              <p className="hm-jchips" aria-hidden="true">{j.chips.map((c) => <span key={c}>{c}</span>)}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <p className="hm-jend"><Icon name="check" size={16} /> Walk in ready, with a plan behind every answer.</p>
     </div>
   );
 }
@@ -234,22 +173,22 @@ export default function HomePage() {
       {/* 1. hero */}
       <section className="hm-hero" aria-labelledby="hm-hero-h">
         <div className="hm-hero-copy">
-          <p className="hm-eyebrow"><span className="hm-eyebrow-new">New</span> Voice mock interviews and a daily prep plan</p>
+          <p className="hm-eyebrow"><span className="hm-eyebrow-new">New</span> Add a job from its link, then practise out loud</p>
           <h1 id="hm-hero-h" className="hm-h1">Land the offer for <em>the job</em> in front of you.</h1>
           <p className="hm-lede">
-            Paste a job description. OfferReady maps what the role demands, finds your gaps, drills you on the questions this interview is likely to ask, and gives you one next step every day until the interview.
+            Add the job you want. OfferReady shows what the role demands and where your resume falls short, practises you on what this interview will ask, and gives you one next step every day until the interview.
           </p>
           <div className="hm-cta-row">
-            <Link className="btn btn-lg hm-btn-signal" to="/analyze">Analyze a job, free <Icon name="arrow" size={18} /></Link>
+            <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
             <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
           </div>
           <ul className="hm-trust" aria-label="Why people trust it">
             <li><Icon name="check" size={16} /> Free plan available</li>
-            <li><Icon name="lock" size={16} /> Resume read in your browser, never stored</li>
+            <li><Icon name="lock" size={16} /> Resume never stored on our servers</li>
             <li><Icon name="target" size={16} /> Built for senior technical interviews</li>
           </ul>
         </div>
-        <TodayMock />
+        <Journey />
       </section>
 
       {/* roles strip */}
@@ -264,15 +203,15 @@ export default function HomePage() {
       <section className="hm-section" aria-labelledby="hm-how-h">
         <header className="hm-head">
           <p className="hm-kicker">How it works</p>
-          <h2 id="hm-how-h" className="hm-h2">From job description to ready, in three stages</h2>
-          <p className="hm-sub">Every tool works on the job you saved, so each step builds on the last.</p>
+          <h2 id="hm-how-h" className="hm-h2">From job posting to ready, in three steps</h2>
+          <p className="hm-sub">Everything works on the job you added, so each step builds on the last.</p>
         </header>
         <ol className="hm-stages">
           {STAGES.map((s) => (
             <li key={s.n} className={"hm-stage hm-stage-" + s.n}>
               <div className="hm-stage-top">
-                <span className="hm-stage-n" aria-hidden="true">{s.n}</span>
-                <h3 className="hm-stage-name">{s.name}</h3>
+                <span className="hm-stage-n" aria-hidden="true"><Icon name={s.icon} size={18} /></span>
+                <h3 className="hm-stage-name"><span className="hm-sr">Step {s.n}: </span>{s.name}</h3>
               </div>
               <p className="hm-stage-line">{s.line}</p>
               <ul className="hm-tools">
@@ -407,9 +346,9 @@ export default function HomePage() {
       {/* 9. final CTA */}
       <section className="hm-final" aria-labelledby="hm-final-h">
         <h2 id="hm-final-h" className="hm-final-h">Your interview has a date. Your prep should too.</h2>
-        <p>Paste the job description to see what it requires, where you fall short, and a plan to close the gap. Free to start.</p>
+        <p>Add the job: paste its link or description to see what it requires, where you fall short, and a plan to close the gap. Free to start.</p>
         <div className="hm-cta-row hm-cta-center">
-          <Link className="btn btn-lg hm-btn-signal" to="/analyze">Analyze a job, free <Icon name="arrow" size={18} /></Link>
+          <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
           <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
         </div>
       </section>

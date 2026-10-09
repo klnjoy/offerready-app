@@ -1,4 +1,4 @@
-/* Defend Your Decisions — scenario practice engine (was
+/* Trade-off drills (route /defend) — scenario practice engine (was
  * content/assets/scenario.js on #scenario-app).
  *
  * Teasers come from the public list endpoint; the FULL tree only from the
@@ -254,7 +254,7 @@ function ScenarioList({
       <h2 className="section-heading">Scenarios</h2>
       <p className="hint">
         {offline
-          ? "Practice the decisions senior AI, data, and cloud engineers defend under pressure. Pick one, make the call, and hold your reasoning as the interviewer keeps pushing — why, trade-off, constraint, incident. Your ratings feed the Progress dashboard."
+          ? "Practice the decisions senior AI, data, and cloud engineers defend under pressure. Pick one, make the call, and hold your reasoning as the interviewer keeps pushing — why, trade-off, constraint, incident. Your ratings feed your readiness."
           : "Practice the decisions senior AI, data, and cloud engineers defend under pressure — across roles. Preview any scenario free; open the full tree with OfferReady Pro."}
       </p>
 
@@ -333,7 +333,7 @@ function Gate({ kind, teaser: s, onBack }: { kind: "sign-in" | "upgrade"; teaser
         </>
       ) : (
         <>
-          <p className="hint">This is part of <strong>OfferReady Pro</strong> {"—"} the complete defend-your-decision library, with progress tracking. Everything you learn and sample is free; Pro is where you practice and defend.</p>
+          <p className="hint">This is part of <strong>OfferReady Pro</strong> {"—"} the complete trade-off drill library, with progress tracking. Everything you learn and sample is free; Pro is where you practice and defend.</p>
           <Link className="btn btn-primary" to="/pricing">See Free vs Pro</Link>
         </>
       )}
@@ -663,12 +663,12 @@ function Summary({
         </ul>
       </div>
     );
-    actions = (<><Link className="btn btn-primary" to="/dashboard">View My Readiness {"→"}</Link><button type="button" className="btn btn-ghost" onClick={onBack}>Try another scenario</button></>);
+    actions = (<><Link className="btn btn-primary" to="/dashboard">See readiness {"→"}</Link><button type="button" className="btn btn-ghost" onClick={onBack}>Try another scenario</button></>);
   } else if (result?.saved && result.partial) {
     status = <p className="status status-warn">{result.reason === "schema_missing"
       ? "Scenario completed and your practice was saved, but readiness storage isn’t fully deployed yet (migration 0006). Readiness will update once it’s applied."
       : "Scenario completed, and your practice was saved — Interview Readiness will reconcile on your next activity."}</p>;
-    actions = (<><Link className="btn" to="/dashboard">View My Readiness</Link>{allBtn}</>);
+    actions = (<><Link className="btn" to="/dashboard">See readiness</Link>{allBtn}</>);
   } else if (result && !result.saved) {
     const r = result.reason;
     if (r === "schema_missing") {
@@ -678,7 +678,7 @@ function Summary({
       status = <p className="status status-warn">Scenario completed. You have more than one saved job {"—"} <Link to="/jobs">open the job</Link> you{"’"}re practicing for, then re-run so it counts toward that job{"’"}s readiness.</p>;
       actions = allBtn;
     } else if (r === "nojob") {
-      status = <p className="status status-warn">Scenario completed (saved to this browser only). <Link to="/analyze">Analyze &amp; save a job</Link> so practice counts toward Interview Readiness.</p>;
+      status = <p className="status status-warn">Scenario completed (saved to this browser only). <Link to="/analyze">Add a job</Link> so practice counts toward its readiness.</p>;
       actions = allBtn;
     } else if (r === "signedout") {
       status = offline || !API_ENABLED

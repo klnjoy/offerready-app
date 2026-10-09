@@ -82,7 +82,7 @@ export default function PricingPage() {
         <p className="pr-eyebrow">Pricing</p>
         <h1>Free to start. Pro when your interview is real.</h1>
         <p className="pr-lede">
-          Learn, analyze a job and practice for free. Upgrade when you have an interview on the calendar and want an AI
+          Learn, add a job and practise for free. Upgrade when you have an interview on the calendar and want an AI
           interviewer that pushes back.
         </p>
         {showToggle && (
@@ -112,7 +112,7 @@ export default function PricingPage() {
               <li key={t}><Check />{t}</li>
             ))}
           </ul>
-          <Link className="btn btn-block" to="/analyze">{p.signedIn ? "Analyze a job" : "Start free"}</Link>
+          <Link className="btn btn-block" to="/analyze">{p.signedIn ? "Add a job" : "Start free"}</Link>
         </section>
 
         {hasPro && (

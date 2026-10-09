@@ -1,4 +1,4 @@
-/* My Jobs — the job-centered list (was content/assets/jobs.js, #jobs-app). */
+/* Jobs — the job-centered list (was content/assets/jobs.js, #jobs-app). */
 
 import { useMemo, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
@@ -20,17 +20,18 @@ type Sort = "recent" | "oldest" | "title" | "prep" | "gaps";
 /** Pipeline stage from prep_progress (25 fit, 50 questions, 75 practice). */
 function pipeline(j: JobRow) {
   const p = j.prep_progress || 0;
+  const id = encodeURIComponent(j.id);
   const steps = [
-    { label: "Analyzed", done: true },
-    { label: "Fit", done: p >= 25 },
+    { label: "Added", done: true },
+    { label: "Resume", done: p >= 25 },
     { label: "Questions", done: p >= 50 },
     { label: "Practice", done: p >= 75 },
   ];
   const next =
-    p < 25 ? { label: "Check My Fit", to: "/fit" }
-    : p < 50 ? { label: "Prepare Practice Questions", to: "/questions" }
-    : p < 75 ? { label: "Start Recommended Practice", to: "/defend?job=" + encodeURIComponent(j.id) }
-    : { label: "View My Readiness", to: "/dashboard" };
+    p < 25 ? { label: "Add your resume", to: "/jobs/" + id + "?tab=resume" }
+    : p < 50 ? { label: "Get your interview questions", to: "/questions?job=" + id }
+    : p < 75 ? { label: "Try a trade-off drill", to: "/defend?job=" + id }
+    : { label: "See readiness", to: "/dashboard" };
   return { steps, next };
 }
 
@@ -51,7 +52,7 @@ export default function MyJobsPage() {
     return (
       <Page>
         <SignInCard title="Sign in to see your jobs">
-          <p>My Jobs keeps each role you analyze {"—"} requirements, gaps, and prep progress {"—"} in one place.</p>
+          <p>Jobs keeps every role you{"’"}re preparing for in one place: its plan, your resume match and what to do next.</p>
         </SignInCard>
       </Page>
     );
@@ -71,9 +72,9 @@ export default function MyJobsPage() {
     return (
       <Page>
         <Card>
-          <div className="question">No saved jobs yet</div>
-          <p>Analyze a job description to create your first preparation plan.</p>
-          <Link className="btn btn-primary" to="/analyze">Analyze a Job</Link>
+          <div className="question">No jobs yet</div>
+          <p>Add the job you want. Paste a link or the description, and you get a day-by-day plan up to your interview.</p>
+          <div className="row"><Link className="btn btn-primary" to="/analyze">+ Add a job</Link><Link className="btn btn-ghost" to="/example">See a sample</Link></div>
         </Card>
       </Page>
     );
@@ -86,14 +87,9 @@ export default function MyJobsPage() {
   );
 }
 
-function Page({ children, addButton }: { children: ReactNode; addButton?: boolean }) {
+function Page({ children }: { children: ReactNode; addButton?: boolean }) {
   return (
     <div className="page">
-      {addButton && (
-        <div className="page-actions">
-          <Link className="btn btn-primary" to="/analyze">+ Analyze new job</Link>
-        </div>
-      )}
       {children}
     </div>
   );
@@ -130,7 +126,7 @@ function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: stri
       {active && (
         <div className="job-banner">
           <span className="job-banner-label">Current job</span> <strong>{displayJobTitle(active)}</strong> {"·"}{" "}
-          <span className="small">this is what Check My Fit, Questions, Defend, and your Dashboard are working on</span>
+          <span className="small">Practice, mock interviews and readiness use this job</span>
         </div>
       )}
       {controls && (
@@ -216,7 +212,7 @@ function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; 
         <div className="jobstat"><div className="jobstat-num">{j.gaps_count || 0}</div><div className="jobstat-label">Gaps</div></div>
         <div className="jobstat"><div className="jobstat-num">{(j.prep_progress || 0) + "%"}</div><div className="jobstat-label">Prep</div></div>
       </div>
-      {when && !isNaN(when.getTime()) && <div className="job-date">Analyzed {when.toLocaleDateString()}</div>}
+      {when && !isNaN(when.getTime()) && <div className="job-date">Added {when.toLocaleDateString()}</div>}
       <div className="job-pipeline">
         {pl.steps.map((s) => (
           <span key={s.label} title={s.label + (s.done ? " done" : " not done yet")} className={"job-step " + (s.done ? "job-step-done" : "job-step-todo")}>
@@ -231,7 +227,7 @@ function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; 
       {!confirming ? (
         <div className="row">
           <button type="button" className="btn btn-primary" onClick={() => { setActiveJob(j.id); navigate("/jobs/" + encodeURIComponent(j.id)); }}>
-            Open &amp; continue
+            Open job
           </button>
           <button type="button" className="btn btn-ghost" onClick={() => setConfirming(true)}>Delete</button>
         </div>

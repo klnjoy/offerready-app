@@ -476,3 +476,26 @@ export function startCheckoutOption(token: string, option: BillingOption) {
 export function openBillingPortal(token: string) {
   return call<{ ok: boolean; url: string }>("/api/billing/portal", { method: "POST", token, body: {} });
 }
+
+// ---- Job import from a link (api/ai.js action "import_job_url") ----------
+
+export interface ImportedJob {
+  ok: true;
+  title: string;
+  company: string;
+  location: string;
+  /** Plain-text job description, ready for analyzeJob. */
+  description: string;
+  source_url: string;
+  source: "jsonld" | "greenhouse" | "lever" | "ashby" | "html";
+}
+
+/** Fetch a job posting from a job-board link. 422 {blocked:true} = the site
+ * blocks automatic import; ask the user to paste the description instead. */
+export function importJobUrl(token: string | null, url: string) {
+  return call<ImportedJob & { blocked?: boolean }>("/api/ai", {
+    method: "POST",
+    token,
+    body: { action: "import_job_url", url },
+  });
+}

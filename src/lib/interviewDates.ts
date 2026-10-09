@@ -1,6 +1,6 @@
 /* Interview date per job (local only): KEYS.interviewDates = { [jobId]: "YYYY-MM-DD" }.
  * Screens subscribe with useInterviewDate(); a window event keeps every
- * mounted control (Today, My jobs, Job detail) in sync. */
+ * mounted control (the job page, Jobs) in sync. */
 
 import { useCallback, useEffect, useState } from "react";
 import { KEYS, readJSON, writeJSON } from "./storage";

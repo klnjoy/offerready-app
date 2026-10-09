@@ -117,7 +117,7 @@ export default function AccountPage() {
   const UNLOCKS = [
     ["Saved jobs", "Keep every role you analyze, with its gaps and plan, in one place."],
     ["Readiness on every device", "Your resume match, questions and practice follow you wherever you sign in."],
-    ["Defend scenarios", "Practice defending decisions under follow-ups, attributed to the job you\u2019re preparing for."],
+    ["Trade-off drills", "Practise defending your decisions when the interviewer pushes back, counted toward the job you\u2019re preparing for."],
   ];
 
   return (
@@ -158,7 +158,7 @@ export default function AccountPage() {
         <Card className="plan-card">
           <div>
             <h2>OfferReady Pro</h2>
-            <p className="muted">The full defend-your-decision library, AI answer grading, scenarios generated for your exact job, and more saved jobs.</p>
+            <p className="muted">The full trade-off drill library, AI answer grading, scenarios generated for your exact job, and more saved jobs.</p>
           </div>
           <div className="row wrap">
             <button type="button" className="btn btn-primary" onClick={() => { started.current = false; setWantsUpgrade(true); }}>Upgrade to Pro</button>

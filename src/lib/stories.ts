@@ -1,5 +1,5 @@
 /* STAR story bank (local only, KEYS.stories) + the pure helpers the Story
- * bank and Today screens share: competency derivation from a job analysis,
+ * screen and the job page share: competency derivation from a job analysis,
  * coverage, a STAR completeness check and Markdown export. */
 
 import { KEYS, readJSON, writeJSON } from "./storage";

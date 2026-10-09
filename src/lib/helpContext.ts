@@ -11,16 +11,25 @@ import type { HelpContextPayload } from "./api";
 /** Same titles as App.tsx's ROUTES table. */
 const ROUTE_TITLES: { path: string; title: string }[] = [
   { path: "/", title: "Home" },
-  { path: "/analyze", title: "Analyze a job" },
-  { path: "/jobs", title: "My jobs" },
+  { path: "/analyze", title: "Add a job" },
+  { path: "/jobs", title: "Jobs" },
   { path: "/jobs/:id", title: "Job" },
-  { path: "/fit", title: "Check my fit" },
-  { path: "/questions", title: "Practice questions" },
-  { path: "/defend", title: "Defend your decisions" },
+  { path: "/today", title: "Your plan" },
+  { path: "/fit", title: "Resume match" },
+  { path: "/tailor", title: "Tailor your resume" },
+  { path: "/practice", title: "Practice" },
+  { path: "/practice/bank", title: "Question bank" },
+  { path: "/questions", title: "Questions for this job" },
+  { path: "/defend", title: "Trade-off drills" },
+  { path: "/stories", title: "Your stories" },
+  { path: "/mock", title: "Mock interview" },
+  { path: "/interview/voice", title: "Voice interview" },
+  { path: "/simulator", title: "Text interview" },
   { path: "/dashboard", title: "Interview readiness" },
-  { path: "/practice", title: "Interview practice" },
-  { path: "/simulator", title: "Mock interview" },
+  { path: "/debrief", title: "Interview debrief" },
+  { path: "/offers", title: "Compare offers" },
   { path: "/account", title: "Account" },
+  { path: "/pricing", title: "Pricing" },
   { path: "/example", title: "Sample walkthrough" },
 ];
 
@@ -90,7 +99,7 @@ export function buildAppContext(pathname: string, job: HelpJob | null): HelpCont
   return ctx;
 }
 
-/** "Check my fit · Senior AI Engineer @ Acme" */
+/** "Add a job · Senior AI Engineer @ Acme" */
 export function contextLabel(pathname: string, job: HelpJob | null): string {
   const parts = [routeTitle(pathname)];
   if (job?.title) parts.push(job.company ? `${job.title} @ ${job.company}` : job.title);
@@ -99,15 +108,20 @@ export function contextLabel(pathname: string, job: HelpJob | null): string {
 
 const STARTERS: Record<string, string[]> = {
   "/": ["What does OfferReady do?", "Where should I start?", "How is readiness scored?"],
-  "/analyze": ["What should I paste here?", "How do I read the gap analysis?", "What happens after I analyze a job?"],
+  "/analyze": ["Can I paste a job link?", "How do I raise my match score?", "Is my resume stored anywhere?"],
   "/jobs": ["Which job should I prepare first?", "What does prep progress mean?", "How do I add another job?"],
-  "/jobs/:id": ["What should I do next for this job?", "Summarize the gaps for this role", "How do I raise readiness here?"],
+  "/jobs/:id": ["What should I do next for this job?", "Summarize the gaps for this role", "How do I raise my match score?"],
   "/fit": ["How do I raise my match score?", "Which missing keywords matter most?", "Is my resume stored anywhere?"],
-  "/questions": ["How should I practice these questions?", "Give me a 2-minute answer structure", "Which questions should I do first?"],
+  "/tailor": ["How do I add keywords honestly?", "What makes a strong resume bullet?", "Is my resume stored anywhere?"],
+  "/practice": ["Which practice should I start with?", "Make me a 20-minute practice plan", "What are trade-off drills?"],
+  "/practice/bank": ["Make me a 20-minute practice plan", "Flashcards or timed exam: which first?", "How do I find my weakest topics?"],
+  "/questions": ["How should I practise these questions?", "Give me a 2-minute answer structure", "Which questions should I do first?"],
   "/defend": ["How do I hold a trade-off under pushback?", "What do interviewers look for here?", "Walk me through a strong answer"],
-  "/dashboard": ["How is my readiness score calculated?", "What will raise my score fastest?", "What should I do next?"],
-  "/practice": ["Make me a 20-minute practice plan", "Flashcards or timed exam: which first?", "How do I find my weakest topics?"],
+  "/stories": ["What makes a strong STAR story?", "Which stories do I still need?", "How long should a story be?"],
+  "/mock": ["Voice or text: which should I do?", "How long does a mock take?", "What does the voice interview score?"],
+  "/interview/voice": ["How is my delivery scored?", "How long should each answer be?", "How do I handle the follow-up question?"],
   "/simulator": ["How do I handle the follow-up question?", "Give me a mock interview warm-up", "How long should each answer be?"],
+  "/dashboard": ["How is my readiness score calculated?", "What will raise my score fastest?", "What should I do next?"],
   "/account": ["What's included in Pro?", "Free vs Pro: which do I need?", "How do I manage my plan?"],
   "/example": ["Walk me through this example", "How would this work for my job?", "Where do I start with my own job?"],
 };

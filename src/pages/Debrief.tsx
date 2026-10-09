@@ -1,5 +1,5 @@
 /* Interview debrief — log each round while it's fresh (local only,
- * KEYS.debriefs). Questions rated "bad" flow into Today's plan as reviews
+ * KEYS.debriefs). Questions rated "bad" flow into the job's plan as reviews
  * (lib/debrief.ts → prepPlan debriefTopics); a next round with a date moves
  * the job's interview date, so the plan rolls forward to it. */
 
@@ -46,8 +46,8 @@ export default function DebriefPage() {
     <div className="page">
       <Card>
         <h2>Save a job first</h2>
-        <Muted>A debrief belongs to the job you interviewed for. Analyze and save it, then log each round here.</Muted>
-        <div className="row"><Link className="btn btn-primary" to="/analyze">Analyze a job</Link></div>
+        <Muted>A debrief belongs to the job you interviewed for. Add the job, then log each round here.</Muted>
+        <div className="row"><Link className="btn btn-primary" to="/analyze">Add a job</Link></div>
       </Card>
     </div>
   );
@@ -102,7 +102,7 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
     const eff = dateAfterDebrief(saved, cur, today);
     if (eff.action === "set") {
       setInterviewDate(jobId, eff.date);
-      msgs.push("Interview date moved to " + formatDay(eff.date, { weekday: "long", month: "short", day: "numeric" }) + ". Today’s plan now runs to the next round.");
+      msgs.push("Interview date moved to " + formatDay(eff.date, { weekday: "long", month: "short", day: "numeric" }) + ". Your plan now runs to the next round.");
     }
     const bad = debriefReviewTopics(next, jobId, today).length;
     if (bad) msgs.push(bad + (bad === 1 ? " question that went badly is" : " questions that went badly are") + " now in your plan for review.");
@@ -129,7 +129,7 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
       {flash.length > 0 && (
         <div className="dto-flash" role="status">
           {flash.map((m, i) => <p key={i}>{m}</p>)}
-          <div className="row"><Link className="btn btn-small" to="/today">See today{"’"}s plan</Link></div>
+          <div className="row"><Link className="btn btn-small" to={"/jobs/" + encodeURIComponent(jobId)}>See your plan</Link></div>
         </div>
       )}
 
