@@ -105,6 +105,10 @@ export interface GeneratedQuestion {
   category: QuestionCategory | string;
   difficulty?: "easy" | "medium" | "hard" | string;
   prompt: string;
+  /** What a strong answer says (saved with the job's question set). */
+  model_answer?: string;
+  /** What the interviewer listens for. */
+  signals?: string[];
   created_at?: string;
 }
 

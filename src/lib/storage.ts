@@ -23,6 +23,8 @@ export const KEYS = {
   interviewDates: "offerready.interviewDates.v1",
   /** jobId → { start, forDate, done: { taskId: "YYYY-MM-DD" } } (the job page's plan) */
   prepPlan: "offerready.prepPlan.v1",
+  /** jobId → { [questionKey]: { score, how, at } } — practice on "Questions for this job" (lib/questionProgress.ts) */
+  questionProgress: "offerready.questionProgress.v1",
   /** STAR story bank */
   stories: "offerready.stories.v1",
   /** Post-interview debriefs (Debrief[], see lib/debrief.ts) */

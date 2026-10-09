@@ -1,8 +1,10 @@
-/* Practice Questions — JD-driven question generator (was
- * content/assets/questions.js). Job-rooted: a saved set is restored first;
- * regenerating replaces it, so it's an explicit, confirmed action. */
+/* Questions for this job: a question set written from the job and your gaps,
+ * and a place to practise it. Open a question to answer it, get AI feedback
+ * or the strong answer, and each practised question counts toward the job's
+ * readiness. Switch job by searching (JobPicker). A saved set is restored
+ * first; regenerating replaces it, so it's an explicit, confirmed action. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { displayJobTitle } from "../lib/roles";
@@ -10,6 +12,9 @@ import { Link, useSearchParams } from "../lib/router";
 import { setActiveJob } from "../lib/readiness";
 import { useJobs } from "../lib/useJobs";
 import { Card, ErrorText, JobBanner, Loading, Muted } from "../components/ui";
+import { AnswerCoach } from "../components/AnswerCoach";
+import { JobPicker } from "../components/JobPicker";
+import { qKey, useQuestionProgress } from "../lib/questionProgress";
 import type { Analysis, GeneratedQuestion, JobRow } from "../types";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -98,42 +103,24 @@ export default function QuestionsPage() {
         <QuestionForm key={jobId + "|" + jd.length} jobs={jobs} jobId={jobId} role={role} jd={jd} note={view.note}
           activeTitle={activeTitle} onPick={restoreOrForm} onSubmit={submit} />
       )}
-      {view.kind === "restored" && (
-        <>
-          <Card>
-            <JobBanner title={activeTitle} hasJobs={jobs.length > 0} />
-            <h2>Your questions are ready</h2>
-            <p className="qcount">{view.questions.length} saved questions for this job</p>
-            {lastGenerated(view.questions) && <Muted small>Last generated: {lastGenerated(view.questions)}</Muted>}
-            <Muted small>Answer them out loud, two minutes each. They{"’"}re saved to this job, on any device.</Muted>
-            <div className="row">
-              <Link className="btn btn-primary" to={defendTo}>Next: a trade-off drill</Link>
-              <button type="button" className="btn"
-                onClick={() => {
-                  if (window.confirm("Regenerating will replace the current saved question set for this job.\n\nThis can’t be undone.")) {
-                    setView({ kind: "form", note: "Regenerating replaces your saved questions for this job. Review the job description, then generate to confirm the replacement." });
-                  }
-                }}>
-                Write new questions
-              </button>
-            </div>
-          </Card>
-          <QuestionCards questions={view.questions} analysis={analysis} defendTo={defendTo} />
-        </>
-      )}
-      {view.kind === "result" && (
-        <>
-          <Card>
-            <h2>Your interview question set</h2>
-            <Muted>
-              {view.questions.length} questions generated
-              {view.saved && jobId ? " · ✓ saved to this job" : jobId ? "" : " · not saved (pick a saved job to keep it)"}
-              {" · answer them out loud, then try a trade-off drill."}
-            </Muted>
-            <button type="button" className="btn" onClick={() => setView({ kind: "form" })}>Get questions for another job</button>
-          </Card>
-          <QuestionCards questions={view.questions} analysis={analysis} defendTo={defendTo} />
-        </>
+      {(view.kind === "restored" || view.kind === "result") && (
+        <Workspace
+          key={jobId}
+          jobId={jobId}
+          jobs={jobs}
+          title={activeTitle}
+          questions={view.questions}
+          fresh={view.kind === "result"}
+          saved={view.kind === "restored" || view.saved}
+          analysis={analysis}
+          defendTo={defendTo}
+          onSwitch={restoreOrForm}
+          onRegenerate={() => {
+            if (window.confirm("Writing new questions replaces this job’s saved set and its practice marks.\n\nThis can’t be undone.")) {
+              setView({ kind: "form", note: "Writing new questions replaces your saved set for this job. Check the job description, then confirm." });
+            }
+          }}
+        />
       )}
     </div>
   );
@@ -153,11 +140,8 @@ function QuestionForm({
       {note && <ErrorText>{note}</ErrorText>}
       {jobs.length > 0 && (
         <>
-          <label className="field-label" htmlFor="q-job">Which job?</label>
-          <select id="q-job" className="input" value={jobId} onChange={(e) => onPick(e.target.value)}>
-            <option value="">{"—"} Select a saved job {"—"}</option>
-            {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
-          </select>
+          <div className="field-label">{jobId ? "Another job?" : "Which job?"}</div>
+          <JobPicker jobs={jobs} current={jobId} onSwitch={onPick} />
           <Muted small>No job here yet? <Link to="/analyze">Add a job</Link> first.</Muted>
         </>
       )}
@@ -212,8 +196,7 @@ function WhyPanel({ analysis, questions }: { analysis: Analysis | null; question
       </div>
     ) : null;
   return (
-    <Card className="why">
-      <div className="field-label">Why these questions</div>
+    <div className="why">
       <Muted small>Written for this role{"\u2019"}s requirements and the gaps in your resume. A {"\u2713"} means a question actually references that item.</Muted>
       {row("Because the role requires", techs, false)}
       {row("And to close your identified gaps", gaps, true)}
@@ -225,36 +208,139 @@ function WhyPanel({ analysis, questions }: { analysis: Analysis | null; question
           )}
         </>
       )}
-    </Card>
+    </div>
   );
 }
 
-function QuestionCards({ questions, analysis, defendTo }: { questions: GeneratedQuestion[]; analysis: Analysis | null; defendTo: string }) {
-  const byCat: Record<string, GeneratedQuestion[]> = {};
-  questions.forEach((q) => (byCat[q.category] = byCat[q.category] || []).push(q));
+type CatFilter = "all" | "todo" | string;
+
+function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defendTo, onSwitch, onRegenerate }: {
+  jobId: string; jobs: JobRow[]; title: string; questions: GeneratedQuestion[]; fresh: boolean; saved: boolean;
+  analysis: Analysis | null; defendTo: string; onSwitch(id: string): void; onRegenerate(): void;
+}) {
+  const auth = useAuth();
+  const [progress, saveProgress] = useQuestionProgress(jobId);
+  const [filter, setFilter] = useState<CatFilter>("all");
+  const [open, setOpen] = useState<number | null>(null);
+  const [savedNote, setSavedNote] = useState("");
+
+  const ordered = useMemo(() => {
+    const rank = (c: string) => { const i = CATEGORY_ORDER.indexOf(c); return i < 0 ? 99 : i; };
+    return questions.map((q, i) => ({ q, i })).sort((a, b) => rank(a.q.category) - rank(b.q.category) || a.i - b.i);
+  }, [questions]);
+  const statusOf = (q: GeneratedQuestion) => progress[qKey(q.prompt)];
+  const done = ordered.filter((x) => statusOf(x.q));
+  const avg = done.length ? Math.round(done.reduce((n, x) => n + statusOf(x.q)!.score, 0) / done.length) : null;
+  const cats = CATEGORY_ORDER.filter((c) => questions.some((q) => q.category === c)).concat(
+    Array.from(new Set(questions.map((q) => q.category))).filter((c) => !CATEGORY_ORDER.includes(c)),
+  );
+  const shown = ordered.filter((x) => filter === "all" ? true : filter === "todo" ? !statusOf(x.q) : x.q.category === filter);
+  const nextTodo = ordered.find((x) => !statusOf(x.q));
+
+  const onResult = async (q: GeneratedQuestion, score: number, how: "ai" | "self") => {
+    saveProgress(q.prompt, { score, how, at: new Date().toISOString() });
+    if (!jobId) return;
+    const tok = await auth.getAccessToken();
+    if (!tok) { setSavedNote("Practice saved on this device. Sign in to count it toward readiness."); return; }
+    const res = await api.completePractice(tok, jobId, {
+      sessionId: "q:" + qKey(q.prompt) + ":" + Date.now().toString(36),
+      category: "questions-" + (q.category || "general"),
+      contentSlug: "question:" + qKey(q.prompt),
+      score, completedAt: new Date().toISOString(), mode: "practice",
+    });
+    setSavedNote(res.status === 200 || res.status === 207 ? "Saved. It counts toward this job’s readiness." : "Saved on this device. Readiness will update next time.");
+  };
+
   return (
     <>
-      <WhyPanel analysis={analysis} questions={questions} />
-      {CATEGORY_ORDER.filter((c) => byCat[c]?.length).map((cat) => (
-        <Card key={cat} className={"qcat qcat-" + cat}>
-          <h3>{CATEGORY_LABEL[cat] || cat} <span className="muted small">({byCat[cat].length})</span></h3>
-          <ol className="qlist">
-            {byCat[cat].map((q, i) => (
-              <li key={i}>
-                <span className={"diff diff-" + (q.difficulty === "hard" ? "hard" : q.difficulty === "easy" ? "easy" : "med")}>{q.difficulty || "medium"}</span> {q.prompt}
+      <Card className="qw-head">
+        {jobs.length > 1 ? (
+          <JobPicker jobs={jobs} current={jobId} onSwitch={onSwitch} label={<><span className="job-banner-label">Job</span> <strong>{title}</strong></>} />
+        ) : (
+          <JobBanner title={title} hasJobs={jobs.length > 0} />
+        )}
+        <div className="qw-stats">
+          <div>
+            <h2 className="qw-title">{questions.length} questions for this job</h2>
+            <p className="muted small">
+              {fresh ? (saved && jobId ? "Just written and saved to this job." : "Just written. Pick a saved job to keep them.") : lastGenerated(questions) ? "Written " + lastGenerated(questions) + "." : ""}
+              {" "}Open one, answer it, and get feedback like a real interviewer.
+            </p>
+          </div>
+          <div className="qw-meter" aria-label={done.length + " of " + questions.length + " practised"}>
+            <span className="qw-meter-n"><b>{done.length}</b> of {questions.length} practised{avg != null ? " · average " + avg + "%" : ""}</span>
+            <span className="qw-bar" aria-hidden="true"><span style={{ width: (questions.length ? (done.length / questions.length) * 100 : 0) + "%" }} /></span>
+          </div>
+        </div>
+        <div className="row wrap">
+          {nextTodo ? (
+            <button type="button" className="btn btn-primary" onClick={() => { setFilter("all"); setOpen(nextTodo.i); setTimeout(() => document.getElementById("qw-q-" + nextTodo.i)?.scrollIntoView({ block: "start", behavior: "smooth" }), 30); }}>
+              {done.length ? "Practise the next one" : "Start with question 1"}
+            </button>
+          ) : (
+            <Link className="btn btn-primary" to={defendTo}>All practised. Try a trade-off drill</Link>
+          )}
+          <button type="button" className="btn btn-ghost" onClick={onRegenerate}>Write new questions</button>
+        </div>
+        {savedNote && <p className="hint" role="status">{savedNote}</p>}
+      </Card>
+
+      <div className="jobs-filters" role="group" aria-label="Filter questions">
+        {(["all", "todo", ...cats] as CatFilter[]).map((c) => {
+          const n = c === "all" ? questions.length : c === "todo" ? questions.length - done.length : questions.filter((q) => q.category === c).length;
+          return (
+            <button key={c} type="button" aria-pressed={filter === c} className={"jobs-filter" + (filter === c ? " on" : "")} onClick={() => setFilter(c)}>
+              {c === "all" ? "All" : c === "todo" ? "Not practised" : CATEGORY_LABEL[c] || c} <span className="jobs-filter-n">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {!shown.length ? (
+        <p className="hint">{filter === "todo" ? "You’ve practised every question here." : "No questions in this group."}</p>
+      ) : (
+        <ol className="qw-list">
+          {shown.map(({ q, i }) => {
+            const st = statusOf(q);
+            const isOpen = open === i;
+            return (
+              <li key={i} id={"qw-q-" + i} className={"qw-item" + (isOpen ? " open" : "") + (st ? " done" : "")}>
+                <button type="button" className="qw-q" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : i)}>
+                  <span className="qw-num">{ordered.findIndex((x) => x.i === i) + 1}</span>
+                  <span className="qw-text">
+                    <span className="qw-meta">
+                      <span className="qw-cat">{CATEGORY_LABEL[q.category] || q.category}</span>
+                      <span className={"diff diff-" + (q.difficulty === "hard" ? "hard" : q.difficulty === "easy" ? "easy" : "med")}>{q.difficulty || "medium"}</span>
+                    </span>
+                    <span className="qw-prompt">{q.prompt}</span>
+                  </span>
+                  <span className={"qw-status" + (st ? (st.score >= 80 ? " good" : st.score >= 55 ? " mid" : " low") : "")}>
+                    {st ? (st.how === "ai" ? st.score + "%" : st.score >= 80 ? "Nailed it" : st.score >= 55 ? "Partly" : "Missed") : "Practise"}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="qw-body">
+                    <AnswerCoach prompt={q.prompt} model={q.model_answer} signals={q.signals} autoFocus onResult={(score, how) => onResult(q, score, how)} />
+                  </div>
+                )}
               </li>
-            ))}
-          </ol>
-        </Card>
-      ))}
+            );
+          })}
+        </ol>
+      )}
+
+      <details className="card why-details">
+        <summary>Why these questions</summary>
+        <WhyPanel analysis={analysis} questions={questions} />
+      </details>
+
       <div className="next-action">
-        <div className="next-action-label">What to do next</div>
+        <div className="next-action-label">Then</div>
         <div className="next-action-row">
-          <Link className="btn btn-primary" to={defendTo}>Start a trade-off drill</Link>
-          <span className="next-action-why">Practise holding your answers when the interviewer pushes back on trade-offs, cost, scale and failure. It raises your readiness for this job.</span>
+          <Link className="btn" to={defendTo}>Start a trade-off drill</Link>
+          <span className="next-action-why">Hold your answers when the interviewer pushes back on trade-offs, cost, scale and failure.</span>
         </div>
       </div>
-      <div className="row"><Link className="btn" to="/dashboard">See readiness</Link></div>
     </>
   );
 }
