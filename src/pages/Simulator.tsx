@@ -3,7 +3,10 @@
  * store. */
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { SIM_BANK, SIM_LEVELS, type SimItem } from "../data/simulatorBank";
+import { SIM_BANK as BASE_BANK, SIM_LEVELS, type SimItem } from "../data/simulatorBank";
+import { SIM_BANK_EXTRA } from "../data/simulatorBankExtra";
+
+const SIM_BANK: SimItem[] = [...BASE_BANK, ...SIM_BANK_EXTRA];
 import { record } from "../lib/progressStore";
 import { Link } from "../lib/router";
 
@@ -68,7 +71,7 @@ function Setup({ onStart }: { onStart(r: Run): void }) {
   return (
     <div className="stack">
       <p>
-        Run a <strong>mock loop</strong>: questions jump across areas and levels like a real onsite. For each, answer <strong>out loud and timed (~2&nbsp;min)</strong>, then reveal what{"’"}s tested, the strong vs weak patterns, and the expected depth. Rate yourself honestly, then face the follow-up. Your scores are saved locally.
+        Run a <strong>mock loop</strong>: questions jump across areas and levels like a real onsite. For each, answer <strong>out loud and timed (~2&nbsp;min)</strong>, then reveal what{"’"}s tested, the strong vs weak patterns, and the expected depth. Rate yourself honestly, then face the follow-up. Your scores are saved to your account when you’re signed in.
       </p>
       <div className="option-grid option-grid-3">
         <div className="option static">
