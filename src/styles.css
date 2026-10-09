@@ -2457,3 +2457,29 @@ tbody tr:last-child td { border-bottom: 0; }
   .drill-step-kind { grid-area: k; } .drill-step-score { grid-area: s; min-width: 120px; } .drill-step-q { grid-area: q; white-space: normal; }
   .drill-who { display: none; }
 }
+
+/* ---- feedback dialog ---- */
+.fbk { border: 1px solid var(--border); border-radius: 14px; padding: 0; width: min(520px, calc(100vw - 32px)); background: var(--surface); color: var(--text); box-shadow: 0 24px 60px rgba(10, 20, 40, 0.28); }
+.fbk::backdrop { background: rgba(10, 20, 40, 0.45); }
+.fbk-body { display: flex; flex-direction: column; gap: 10px; padding: 22px; }
+.fbk-body h2 { margin: 0; font-size: 1.2rem; }
+.fbk-body .muted { margin: 0; }
+.fbk-rating { border: 0; padding: 0; margin: 4px 0 0; }
+.fbk-rating legend { font-weight: 600; font-size: 0.92rem; margin-bottom: 8px; padding: 0; }
+.fbk-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.fbk-pill { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); color: var(--text); cursor: pointer; font: inherit; }
+.fbk-pill b { font-size: 1rem; }
+.fbk-pill span { font-size: 0.72rem; color: var(--text-2); line-height: 1.2; text-align: center; }
+.fbk-pill.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); }
+.fbk-pill.on span { color: var(--text); }
+.fbk-label { font-weight: 600; font-size: 0.92rem; margin-top: 4px; }
+.fbk textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface); color: var(--text); resize: vertical; }
+.fbk-note { font-size: 0.8rem; color: var(--text-3); margin: 0; }
+.fbk-check { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; }
+.fbk-err { color: #c0392b; margin: 0; font-size: 0.9rem; }
+.fbk-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+.footer-col .footer-btn { background: none; border: 0; padding: 0; text-align: left; color: rgba(255, 255, 255, 0.72); font: inherit; font-size: 0.9rem; cursor: pointer; }
+.footer-col .footer-btn:hover { color: #fff; text-decoration: underline; }
+.fbk-ends { display: none; justify-content: space-between; font-size: 0.75rem; color: var(--text-3); margin-top: 4px; }
+@media (max-width: 420px) { .fbk-pill span { display: none; } .fbk-ends { display: flex; } }
+button.acct-item { background: none; border: 0; text-align: left; font: inherit; font-weight: 550; cursor: pointer; width: 100%; }

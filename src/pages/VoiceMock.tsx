@@ -43,6 +43,7 @@ import {
   createRecognizer, detectSupport, onVoicesChanged, speak, startMicMeter, stopSpeaking,
   type MicMeter, type Recognizer,
 } from "../lib/voice";
+import { track } from "../lib/track";
 
 // ---------------------------------------------------------------- constants ---
 
@@ -1315,6 +1316,7 @@ function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; o
       const k = a.topic || typeLabel(rec.type);
       topics[k] = topics[k] ? Math.round((topics[k] + (avg(sc) / 5) * 100) / 2) : Math.round((avg(sc) / 5) * 100);
     }
+    track("mock_completed", { kind: "voice", type: rec.type, answers: rec.answers.length, score: st.overall });
     record({ mode: "mock", track: "Voice mock", topic: typeLabel(rec.type), score: st.overall, n: rec.answers.length, topics });
     let msg = "Saved to your practice history.";
     const token = rec.jobId ? await auth.getAccessToken() : null;

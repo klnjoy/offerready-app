@@ -5,6 +5,8 @@ import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
+import { FeedbackDialog, openFeedback } from "./components/Feedback";
+import { track } from "./lib/track";
 import { SyncIndicator } from "./components/SyncStatus";
 import { Loading } from "./components/ui";
 import HomePage from "./pages/Home";
@@ -130,6 +132,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
           {auth.email && <p className="acct-email">{auth.email}</p>}
           <Link role="menuitem" className="acct-item" to="/account">Account &amp; plan</Link>
           <Link role="menuitem" className="acct-item" to="/pricing">Pricing</Link>
+          <button type="button" role="menuitem" className="acct-item" onClick={() => { setOpen(false); openFeedback(); }}>Send feedback</button>
         </div>
       )}
     </div>
@@ -149,6 +152,7 @@ export default function App() {
   useEffect(() => {
     document.title = match && match.route.path !== "/" ? match.route.title + " | OfferReady" : "OfferReady — interview readiness for your job";
     setMenuOpen(false);
+    track("page_view");
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const Page = match?.route.component;
@@ -199,6 +203,7 @@ export default function App() {
       </main>
 
       <HelpBot />
+      <FeedbackDialog />
 
       <footer className="footer">
         <div className="footer-inner">
@@ -231,6 +236,7 @@ export default function App() {
           </div>
           <div className="footer-col">
             <h2>Company</h2>
+            <button type="button" className="footer-btn" onClick={openFeedback}>Send feedback</button>
             <ExternalLink href={DOCS_BASE + "Contact/index.html"}>Contact</ExternalLink>
             <ExternalLink href={DOCS_BASE + "Privacy/index.html"}>Privacy</ExternalLink>
             <ExternalLink href={DOCS_BASE + "Terms/index.html"}>Terms</ExternalLink>

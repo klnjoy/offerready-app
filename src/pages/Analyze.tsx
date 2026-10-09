@@ -34,6 +34,7 @@ import { FitDetails } from "../components/FitSummary";
 import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import { LIMITS } from "../lib/plans";
 import type { Analysis, GapResult, Skill } from "../types";
+import { track } from "../lib/track";
 
 interface ResultMeta {
   demo?: boolean;
@@ -220,7 +221,7 @@ export default function AnalyzePage() {
     let jobId = "";
     if (tok) {
       const saved = await api.createJob(tok, { analysis: a, title: v.targetRole || a.seniority || "", jobDescription: v.jobDescription, model: d.model || "" });
-      if (saved.status === 201 && saved.body?.job?.id) jobId = saved.body.job.id;
+      if (saved.status === 201 && saved.body?.job?.id) { jobId = saved.body.job.id; track("job_added", { resume: !!withResume }); }
       else if (saved.status === 403 && saved.body?.upgrade) meta.saveNote = <>Free includes {LIMITS.free.saved_jobs} saved job, so this one isn{"’"}t saved. <Link to="/pricing">Get a pass</Link> to keep more, or remove one in <Link to="/jobs">Jobs</Link>.</>;
       else meta.saveNote = saved.status === 0 ? "Couldn’t reach the server to save this job. Try “Save this job” below." : saved.body?.error || "Couldn’t save this job. Try “Save this job” below.";
     } else {
@@ -505,6 +506,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
     const res = await api.createJob(token, { analysis: a, title: targetRole || a.seniority || "", jobDescription: meta.input?.jobDescription || "", model: meta.model || "" });
     setBusy(false);
     if (res.status === 201 && res.body?.job?.id) {
+      track("job_added", { via: "save" });
       setActiveJob(res.body.job.id);
       navigate("/jobs/" + encodeURIComponent(res.body.job.id) + "?added=1");
     } else if (res.status === 403 && res.body?.upgrade) {
