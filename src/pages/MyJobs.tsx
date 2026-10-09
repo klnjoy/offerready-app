@@ -10,12 +10,18 @@ import { Link, useNavigate } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
 import { Card, Loading, Muted } from "../components/ui";
+import { readString, writeString } from "../lib/storage";
 import type { JobRow } from "../types";
 
 const SHOW_CONTROLS_AT = 6;
 const PAGE_SIZE = 9;
+const LIST_PAGE_SIZE = 25;
+const VIEW_KEY = "offerready.jobsView.v1";
 
-type Sort = "recent" | "oldest" | "title" | "prep" | "gaps";
+type View = "list" | "cards";
+type Filter = "all" | "soon" | "progress" | "ready";
+
+type Sort = "recent" | "oldest" | "title" | "prep" | "gaps" | "interview";
 
 /** Pipeline stage from prep_progress (25 fit, 50 questions, 75 practice). */
 function pipeline(j: JobRow) {
@@ -81,7 +87,7 @@ export default function MyJobsPage() {
   }
 
   return (
-    <Page addButton>
+    <Page>
       <JobList jobs={list} activeId={jobs.activeId} onRemoved={(id) => setGone((g) => [...g, id])} />
     </Page>
   );
@@ -98,85 +104,168 @@ function Page({ children }: { children: ReactNode; addButton?: boolean }) {
 function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: string; onRemoved(id: string): void }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<Sort>("recent");
-  const [shown, setShown] = useState(PAGE_SIZE);
-  const controls = jobs.length >= SHOW_CONTROLS_AT;
+  const [filter, setFilter] = useState<Filter>("all");
+  const many = jobs.length >= SHOW_CONTROLS_AT;
+  // Many jobs read best as a compact list; a few look better as cards.
+  const [view, setViewState] = useState<View>(() => {
+    const saved = readString(VIEW_KEY);
+    return saved === "cards" || saved === "list" ? saved : many ? "list" : "cards";
+  });
+  const setView = (v: View) => { setViewState(v); writeString(VIEW_KEY, v); setShown(v === "list" ? LIST_PAGE_SIZE : PAGE_SIZE); };
+  const pageSize = view === "list" ? LIST_PAGE_SIZE : PAGE_SIZE;
+  const [shown, setShown] = useState(pageSize);
   const active = activeId ? jobs.find((j) => j.id === activeId) : undefined;
+  const [dates] = useInterviewDates();
+
+  const counts = useMemo(() => {
+    let soon = 0, progress = 0, ready = 0;
+    for (const j of jobs) {
+      const d = daysUntil(dates[j.id] || "");
+      if (d != null && d >= 0 && d <= 14) soon++;
+      const p = j.prep_progress || 0;
+      if (p >= 75) ready++; else progress++;
+    }
+    return { all: jobs.length, soon, progress, ready };
+  }, [jobs, dates]);
+
+  const upcoming = useMemo(() => jobs
+    .map((j) => ({ j, d: daysUntil(dates[j.id] || "") }))
+    .filter((x): x is { j: JobRow; d: number } => x.d != null && x.d >= 0)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 3), [jobs, dates]);
 
   const list = useMemo(() => {
-    if (!controls) return jobs;
     const needle = q.trim().toLowerCase();
-    const out = jobs.filter((j) => !needle || (displayJobTitle(j) + " " + (j.company || "") + " " + (j.seniority || "")).toLowerCase().includes(needle));
+    const out = jobs.filter((j) => {
+      if (needle && !(displayJobTitle(j) + " " + (j.company || "") + " " + (j.seniority || "")).toLowerCase().includes(needle)) return false;
+      const p = j.prep_progress || 0;
+      const d = daysUntil(dates[j.id] || "");
+      if (filter === "soon") return d != null && d >= 0 && d <= 14;
+      if (filter === "progress") return p < 75;
+      if (filter === "ready") return p >= 75;
+      return true;
+    });
     out.sort((a, b) => {
       switch (sort) {
         case "oldest": return timeOf(a) - timeOf(b);
         case "title": return displayJobTitle(a).localeCompare(displayJobTitle(b));
         case "prep": return (b.prep_progress || 0) - (a.prep_progress || 0);
         case "gaps": return (b.gaps_count || 0) - (a.gaps_count || 0);
+        case "interview": {
+          const da = daysUntil(dates[a.id] || ""), db = daysUntil(dates[b.id] || "");
+          const ka = da == null || da < 0 ? 1e9 : da, kb = db == null || db < 0 ? 1e9 : db;
+          return ka - kb || timeOf(b) - timeOf(a);
+        }
         default: return timeOf(b) - timeOf(a);
       }
     });
     return out;
-  }, [jobs, q, sort, controls]);
+  }, [jobs, q, sort, filter, dates]);
 
-  const visible = controls ? list.slice(0, shown) : list;
-  const [dates] = useInterviewDates();
+  const visible = list.slice(0, shown);
+  const FILTERS: { key: Filter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "soon", label: "Interview in 14 days" },
+    { key: "progress", label: "In progress" },
+    { key: "ready", label: "Prep done" },
+  ];
 
   return (
     <>
-      {active && (
-        <div className="job-banner">
-          <span className="job-banner-label">Current job</span> <strong>{displayJobTitle(active)}</strong> {"·"}{" "}
-          <span className="small">Practice, mock interviews and readiness use this job</span>
+      <div className="jobs-top">
+        {active ? (
+          <div className="job-banner">
+            <span className="job-banner-label">Current job</span> <strong>{displayJobTitle(active)}</strong> {"·"}{" "}
+            <span className="small">Practice, mock interviews and readiness use this job</span>
+          </div>
+        ) : <span />}
+        <Link className="btn btn-primary jobs-add" to="/analyze">+ Add a job</Link>
+      </div>
+
+      {many && upcoming.length > 0 && (
+        <div className="jobs-upcoming" aria-label="Upcoming interviews">
+          <span className="jobs-upcoming-label">Next interviews</span>
+          {upcoming.map(({ j, d }) => (
+            <Link key={j.id} className="jobs-upcoming-item" to={"/jobs/" + encodeURIComponent(j.id)} onClick={() => setActiveJob(j.id)}>
+              <strong>{displayJobTitle(j)}</strong>
+              <span>{d === 0 ? "today" : d === 1 ? "tomorrow" : "in " + d + " days"}</span>
+            </Link>
+          ))}
         </div>
       )}
-      {controls && (
-        <>
-          <div className="jobs-controls">
-            <input className="input" type="search" aria-label="Search jobs" placeholder={"Search jobs by title or company…"}
-              value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE_SIZE); }} />
-            <label className="jobs-sort">
-              <span className="small">Sort</span>
-              <select className="input" value={sort} onChange={(e) => { setSort(e.target.value as Sort); setShown(PAGE_SIZE); }}>
-                <option value="recent">Most recent</option>
-                <option value="oldest">Oldest first</option>
-                <option value="title">Title (A{"–"}Z)</option>
-                <option value="prep">Prep (high{"→"}low)</option>
-                <option value="gaps">Gaps (high{"→"}low)</option>
-              </select>
-            </label>
-          </div>
-          <p className="muted small">
-            {list.length ? "Showing " + Math.min(shown, list.length) + " of " + list.length + (list.length === 1 ? " job" : " jobs") : ""}
-          </p>
-        </>
-      )}
-      <div className="jobs-grid">
-        {visible.map((j) => <JobCard key={j.id} job={j} isActive={j.id === activeId} interviewDate={dates[j.id] || ""} onRemoved={onRemoved} />)}
-        {controls && !list.length && <p className="hint">No jobs match {"“"}{q}{"”"}.</p>}
+
+      <div className="jobs-toolbar">
+        <input className="input jobs-search" type="search" aria-label="Search jobs" placeholder={"Search by title or company…"}
+          value={q} onChange={(e) => { setQ(e.target.value); setShown(pageSize); }} />
+        <label className="jobs-sort">
+          <span className="small">Sort</span>
+          <select className="input" value={sort} onChange={(e) => { setSort(e.target.value as Sort); setShown(pageSize); }}>
+            <option value="recent">Most recent</option>
+            <option value="interview">Interview date</option>
+            <option value="oldest">Oldest first</option>
+            <option value="title">Title (A{"–"}Z)</option>
+            <option value="prep">Prep (high{"→"}low)</option>
+            <option value="gaps">Gaps (high{"→"}low)</option>
+          </select>
+        </label>
+        <div className="jobs-viewtoggle" role="group" aria-label="View">
+          <button type="button" aria-pressed={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>List</button>
+          <button type="button" aria-pressed={view === "cards"} className={view === "cards" ? "on" : ""} onClick={() => setView("cards")}>Cards</button>
+        </div>
       </div>
-      {controls && shown < list.length && (
+
+      {many && (
+        <div className="jobs-filters" role="group" aria-label="Filter jobs">
+          {FILTERS.map((f) => (
+            <button key={f.key} type="button" aria-pressed={filter === f.key} className={"jobs-filter" + (filter === f.key ? " on" : "")}
+              onClick={() => { setFilter(f.key); setShown(pageSize); }}>
+              {f.label} <span className="jobs-filter-n">{counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <p className="muted small jobs-count">
+        {list.length ? "Showing " + Math.min(shown, list.length) + " of " + list.length + (list.length === 1 ? " job" : " jobs") : ""}
+      </p>
+
+      {!list.length ? (
+        <p className="hint">No jobs match. <button type="button" className="jobs-linkbtn" onClick={() => { setQ(""); setFilter("all"); }}>Clear search and filters</button></p>
+      ) : view === "list" ? (
+        <div className="jobs-table" role="table" aria-label="Your jobs">
+          <div className="jobs-tr jobs-th" role="row">
+            <span role="columnheader">Job</span>
+            <span role="columnheader">Interview</span>
+            <span role="columnheader">Prep</span>
+            <span role="columnheader">Gaps</span>
+            <span role="columnheader">Next step</span>
+            <span role="columnheader"><span className="jobs-sr">Actions</span></span>
+          </div>
+          {visible.map((j) => <JobListRow key={j.id} job={j} isActive={j.id === activeId} interviewDate={dates[j.id] || ""} onRemoved={onRemoved} />)}
+        </div>
+      ) : (
+        <div className="jobs-grid">
+          {visible.map((j) => <JobCard key={j.id} job={j} isActive={j.id === activeId} interviewDate={dates[j.id] || ""} onRemoved={onRemoved} />)}
+        </div>
+      )}
+      {shown < list.length && (
         <div className="center">
-          <button type="button" className="btn btn-ghost" onClick={() => setShown((s) => s + PAGE_SIZE)}>Show more</button>
+          <button type="button" className="btn btn-ghost" onClick={() => setShown((s) => s + pageSize)}>Show {Math.min(pageSize, list.length - shown)} more</button>
         </div>
       )}
     </>
   );
 }
 
-function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; isActive: boolean; interviewDate: string; onRemoved(id: string): void }) {
+/** Shared delete flow for a card or a list row. */
+function useDeleteJob(j: JobRow, onRemoved: (id: string) => void) {
   const auth = useAuth();
-  const navigate = useNavigate();
-  // Inline confirmation inside the card (no window.confirm / alert).
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [delErr, setDelErr] = useState("");
-  const pl = pipeline(j);
-  const when = j.created_at ? new Date(j.created_at) : null;
-
   const remove = async () => {
     setDeleting(true);
     setDelErr("");
-    // Fresh token: the list's token may have expired since load.
     const tok = await auth.getAccessToken();
     if (!tok) {
       setDeleting(false);
@@ -185,8 +274,6 @@ function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; 
     }
     const res = await api.deleteJob(tok, j.id);
     if (res.status === 200 || res.status === 404) {
-      // 200 = deleted, 404 = already gone. The server cascade-deletes the
-      // job's gap analysis, questions, snapshots and practice sessions.
       if (getActiveJob() === j.id) clearActiveJob();
       onRemoved(j.id);
       return;
@@ -198,6 +285,53 @@ function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; 
     else if (res.status >= 500) setDelErr("The server couldn\u2019t delete this job right now. Please try again.");
     else setDelErr(res.body?.error || "Couldn\u2019t delete that job. Please try again.");
   };
+  return { confirming, setConfirming, deleting, delErr, setDelErr, remove };
+}
+
+function JobListRow({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; isActive: boolean; interviewDate: string; onRemoved(id: string): void }) {
+  const navigate = useNavigate();
+  const del = useDeleteJob(j, onRemoved);
+  const pl = pipeline(j);
+  const p = j.prep_progress || 0;
+  const open = () => { setActiveJob(j.id); navigate("/jobs/" + encodeURIComponent(j.id)); };
+  return (
+    <div className={"jobs-tr" + (isActive ? " jobs-tr-active" : "")} role="row">
+      <span role="cell" className="jobs-td-title">
+        <button type="button" className="jobs-title-btn" onClick={open}>{displayJobTitle(j)}</button>
+        {isActive && <span className="job-activebadge">Active</span>}
+        {(j.company || j.seniority) && <span className="jobs-sub">{[j.company, j.seniority].filter(Boolean).join(" · ")}</span>}
+      </span>
+      <span role="cell" className="jobs-td-iv">{daysUntil(interviewDate) != null ? <InterviewChip date={interviewDate} /> : <span className="muted small">No date</span>}</span>
+      <span role="cell" className="jobs-td-prep">
+        <span className="jobs-bar" aria-hidden="true"><span style={{ width: Math.max(0, Math.min(100, p)) + "%" }} /></span>
+        <span className="small">{p}%</span>
+      </span>
+      <span role="cell" className="jobs-td-gaps"><span className="jobs-cellnum">{j.gaps_count || 0}</span><span className="jobs-cell-label"> gaps</span></span>
+      <span role="cell" className="jobs-td-next"><Link to={pl.next.to} onClick={() => setActiveJob(j.id)}>{pl.next.label}</Link></span>
+      <span role="cell" className="jobs-td-actions">
+        {!del.confirming ? (
+          <>
+            <button type="button" className="btn btn-primary btn-small" onClick={open}>Open</button>
+            <button type="button" className="btn btn-ghost btn-small" aria-label={"Delete " + displayJobTitle(j)} onClick={() => del.setConfirming(true)}>Delete</button>
+          </>
+        ) : (
+          <span className="jobs-rowconfirm" role="alertdialog" aria-label="Confirm delete">
+            <span className="small">Delete with its analysis and practice?</span>
+            <button type="button" className="btn btn-danger btn-small" disabled={del.deleting} onClick={del.remove}>{del.deleting ? "Deleting\u2026" : "Delete"}</button>
+            <button type="button" className="btn btn-ghost btn-small" disabled={del.deleting} onClick={() => { del.setConfirming(false); del.setDelErr(""); }}>Cancel</button>
+            {del.delErr && <span className="error small" role="alert">{del.delErr}</span>}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function JobCard({ job: j, isActive, interviewDate, onRemoved }: { job: JobRow; isActive: boolean; interviewDate: string; onRemoved(id: string): void }) {
+  const navigate = useNavigate();
+  const { confirming, setConfirming, deleting, delErr, setDelErr, remove } = useDeleteJob(j, onRemoved);
+  const pl = pipeline(j);
+  const when = j.created_at ? new Date(j.created_at) : null;
 
   return (
     <div className={"job-card" + (isActive ? " job-active" : "")}>

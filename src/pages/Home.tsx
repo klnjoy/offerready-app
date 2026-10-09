@@ -101,7 +101,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   { q: "Is it free?",
     a: <>Yes, there is a free plan. It includes the study library, question banks and practice mode, {fmt(LIMITS.free.saved_jobs)} saved job, {fmt(LIMITS.free.analyses)} job analyses a month, the day-by-day plan to your interview date and {fmt(LIMITS.free.voice_mock)} voice mock interview a month. Pro raises the limits and unlocks the full scenario library. <Link to="/pricing">See pricing</Link>.</> },
   { q: "What happens to my resume and data?",
-    a: <>Your resume is read in your browser and saved only on your device, so you add it once. When we compare it with a job, the text is used only for that analysis and is never stored on our servers. Saved jobs, practice and stories belong to your account so you can pick up where you left off; your data stays yours.</> },
+    a: <>Your resume is read in your browser and saved on your device, so you add it once; it syncs to your account only if you turn that on. Jobs, plans, practice and stories sync to your account so you can pick up on any device. You can download or delete your data any time from Account.</> },
   { q: "Does OfferReady help during a live interview?",
     a: <>No, and that’s on purpose. OfferReady is practice-only: there is no live mode, overlay or answer feed. It prepares you before the interview and helps you debrief after it. The follow-ups you practise are the same kind interviewers use to tell rehearsed or AI-fed answers from real understanding, so what you bring into the room is your own.</> },
   { q: "How is this different from ChatGPT, Claude or Gemini?",

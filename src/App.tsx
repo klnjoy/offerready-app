@@ -138,7 +138,6 @@ function AccountMenu({ pathname }: { pathname: string }) {
 
 export default function App() {
   const { pathname, search } = useLocation();
-  const auth = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
   let match: { route: Route; params: Record<string, string> } | null = null;
@@ -161,7 +160,7 @@ export default function App() {
       <a className="skip-link" href="#main">Skip to content</a>
       <header className="topbar">
         <div className="topbar-inner">
-          <Link className="brand" to={auth.session ? "/jobs" : "/"} aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
+          <Link className="brand" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
           <nav id="main-nav" className={"nav tnav" + (menuOpen ? " open" : "")} aria-label="Main">
             {NAV.map((n) => {
               const on = section === n.key;
