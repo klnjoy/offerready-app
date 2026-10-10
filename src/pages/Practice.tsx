@@ -275,6 +275,24 @@ function Runner({
   const item = s.items[s.i];
   const [remaining, setRemaining] = useState(s.items.length * EXAM_SECONDS_PER_Q);
   const finishedRef = useRef(false);
+  // Leaving mid-session (another practice tool, another page): keep what was rated.
+  const latest = useRef(s);
+  latest.current = s;
+  const closedRef = useRef(false);
+  useEffect(() => () => {
+    if (closedRef.current) return;
+    const cur = latest.current;
+    const rated = cur.items.map((it, i) => ({ it, r: cur.ratings[i] })).filter((x): x is { it: BankItem; r: number } => x.r != null);
+    if (!rated.length) return;
+    const byTopic: Record<string, number[]> = {};
+    rated.forEach(({ it, r }) => (byTopic[it.topic] = byTopic[it.topic] || []).push(r));
+    const topics: Record<string, number> = {};
+    Object.entries(byTopic).forEach(([k, v]) => { topics[k] = Math.round((v.reduce((a, b) => a + b, 0) / v.length / 5) * 100); });
+    const avg = rated.reduce((a, x) => a + x.r, 0) / rated.length;
+    record({ mode: cur.mode, track: cur.track, topic: cur.topic, score: Math.round((avg / 5) * 100), n: rated.length, partial: true, topics });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const done = (early: boolean) => { closedRef.current = true; onDone(early); };
+  const quit = () => { closedRef.current = true; onQuit(); };
 
   // Exam countdown runs across questions until review.
   useEffect(() => {
@@ -292,7 +310,7 @@ function Runner({
   const rate = (val: number) => {
     const ratings = s.ratings.slice();
     ratings[s.i] = val;
-    if (s.i + 1 >= s.items.length) { setSession({ ...s, ratings }); onDone(false); return; }
+    if (s.i + 1 >= s.items.length) { setSession({ ...s, ratings }); done(false); return; }
     setSession({ ...s, ratings, i: s.i + 1 });
   };
 
@@ -302,8 +320,8 @@ function Runner({
       ? "End this session now? Your " + rated + " rated " + (rated === 1 ? "answer" : "answers") + " will be saved to your progress."
       : "End this session? You haven't rated anything yet, so nothing will be saved.";
     if (!window.confirm(msg)) return;
-    if (rated) onDone(true);
-    else onQuit();
+    if (rated) done(true);
+    else quit();
   };
 
   const fmt = (sec: number) => { const v = Math.max(0, sec); return Math.floor(v / 60) + ":" + String(v % 60).padStart(2, "0"); };

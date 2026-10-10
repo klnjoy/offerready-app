@@ -5,6 +5,7 @@ import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
+import { PracticeTabs } from "./components/PracticeTabs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
 import { track } from "./lib/track";
 import { SyncIndicator } from "./components/SyncStatus";
@@ -195,6 +196,7 @@ export default function App() {
             <p>{match.route.subtitle}</p>
           </header>
         ) : null}
+        {match && match.route.back === BACK_PRACTICE ? <PracticeTabs /> : null}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<div className="page"><Loading /></div>}>
             {Page ? <Page {...match!.params} /> : <NotFound />}
