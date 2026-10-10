@@ -2603,3 +2603,8 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .ptr-steps.ptr-3 { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 900px) { .ptr-steps.ptr-3 { grid-template-columns: 1fr; } }
 .sim-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.drill-top { flex-wrap: wrap; }
+.drill-finish { margin-left: auto; }
+.drill-long-note { margin: 0; }
+.drill-bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+.drill-bar span { display: block; height: 100%; background: var(--good); border-radius: 999px; transition: width 0.3s ease; }
