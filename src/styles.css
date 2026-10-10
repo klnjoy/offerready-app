@@ -2608,3 +2608,17 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .drill-long-note { margin: 0; }
 .drill-bar { height: 6px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
 .drill-bar span { display: block; height: 100%; background: var(--good); border-radius: 999px; transition: width 0.3s ease; }
+
+/* ---- practice switcher (components/PracticeTabs.tsx) ---- */
+.pt-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 16px; }
+.pt-tab { padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
+.pt-tab:hover { border-color: var(--border-strong); }
+.pt-tab.on { background: var(--ink-950, #0f1b33); border-color: var(--ink-950, #0f1b33); color: #fff; }
+.pt-short { display: none; }
+.pt-note { font-size: 0.8rem; color: var(--text-3); margin-left: 4px; }
+@media (max-width: 640px) {
+  .pt-tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  .pt-long { display: none; }
+  .pt-short { display: inline; }
+  .pt-note { display: none; }
+}

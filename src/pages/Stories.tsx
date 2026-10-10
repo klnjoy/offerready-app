@@ -11,7 +11,7 @@ import {
   practicePrompt, saveStories, starCheck, storiesToMarkdown, tagLabel, type Story,
 } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
-import { KEYS, onDataChanged } from "../lib/storage";
+import { KEYS, onDataChanged, readJSON, writeJSON } from "../lib/storage";
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { invalidatePlan } from "../lib/plans";
 import { Card, Muted } from "../components/ui";
@@ -28,6 +28,14 @@ export default function StoriesPage() {
   const [editing, setEditing] = useState<Editing>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [flash, setFlash] = useState("");
+  // A story you were writing before you left: reopen it.
+  useEffect(() => {
+    const d = readJSON<{ story?: Story; mode?: "quick" | "full"; at?: number } | null>(KEYS.storyDraft, null);
+    if (d?.story && Date.now() - (d.at || 0) < 30 * 86400000) {
+      setEditing({ mode: d.mode === "full" ? "full" : "quick", story: d.story });
+      setFlash("We kept the story you were writing. Save it when you’re ready, or cancel to discard it.");
+    }
+  }, []);
   const editorRef = useRef<HTMLDivElement | null>(null);
 
   const activeJob: JobRow | undefined = jobs.status === "ready" ? jobs.jobs.find((j) => j.id === jobs.activeId) || jobs.jobs[0] : undefined;
@@ -110,7 +118,7 @@ export default function StoriesPage() {
       {editing && (
         <div ref={editorRef} className="sb-editor-wrap">
           <StoryEditor key={editing.story.id + editing.mode} initial={editing.story} mode={editing.mode} jobs={jobs.jobs || []}
-            onMode={(m) => setEditing({ ...editing, mode: m })} onCancel={() => setEditing(null)} onSave={save} />
+            onMode={(m) => setEditing({ ...editing, mode: m })} onCancel={() => { writeJSON(KEYS.storyDraft, null); setEditing(null); }} onSave={(st) => { writeJSON(KEYS.storyDraft, null); save(st); }} />
         </div>
       )}
 
@@ -363,6 +371,11 @@ function StoryEditor({ initial, mode, jobs, onMode, onCancel, onSave }: {
 }) {
   const [s, setS] = useState<Story>(initial);
   const [custom, setCustom] = useState("");
+  // Keep an unsaved draft so switching to another practice tool doesn't lose it.
+  const changed = JSON.stringify(s) !== JSON.stringify(initial);
+  useEffect(() => {
+    if (changed) writeJSON(KEYS.storyDraft, { story: s, mode, at: Date.now() });
+  }, [s]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = <K extends keyof Story>(k: K, v: Story[K]) => setS((x) => ({ ...x, [k]: v }));
   const toggleTag = (t: string) => set("tags", s.tags.includes(t) ? s.tags.filter((x) => x !== t) : [...s.tags, t]);
   const addCustom = () => {
