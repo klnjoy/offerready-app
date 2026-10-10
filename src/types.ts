@@ -26,6 +26,10 @@ export interface PlanItem {
 }
 
 export interface Analysis {
+  /** The title exactly as the posting names it ("" when it doesn't). */
+  jobTitle?: string;
+  /** The hiring company as the posting names it. */
+  company?: string;
   roleSummary: string;
   seniority?: string;
   coreSkills?: (string | Skill)[];

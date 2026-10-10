@@ -16,7 +16,7 @@ import { Link, useSearchParams } from "../lib/router";
 import { useSavedResume } from "../lib/savedResume";
 import { SESSION_KEYS } from "../lib/storage";
 import {
-  MAX_BULLETS, MAX_RESUME_CHARS, bulletsToText, extractBullets, finalBullets, jobKeywords, keywordCoverage, mentions, splitBullets,
+  MAX_BULLETS, MAX_RESUME_CHARS, applyToResume, bulletsToText, extractBullets, finalBullets, hasPlaceholder, jobKeywords, keywordCoverage, mentions, splitBullets,
   type TailorSuggestion,
 } from "../lib/tailor";
 import { useJobs } from "../lib/useJobs";
@@ -63,7 +63,7 @@ export default function TailorPage() {
 
   const [jobId, setJobId] = useState("");
   const [detail, setDetail] = useState<{ analysis: Analysis | null; gap: GapRow | null } | null>(null);
-  const [saved] = useSavedResume();
+  const [saved, saveResumeText] = useSavedResume();
   const resumeText = (h?.resumeText || saved?.text || "").slice(0, MAX_RESUME_CHARS);
   const [text, setText] = useState<string>(() => (resumeText ? extractBullets(resumeText).join("\n") : ""));
   // A resume saved on this screen fills the bullets (if none were typed yet).
@@ -72,6 +72,10 @@ export default function TailorPage() {
   }, [saved?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const [run, setRun] = useState<Run>({ kind: "idle" });
   const [accepted, setAccepted] = useState<Record<number, boolean>>({});
+  /** The user's own edits to a rewrite (e.g. a real number for [X%]). */
+  const [edits, setEdits] = useState<Record<number, string>>({});
+  const [editing, setEditing] = useState<number | null>(null);
+  const [applied, setApplied] = useState<{ replaced: number; missed: number } | null>(null);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   // Pick the job: ?job=, the hand-off, the active job, else the first.
@@ -110,6 +114,9 @@ export default function TailorPage() {
     if (!bullets.length || !row) return;
     setRun({ kind: "running" });
     setAccepted({});
+    setEdits({});
+    setEditing(null);
+    setApplied(null);
     const tok = await auth.getAccessToken();
     const res = await api.tailorResume(tok, {
       bullets,
@@ -147,10 +154,19 @@ export default function TailorPage() {
   );
 
   const done = run.kind === "done" ? run : null;
-  const final = done ? finalBullets(done.originals, done.suggestions, accepted) : [];
+  const sugs = done ? done.suggestions.map((x) => (edits[x.index] != null ? { ...x, rewritten: edits[x.index] } : x)) : [];
+  const final = done ? finalBullets(done.originals, sugs, accepted) : [];
+  const acceptedSugs = sugs.filter((x) => accepted[x.index] !== false);
+  const unfilled = acceptedSugs.filter((x) => hasPlaceholder(x.rewritten)).length;
+  const putInResume = () => {
+    if (!saved?.text || !done) return;
+    const r = applyToResume(saved.text, acceptedSugs.map((x) => ({ original: done.originals[x.index] ?? x.original, rewritten: x.rewritten })));
+    if (r.replaced) saveResumeText(r.text, saved.fileName || "");
+    setApplied({ replaced: r.replaced, missed: r.missed.length });
+  };
   const after = done ? keywordCoverage(keywords, final) : null;
   const acceptedCount = done ? done.suggestions.filter((s) => accepted[s.index] !== false).length : 0;
-  const facts = done ? done.suggestions.filter((s) => s.needs_fact && accepted[s.index] !== false).length : 0;
+  const facts = unfilled;
 
   return (
     <div className="page dto">
@@ -203,8 +219,12 @@ export default function TailorPage() {
                 <h2 id="tl-sum-h">{done.suggestions.length} {done.suggestions.length === 1 ? "suggestion" : "suggestions"}</h2>
                 <p className="muted small">{acceptedCount} accepted{facts ? " · " + facts + (facts === 1 ? " needs a number from you" : " need a number from you") : ""}</p>
               </div>
-              <CopyButton text={bulletsToText(final)} label="Copy all" className="btn btn-primary btn-small" />
             </div>
+            <ol className="tl-steps">
+              <li><strong>Review each bullet below.</strong> Accept the rewrite or keep your original. Tap Edit to change the wording or put in a real number.</li>
+              <li><strong>Put them in your resume</strong> with the buttons at the bottom.</li>
+              <li><strong>Re-check your fit</strong> to see the match go up.</li>
+            </ol>
             <div className="dto-cov-compare">
               <CoverageBar label="Before" pct={before.pct} n={before.covered.length} total={keywords.length} />
               <CoverageBar label="After" pct={after.pct} n={after.covered.length} total={keywords.length} strong />
@@ -220,6 +240,7 @@ export default function TailorPage() {
           <ol className="dto-sugs">
             {done.suggestions.map((s) => {
               const on = accepted[s.index] !== false;
+              const cur = edits[s.index] ?? s.rewritten;
               return (
                 <li key={s.index} className={"card dto-sug" + (on ? " is-on" : " is-off")}>
                   <div className="dto-sug-head">
@@ -230,24 +251,62 @@ export default function TailorPage() {
                     </div>
                   </div>
                   <p className="dto-orig"><span className="dto-sr">Original: </span>{s.original}</p>
-                  <p className="dto-new"><span className="dto-sr">Rewritten: </span><Highlight text={s.rewritten} words={s.keywords_added} /></p>
+                  {editing === s.index ? (
+                    <div className="tl-edit">
+                      <textarea className="input textarea" rows={3} aria-label={"Edit bullet " + (s.index + 1)} autoFocus
+                        value={edits[s.index] ?? s.rewritten} onChange={(e) => setEdits((m) => ({ ...m, [s.index]: e.target.value }))} />
+                      <div className="row">
+                        <button type="button" className="btn btn-small" onClick={() => { setEditing(null); setAccepted((a) => ({ ...a, [s.index]: true })); }}>Done</button>
+                        {edits[s.index] != null && <button type="button" className="link-btn small" onClick={() => setEdits((m) => { const n = { ...m }; delete n[s.index]; return n; })}>Undo my edits</button>}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="dto-new"><span className="dto-sr">Rewritten: </span><Highlight text={edits[s.index] ?? s.rewritten} words={s.keywords_added} /></p>
+                  )}
                   {s.keywords_added.length > 0 && (
                     <div className="chips">{s.keywords_added.map((k) => <span key={k} className="chip sb-tag">{k}</span>)}</div>
                   )}
                   {s.why && <p className="small muted dto-why">{s.why}</p>}
-                  {s.needs_fact && (
+                  {hasPlaceholder(cur) && (
                     <div className="dto-fact">
                       <strong>Needs a fact from you</strong>
-                      <span>{s.fact_question || "What was the actual number?"} Replace the placeholder in brackets with the real figure, or cut it.</span>
+                      <span>{s.fact_question || "What was the actual number?"} Tap Edit and replace the part in [brackets] with the real figure, or cut it.</span>
                     </div>
                   )}
                   <div className="row">
-                    <CopyButton text={on ? s.rewritten : s.original} label="Copy" className="btn btn-ghost btn-small" />
+                    {editing !== s.index && <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditing(s.index)}>Edit</button>}
+                    <CopyButton text={on ? cur : s.original} label="Copy this bullet" className="btn btn-ghost btn-small" />
                   </div>
                 </li>
               );
             })}
           </ol>
+
+          <section className="card tl-finish" aria-labelledby="tl-fin-h">
+            <h2 id="tl-fin-h">Put them in your resume</h2>
+            {unfilled > 0 && <p className="dto-fact"><strong>{unfilled} accepted {unfilled === 1 ? "bullet still has" : "bullets still have"} a [placeholder].</strong> <span>Edit {unfilled === 1 ? "it" : "them"} with the real number first, or choose Keep original.</span></p>}
+            <div className="tl-finish-opts">
+              <div className="tl-finish-opt">
+                <strong>Update the resume saved in OfferReady</strong>
+                <p className="small muted">Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</p>
+                <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>Update my saved resume</button>
+                {!saved?.text && <p className="small muted">No saved resume yet: copy the bullets instead.</p>}
+              </div>
+              <div className="tl-finish-opt">
+                <strong>Copy into your resume file</strong>
+                <p className="small muted">Paste over the old bullets in your Word or Google Docs resume.</p>
+                <CopyButton text={bulletsToText(final)} label={"Copy all " + final.length + " bullets"} className="btn" />
+              </div>
+            </div>
+            {applied && (
+              <div className="tl-applied" role="status">
+                {applied.replaced
+                  ? <p><strong>Saved resume updated: {applied.replaced} {applied.replaced === 1 ? "bullet" : "bullets"} replaced.</strong>{applied.missed ? " " + applied.missed + " couldn’t be matched to a line in your resume; copy " + (applied.missed === 1 ? "that one" : "those") + " in by hand." : ""}</p>
+                  : <p>None of the bullets could be matched to lines in your saved resume. Copy them in by hand instead.</p>}
+                {applied.replaced > 0 && row && <Link className="btn btn-primary" to={"/jobs/" + encodeURIComponent(row.id) + "?tab=resume&recheck=1"}>Re-check my fit now</Link>}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

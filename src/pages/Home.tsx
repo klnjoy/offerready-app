@@ -128,7 +128,7 @@ function ContinueBar() {
   const job = pickActive(jobs, activeId);
   if (!job) return null;
   const prep = typeof job.prep_progress === "number" ? Math.max(0, Math.min(100, Math.round(job.prep_progress))) : null;
-  const meta = [job.company, job.seniority].filter(Boolean).join(" · ");
+  const meta = job.company || "";
   return (
     <>
     <OutcomeCheckIn jobs={jobs} />

@@ -52,6 +52,7 @@ interface FormValues {
   jobDescription: string;
   interviewDate: string;
   sourceUrl: string;
+  company?: string;
 }
 
 type View =
@@ -220,7 +221,7 @@ export default function AnalyzePage() {
     setView({ kind: "loading", step: 1, withResume });
     let jobId = "";
     if (tok) {
-      const saved = await api.createJob(tok, { analysis: a, title: v.targetRole || a.seniority || "", jobDescription: v.jobDescription, model: d.model || "" });
+      const saved = await api.createJob(tok, { analysis: a, title: v.targetRole || a.jobTitle || "", company: (v.company || a.company || "").slice(0, 200), jobDescription: v.jobDescription, model: d.model || "" });
       if (saved.status === 201 && saved.body?.job?.id) { jobId = saved.body.job.id; track("job_added", { resume: !!withResume }); }
       else if (saved.status === 403 && saved.body?.upgrade) meta.saveNote = <>Free includes {LIMITS.free.saved_jobs} saved job, so this one isn{"’"}t saved. <Link to="/pricing">Get a pass</Link> to keep more, or remove one in <Link to="/jobs">Jobs</Link>.</>;
       else meta.saveNote = saved.status === 0 ? "Couldn’t reach the server to save this job. Try “Save this job” below." : saved.body?.error || "Couldn’t save this job. Try “Save this job” below.";
@@ -300,6 +301,17 @@ interface Imported { title: string; company: string; location: string; url: stri
 
 const hostOf = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
 
+/** Job boards that block automated reading (same list as the server). */
+function blockedSiteName(u: string): string {
+  const h = hostOf(u).toLowerCase();
+  if (/(^|\.)linkedin\.[a-z.]+$/.test(h) || /(^|\.)lnkd\.in$/.test(h)) return "LinkedIn";
+  if (/(^|\.)indeed\.[a-z.]+$/.test(h)) return "Indeed";
+  if (/(^|\.)glassdoor\.[a-z.]+$/.test(h)) return "Glassdoor";
+  return "";
+}
+const BLOCKED_HELP = (site: string) =>
+  site + " doesn’t let other apps read its job posts. Open the job on " + site + ", tap “See more” or “Show more” under About the job, select all of that text, copy it and paste it below. We kept your link with the job.";
+
 function Step({ n, title, tag, sub, children }: { n: number; title: string; tag?: string; sub: string; children: ReactNode }) {
   return (
     <section className="card aj-step" aria-labelledby={"aj-step-" + n}>
@@ -332,6 +344,7 @@ function AddJobForm({
   const [imported, setImported] = useState<Imported | null>(null);
   const [notice, setNotice] = useState("");
   const [role, setRole] = useState(prefill?.targetRole || "");
+  const [company, setCompany] = useState(prefill?.company || "");
   const [jd, setJd] = useState(prefill?.jobDescription || "");
   const [date, setDate] = useState(prefill?.interviewDate || "");
   const [pastedResume, setPastedResume] = useState("");
@@ -339,10 +352,10 @@ function AddJobForm({
   const urlRef = useRef<HTMLInputElement | null>(null);
   const jdRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const values = (): FormValues => ({ targetRole: role.trim(), jobDescription: jd.trim(), interviewDate: date, sourceUrl: url.trim() });
+  const values = (): FormValues => ({ targetRole: role.trim(), jobDescription: jd.trim(), interviewDate: date, sourceUrl: url.trim(), company: company.trim() });
   useEffect(() => {
     if (onDraft && jd.trim()) onDraft(values());
-  }, [role, jd, date, url]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [role, jd, date, url, company]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toPaste = (msg: string) => {
     setNotice(msg);
@@ -350,11 +363,21 @@ function AddJobForm({
     setTimeout(() => jdRef.current?.focus(), 30);
   };
 
-  const doImport = async () => {
-    const u = url.trim();
+  const clearLink = () => {
+    setUrl("");
+    setImported(null);
+    setNotice("");
+    setErr("");
+  };
+
+  const doImport = async (raw?: string) => {
+    const u = (raw ?? url).trim();
     setNotice("");
     setErr("");
     if (!/^https?:\/\/\S+\.\S+/i.test(u)) { setErr("That doesn’t look like a link. Copy the full address of the job posting, starting with https://"); urlRef.current?.focus(); return; }
+    // Sites that block automated reading: say how to copy the text right away.
+    const blockedName = blockedSiteName(u);
+    if (blockedName) { toPaste(BLOCKED_HELP(blockedName)); return; }
     setImporting(true);
     const tok = auth.session ? await auth.getAccessToken() : null;
     const res = await api.importJobUrl(tok, u);
@@ -364,13 +387,14 @@ function AddJobForm({
     if (res.status === 200 && b?.ok && (b.description || "").trim().length >= 30) {
       setImported({ title: b.title || "", company: b.company || "", location: b.location || "", url: b.source_url || u });
       setRole((b.title || "").slice(0, 200));
+      setCompany((b.company || "").slice(0, 200));
       setJd((b.description || "").slice(0, 12000));
       return;
     }
-    if (res.status === 422 || b?.blocked) toPaste(site + " doesn’t allow automatic import. Open the posting, copy the job description and paste it here. We kept your link.");
-    else if (res.status === 401) toPaste("Sign in to import from a link (it’s free), or paste the job description here.");
-    else if (res.status === 0) toPaste("We couldn’t reach the server to read that link. Paste the job description here instead.");
-    else toPaste("We couldn’t read a job description from that page. Paste it here instead. We kept your link.");
+    if (res.status === 422 || b?.blocked) toPaste(site + " didn’t let us read the posting. Open it, select the job description text, copy it and paste it below.");
+    else if (res.status === 401) toPaste("Sign in to import from a link (it’s free), or paste the job description below.");
+    else if (res.status === 0) toPaste("We couldn’t reach the server to read that link. Paste the job description below instead.");
+    else toPaste("We couldn’t read a job description from that page. Copy the description from the posting and paste it below.");
   };
 
   const submit = (e: FormEvent) => {
@@ -402,12 +426,19 @@ function AddJobForm({
             <>
               <label className="field-label" htmlFor="aj-url">Link to the job posting</label>
               <div className="aj-url-row">
-                <input id="aj-url" ref={urlRef} className="input" type="url" inputMode="url" autoComplete="url" placeholder="https://boards.greenhouse.io/acme/jobs/123"
-                  value={url} onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doImport(); } }} />
-                <button type="button" className="btn btn-primary" disabled={importing || !url.trim()} onClick={doImport}>{importing ? "Reading…" : "Get the job"}</button>
+                <div className="aj-url-wrap">
+                  <input id="aj-url" ref={urlRef} className="input" type="url" inputMode="url" autoComplete="url" placeholder="https://boards.greenhouse.io/acme/jobs/123"
+                    value={url} onChange={(e) => setUrl(e.target.value)}
+                    onPaste={(e) => {
+                      const t = e.clipboardData.getData("text").trim();
+                      if (/^https?:\/\/\S+$/i.test(t)) { e.preventDefault(); setUrl(t); void doImport(t); }
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); doImport(); } }} />
+                  {url && !importing && <button type="button" className="aj-url-clear" aria-label="Clear the link" onClick={() => { clearLink(); urlRef.current?.focus(); }}>{"×"}</button>}
+                </div>
+                <button type="button" className="btn btn-primary" disabled={importing || !url.trim()} onClick={() => doImport()}>{importing ? "Reading…" : "Get the job"}</button>
               </div>
-              <p className="small muted">Works with most company career pages, Greenhouse, Lever and Ashby. Some sites, like LinkedIn, block this; paste the description instead.</p>
+              <p className="small muted">Works with company career pages on Greenhouse, Lever, Ashby, Workday and SmartRecruiters, and most others. LinkedIn, Indeed and Glassdoor don{"’"}t allow it: copy the description from there instead.</p>
             </>
           )}
           {imported && tab === "link" && (
@@ -417,18 +448,31 @@ function AddJobForm({
                 <strong>{imported.title || "Job imported"}</strong>
                 <span className="small muted">{[imported.company, imported.location].filter(Boolean).join(" · ") || hostOf(imported.url)}</span>
               </div>
-              <button type="button" className="link-btn small" onClick={() => { setImported(null); setJd(""); setRole(""); }}>Use another link</button>
+              <button type="button" className="link-btn small" onClick={() => { clearLink(); setJd(""); setRole(""); setCompany(""); setTimeout(() => urlRef.current?.focus(), 30); }}>Use another link</button>
             </div>
           )}
           {notice && <p className="aj-notice" role="status">{notice}</p>}
           {tab === "paste" && url.trim() && !imported && (
-            <p className="small muted">Posting: <ExternalLink href={url.trim()}>{hostOf(url.trim()) || url.trim()}</ExternalLink></p>
+            <p className="small muted aj-posting">
+              Posting: <ExternalLink href={url.trim()}>{hostOf(url.trim()) || url.trim()}</ExternalLink>
+              <button type="button" className="link-btn small" onClick={clearLink}>Remove link</button>
+            </p>
           )}
           {showFields && (
             <>
-              <label className="field-label" htmlFor="az-role">Job title {imported ? "" : "(optional)"}</label>
-              <input id="az-role" className="input" type="text" maxLength={200} placeholder="e.g. Senior Data Engineer"
-                value={role} onChange={(e) => setRole(e.target.value)} />
+              <div className="aj-two">
+                <div className="stack-xs">
+                  <label className="field-label" htmlFor="az-role">Job title {imported ? "" : <span className="muted">(as the posting says it)</span>}</label>
+                  <input id="az-role" className="input" type="text" maxLength={200} placeholder="e.g. AI Strategy Lead"
+                    value={role} onChange={(e) => setRole(e.target.value)} />
+                </div>
+                <div className="stack-xs">
+                  <label className="field-label" htmlFor="az-company">Company <span className="muted">(optional)</span></label>
+                  <input id="az-company" className="input" type="text" maxLength={200} placeholder="e.g. Acme"
+                    value={company} onChange={(e) => setCompany(e.target.value)} />
+                </div>
+              </div>
+              {!role.trim() && <p className="small muted">Leave the title empty and we{"’"}ll use the one in the description. You can rename the job later.</p>}
               <label className="field-label" htmlFor="az-jd">Job description{imported ? " (check it, edit if needed)" : ""}</label>
               <textarea id="az-jd" ref={jdRef} className="input textarea" rows={imported ? 7 : 8} maxLength={12000} placeholder={"Paste the full job description here…"}
                 value={jd} onChange={(e) => setJd(e.target.value)} />
@@ -503,7 +547,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
     setSaveMsg({ text: "Saving…" });
     const token = await auth.getAccessToken();
     if (!token) { setBusy(false); setSaveMsg({ text: <>Please <Link to="/account">sign in</Link> to save this job.</> }); return; }
-    const res = await api.createJob(token, { analysis: a, title: targetRole || a.seniority || "", jobDescription: meta.input?.jobDescription || "", model: meta.model || "" });
+    const res = await api.createJob(token, { analysis: a, title: targetRole || a.jobTitle || "", company: (a.company || "").slice(0, 200), jobDescription: meta.input?.jobDescription || "", model: meta.model || "" });
     setBusy(false);
     if (res.status === 201 && res.body?.job?.id) {
       track("job_added", { via: "save" });
