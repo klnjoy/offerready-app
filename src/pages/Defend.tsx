@@ -620,8 +620,19 @@ function Runner({
         <button type="button" className="btn btn-ghost btn-small" onClick={onBack} title="Your progress is saved. Continue it later from the drills page.">{"‹"} {answered ? "Save & exit" : "All drills"}</button>
         <span className="drill-title">{scenario.title}</span>
         <span className="drill-count">{answered} of {ratedTotal || "?"} answered</span>
+        {answered > 0 && (
+          <button type="button" className="btn btn-small drill-finish" onClick={() => setFinished(true)}
+            title="Stop here and get your score for the answers so far">Finish now</button>
+        )}
       </div>
-      {line.length > 1 && (
+      {answered > 0 && ratedTotal > 6 && (
+        <p className="small muted drill-long-note">Long drill: you don{"’"}t have to do all {ratedTotal}. <strong>Finish now</strong> scores what you{"’"}ve answered; <strong>Save &amp; exit</strong> lets you continue later.</p>
+      )}
+      {line.filter((n) => RATED(n.kind) || n.kind === "choice").length > 7 ? (
+        <div className="drill-bar" role="progressbar" aria-valuemin={0} aria-valuemax={ratedTotal} aria-valuenow={answered} aria-label="Drill progress">
+          <span style={{ width: (ratedTotal ? Math.round((answered / ratedTotal) * 100) : 0) + "%" }} />
+        </div>
+      ) : line.length > 1 && (
         <ol className="drill-track" aria-label="Stages in this drill">
           {line.filter((n) => RATED(n.kind) || n.kind === "choice").map((n) => {
             const st = ratings[n.id] != null ? "done" : n.id === current ? "now" : path.includes(n.id) ? "done" : "ahead";
