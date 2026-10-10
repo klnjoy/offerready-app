@@ -8,7 +8,7 @@
  *   Resume (?tab=resume) fit details, the saved resume, re-check, Tailor.
  *   After the interview (?tab=after) debriefs and offers. */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { docsUrl } from "../config";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -87,7 +87,8 @@ export default function JobDetailPage({ id }: Record<string, string>) {
   return (
     <div className="page jw">
       <JobHead id={id} title={displayJobTitle(data?.job || row)} job={data?.job || row} jobs={jobs.jobs} tab={tab}
-        onSwitch={(nid) => { setActiveJob(nid); navigate(jobPath(nid, tab)); }} />
+        onSwitch={(nid) => { setActiveJob(nid); navigate(jobPath(nid, tab)); }}
+        onRenamed={(t, c) => { setData((d) => ({ ...d, job: { ...d.job, title: t, company: c } })); jobs.reload(); }} />
       {state.kind === "loading" && <Loading>Loading this job{"…"}</Loading>}
       {state.kind === "signedout" && <SignInCard title="Sign in to open this job" />}
       {state.kind === "error" && <Card><p>{state.msg}</p><div className="row"><Link className="btn" to="/jobs">See all jobs</Link></div></Card>}
@@ -118,18 +119,54 @@ export default function JobDetailPage({ id }: Record<string, string>) {
   );
 }
 
-function JobHead({ id, title, job, jobs, tab, onSwitch }: { id: string; title: string; job?: JobRow; jobs: JobRow[]; tab: Tab; onSwitch(id: string): void }) {
-  const meta = [job?.company, job?.seniority].filter(Boolean).join(" · ");
+function JobHead({ id, title, job, jobs, tab, onSwitch, onRenamed }: {
+  id: string; title: string; job?: JobRow; jobs: JobRow[]; tab: Tab; onSwitch(id: string): void; onRenamed(title: string, company: string): void;
+}) {
+  const auth = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [t, setT] = useState("");
+  const [c, setC] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  // Company only: the level is part of the title when the posting states it.
+  const meta = job?.company || "";
+  const start = () => { setT(title === "Untitled role" ? "" : title); setC(job?.company || ""); setErr(""); setEditing(true); };
+  const save = async () => {
+    const nt = t.replace(/\s+/g, " ").trim();
+    if (nt.length < 2) { setErr("Give the job a title."); return; }
+    setBusy(true);
+    const tok = await auth.getAccessToken();
+    const res = tok ? await api.renameJob(tok, id, { title: nt, company: c.trim() }) : null;
+    setBusy(false);
+    if (res && res.status === 200) { onRenamed(nt, c.trim()); setEditing(false); }
+    else setErr(res?.body?.error || "Couldn’t rename the job. Please try again.");
+  };
   return (
     <header className="jw-head">
       <Link className="back-link" to="/jobs">{"←"} All jobs</Link>
       <div className="jw-head-row">
         <div className="jw-head-titles">
           <p className="td-job-label">Preparing for</p>
-          <h1>{title}</h1>
-          {meta && <p className="muted">{meta}</p>}
+          {editing ? (
+            <form className="jw-rename" onSubmit={(e) => { e.preventDefault(); void save(); }}>
+              <label className="field-label" htmlFor="jw-rn-t">Job title</label>
+              <input id="jw-rn-t" className="input" value={t} maxLength={200} autoFocus onChange={(e) => setT(e.target.value)} placeholder="e.g. AI Strategy Lead" />
+              <label className="field-label" htmlFor="jw-rn-c">Company <span className="muted">(optional)</span></label>
+              <input id="jw-rn-c" className="input" value={c} maxLength={200} onChange={(e) => setC(e.target.value)} placeholder="e.g. Acme" />
+              {err && <p className="error small" role="alert">{err}</p>}
+              <div className="row">
+                <button type="submit" className="btn btn-primary btn-small" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => setEditing(false)}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <>
+              <h1>{title} <button type="button" className="link-btn small jw-rename-btn" onClick={start} disabled={!job}>Rename</button></h1>
+              {meta && <p className="muted">{meta}</p>}
+            </>
+          )}
         </div>
-        {jobs.length > 1 && (
+        {jobs.length > 1 && !editing && (
           <label className="jw-switch">
             <span className="small muted">Switch job</span>
             <select className="input td-job-select" aria-label="Switch job" value={id} onChange={(e) => onSwitch(e.target.value)}>
@@ -554,6 +591,9 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
   const r = gapRowToResult(data.gap);
   const jobId = data.job.id;
   const jd = data.job.job_description || data.job.analysis?.roleSummary || "";
+  const params = useSearchParams();
+  const navigate = useNavigate();
+  const autoRan = useRef(false);
 
   const check = async () => {
     if (!resume) return;
@@ -565,16 +605,32 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
     setBusy(false);
     if (res.status === 200 && res.body?.result) {
       invalidatePlan();
+      const before = r ? r.matchScore || 0 : null;
+      const after = res.body.result.matchScore || 0;
       onGap(resultToGapRow(res.body.result));
-      setMsg({ text: "Updated. " + (res.body.saved ? "Saved to this job." : "") });
+      setMsg({ text: (before != null ? "Your match is now " + after + "% (was " + before + "%). " : "Your match is " + after + "%. ") + (res.body.saved ? "Saved to this job." : "") });
     } else if (res.status === 401) setMsg({ text: "Your session expired. Sign in again and retry.", err: true });
     else if (res.status === 503) setMsg({ text: "The fit check isn’t enabled on this deployment yet.", err: true });
     else if (res.status === 0) setMsg({ text: "Couldn’t reach the server. Check your connection and try again.", err: true });
     else setMsg({ text: res.body?.error || "Couldn’t compare your resume. Please try again.", err: true });
   };
 
+  // Back from Tailor with an updated resume: re-check once, automatically.
+  useEffect(() => {
+    if (params.get("recheck") !== "1" || autoRan.current || !resume) return;
+    autoRan.current = true;
+    navigate(jobPath(jobId, "resume"), { replace: true });
+    void check();
+  }, [resume?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const step = !resume ? 1 : !r ? 2 : 3;
   return (
     <div className="stack">
+      <ol className="jw-steps" aria-label="How this works">
+        <li className={step === 1 ? "on" : "done"}><span>1</span>Add your resume</li>
+        <li className={step === 2 ? "on" : step > 2 ? "done" : ""}><span>2</span>Check your fit</li>
+        <li className={step === 3 ? "on" : ""}><span>3</span>Tailor bullets for the gaps, then re-check</li>
+      </ol>
       <section className="card jw-resume" aria-labelledby="jw-res-h">
         <div className="td-sec-head">
           <div>
@@ -601,7 +657,7 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
         <div className="jw-tailor-row">
           <div className="stack-sm">
             <h2 id="jw-tl-h">Tailor my resume for this job</h2>
-            <Muted small>Rewrites your resume bullets for this job{"’"}s skills and gaps, without inventing anything. Uses your saved resume.</Muted>
+            <Muted small>Rewrites your resume bullets to cover {r && (r.missingKeywords || []).length ? "the missing keywords above" : "this job’s skills"}, without inventing anything. You review each one, then update your saved resume and re-check your fit here.</Muted>
           </div>
           <Link className="btn btn-primary" to={"/tailor?job=" + enc(jobId)}>Tailor my resume</Link>
         </div>

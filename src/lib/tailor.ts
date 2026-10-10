@@ -102,3 +102,32 @@ export function finalBullets(originals: string[], suggestions: TailorSuggestion[
 export function bulletsToText(bullets: string[]): string {
   return bullets.map((b) => "• " + b).join("\n");
 }
+
+/** Placeholders the rewrite left for the user to fill, e.g. "[X%]". */
+export function hasPlaceholder(s: string): boolean {
+  return /\[[^\]]{0,40}\]/.test(String(s || ""));
+}
+
+/**
+ * Put rewritten bullets back into the full resume text: each line whose
+ * bullet text equals an original is replaced, keeping its bullet mark and
+ * indentation. Pure. Returns the new text and how many were (not) found.
+ */
+export function applyToResume(resumeText: string, pairs: { original: string; rewritten: string }[]): { text: string; replaced: number; missed: string[] } {
+  const norm = (s: string) => s.replace(BULLET_MARK, "").replace(/\s+/g, " ").trim().toLowerCase();
+  const lines = String(resumeText || "").replace(/\r\n?/g, "\n").split("\n");
+  const used = new Set<number>();
+  let replaced = 0;
+  const missed: string[] = [];
+  for (const p of pairs) {
+    if (!p.rewritten.trim() || p.rewritten.trim() === p.original.trim()) continue;
+    const want = p.original.replace(/\s+/g, " ").trim().toLowerCase();
+    const i = lines.findIndex((l, k) => !used.has(k) && norm(l) && (norm(l) === want || (want.length >= 40 && norm(l).startsWith(want))));
+    if (i < 0) { missed.push(p.original); continue; }
+    const lead = (/^\s*(?:[-*•▪●–—>]|\d+[.)])\s+/.exec(lines[i]) || /^\s*/.exec(lines[i]) || [""])[0];
+    lines[i] = lead + p.rewritten.replace(/\s+/g, " ").trim();
+    used.add(i);
+    replaced++;
+  }
+  return { text: lines.join("\n"), replaced, missed };
+}

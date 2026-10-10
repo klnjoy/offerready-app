@@ -107,8 +107,13 @@ export function getJob(token: string, id: string) {
   return call<{ ok: boolean } & JobDetail>("/api/jobs/" + encodeURIComponent(id), { token });
 }
 
-export function createJob(token: string, p: { analysis: Analysis; title: string; jobDescription: string; model: string }) {
+export function createJob(token: string, p: { analysis: Analysis; title: string; jobDescription: string; model: string; company?: string }) {
   return call<{ ok: boolean; job: JobRow }>("/api/jobs", { method: "POST", token, body: p });
+}
+
+/** Fix a job's title / company (POST /api/jobs/:id { action: "rename" }). */
+export function renameJob(token: string, id: string, p: { title: string; company: string }) {
+  return call<{ ok: boolean; job: Pick<JobRow, "id" | "title" | "company"> }>("/api/jobs/" + encodeURIComponent(id), { method: "POST", token, body: { action: "rename", ...p } });
 }
 
 export function deleteJob(token: string, id: string) {

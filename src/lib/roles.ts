@@ -225,6 +225,9 @@ export function deriveRoleTitle(targetRole: string | undefined, analysis: Analys
   const a = analysis || ({} as Analysis);
   const explicit = cleanRole(targetRole);
   if (explicit && hasRoleNoun(explicit) && !isLevelOnly(explicit)) return explicit.slice(0, 200);
+  // The title exactly as the posting names it (analysis.jobTitle).
+  const named = cleanRole(a.jobTitle);
+  if (named && named.length >= 3 && !isLevelOnly(named)) return named.slice(0, 200);
   const parsed = cleanRole(a.seniority);
   if (parsed && hasRoleNoun(parsed) && !isLevelOnly(parsed)) return parsed.slice(0, 200);
   const levelPrefix = bareSeniority(explicit) || bareSeniority(a.seniority);
