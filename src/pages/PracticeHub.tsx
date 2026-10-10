@@ -108,6 +108,14 @@ export default function PracticeHubPage() {
           );
         })}
       </ol>
+      <section className="hub-mock-note" aria-labelledby="hub-mock-h">
+        <h2 id="hub-mock-h">You don{"’"}t need all four before a mock interview</h2>
+        <p>
+          A mock is open any time. The quickest useful route: <strong>practise 5 questions for this job</strong> and <strong>one trade-off drill</strong>, then do a mock.
+          Use stories when you have behavioral rounds, and the question bank for extra reps.
+        </p>
+        <div className="row"><Link className="btn" to="/mock">Go to mock interview {"→"}</Link></div>
+      </section>
     </div>
   );
 }

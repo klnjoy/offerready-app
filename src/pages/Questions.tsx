@@ -78,21 +78,27 @@ export default function QuestionsPage() {
     setView(existing.length ? { kind: "restored", questions: existing } : { kind: "form" });
   }
 
-  const submit = async (r: string, d: string) => {
+  const submit = async (r: string, d: string, mode?: "more") => {
     setRole(r);
     setJd(d);
     if (d.length < 30) { setView({ kind: "form", note: "Please paste a fuller job description first (or pick a saved job)." }); return; }
-    setView({ kind: "loading", msg: "Generating your question set…" });
+    const msg = mode === "more" ? "Writing more questions that don’t repeat your current ones… (about 30 seconds)" : "Writing about 30 questions for this job… (about 30 seconds)";
+    setView({ kind: "loading", msg });
     const tok = await auth.getAccessToken();
-    const res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d });
+    let res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d, mode });
+    // A slow or incomplete answer from the AI: try once more automatically.
+    if (res.status === 0 || res.status === 502 || res.status === 504) {
+      setView({ kind: "loading", msg: "That took too long. Trying once more…" });
+      res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d, mode });
+    }
     if (res.status === 200 && res.body?.questions) {
-      track("questions_generated", { n: res.body.questions.length });
+      track("questions_generated", { n: res.body.questions.length, more: mode === "more" });
       setView({ kind: "result", questions: res.body.questions, saved: !!res.body.saved });
     }
     else if (res.status === 401) setView({ kind: "form", note: "Sign in (Account, top right) to get questions, then try again." });
     else if (res.status === 503) setView({ kind: "form", note: "Question generation isn't enabled on this deployment yet." });
     else if (res.status === 0) setView({ kind: "form", note: "Couldn't reach the generator. Check your connection and try again." });
-    else setView({ kind: "form", note: res.body?.error || "Couldn't generate the question set. Please try again." });
+    else setView({ kind: "form", note: res.body?.error || "Couldn't write the questions this time. Please press the button again." });
   };
 
   const activeJob = jobs.find((j) => j.id === jobId);
@@ -119,11 +125,7 @@ export default function QuestionsPage() {
           analysis={analysis}
           defendTo={defendTo}
           onSwitch={restoreOrForm}
-          onRegenerate={() => {
-            if (window.confirm("Writing new questions replaces this job’s saved set and its practice marks.\n\nThis can’t be undone.")) {
-              setView({ kind: "form", note: "Writing new questions replaces your saved set for this job. Check the job description, then confirm." });
-            }
-          }}
+          onMore={() => submit(role, jd, "more")}
         />
       )}
     </div>
@@ -138,24 +140,44 @@ function QuestionForm({
 }) {
   const [r, setR] = useState(role);
   const [d, setD] = useState(jd);
-  return (
-    <Card>
-      <JobBanner title={activeTitle} hasJobs={jobs.length > 0} />
-      {note && <ErrorText>{note}</ErrorText>}
-      {jobs.length > 0 && (
-        <>
-          <div className="field-label">{jobId ? "Another job?" : "Which job?"}</div>
-          <JobPicker jobs={jobs} current={jobId} onSwitch={onPick} />
-          <Muted small>No job here yet? <Link to="/analyze">Add a job</Link> first.</Muted>
-        </>
-      )}
-      <label className="field-label" htmlFor="q-role">Target role</label>
-      <input id="q-role" className="input" type="text" placeholder="Target role (optional)" value={r} onChange={(e) => setR(e.target.value)} />
+  // A saved job already has its description: one button, details tucked away.
+  const ready = !!jobId && jd.trim().length >= 30;
+  const fields = (
+    <>
+      <label className="field-label" htmlFor="q-role">Job title</label>
+      <input id="q-role" className="input" type="text" placeholder="Job title (optional)" value={r} onChange={(e) => setR(e.target.value)} />
       <label className="field-label" htmlFor="q-jd">Job description</label>
       <textarea id="q-jd" className="input textarea" rows={9} placeholder={"Paste the full job description here…"} value={d} onChange={(e) => setD(e.target.value)} />
-      <div className="row">
-        <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Get my questions</button>
-      </div>
+    </>
+  );
+  return (
+    <Card>
+      {jobs.length > 1 ? (
+        <JobPicker jobs={jobs} current={jobId} onSwitch={onPick} label={<><span className="job-banner-label">Job</span> <strong>{activeTitle || "Pick a job"}</strong></>} />
+      ) : (
+        <JobBanner title={activeTitle} hasJobs={jobs.length > 0} />
+      )}
+      {note && <ErrorText>{note}</ErrorText>}
+      {ready ? (
+        <>
+          <p>We{"’"}ll write about 30 likely questions for <strong>{activeTitle}</strong> from its job description and the gaps in your resume, and save them to the job.</p>
+          <div className="row">
+            <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Write my questions</button>
+          </div>
+          <details className="q-edit">
+            <summary className="small">Edit the job description first</summary>
+            {fields}
+          </details>
+        </>
+      ) : (
+        <>
+          {!jobs.length && <Muted small>Tip: <Link to="/analyze">add the job</Link> first and the questions are saved to it.</Muted>}
+          {fields}
+          <div className="row">
+            <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Write my questions</button>
+          </div>
+        </>
+      )}
     </Card>
   );
 }
@@ -218,9 +240,12 @@ function WhyPanel({ analysis, questions }: { analysis: Analysis | null; question
 
 type CatFilter = "all" | "todo" | string;
 
-function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defendTo, onSwitch, onRegenerate }: {
+/** Questions to practise before moving on to a drill. */
+const GOAL = 5;
+
+function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defendTo, onSwitch, onMore }: {
   jobId: string; jobs: JobRow[]; title: string; questions: GeneratedQuestion[]; fresh: boolean; saved: boolean;
-  analysis: Analysis | null; defendTo: string; onSwitch(id: string): void; onRegenerate(): void;
+  analysis: Analysis | null; defendTo: string; onSwitch(id: string): void; onMore(): void;
 }) {
   const auth = useAuth();
   const [progress, saveProgress] = useQuestionProgress(jobId);
@@ -285,8 +310,13 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
           ) : (
             <Link className="btn btn-primary" to={defendTo}>All practised. Try a trade-off drill</Link>
           )}
-          <button type="button" className="btn btn-ghost" onClick={onRegenerate}>Write new questions</button>
+          <button type="button" className="btn btn-ghost" onClick={onMore} title="Keeps these questions and your practice, and adds new ones">Get more questions</button>
         </div>
+        <p className="small muted qw-goal">
+          {done.length >= GOAL
+            ? <>Goal reached: {GOAL} practised. Next, <Link to={defendTo}>a trade-off drill</Link>. Keep practising here any time.</>
+            : <>Goal: practise {GOAL} out loud ({done.length} done), then a trade-off drill. {"“"}Get more questions{"”"} keeps these and your practice.</>}
+        </p>
         {savedNote && <p className="hint" role="status">{savedNote}</p>}
       </Card>
 
@@ -339,13 +369,15 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
         <WhyPanel analysis={analysis} questions={questions} />
       </details>
 
-      <div className="next-action">
-        <div className="next-action-label">Then</div>
-        <div className="next-action-row">
-          <Link className="btn" to={defendTo}>Start a trade-off drill</Link>
-          <span className="next-action-why">Hold your answers when the interviewer pushes back on trade-offs, cost, scale and failure.</span>
+      <section className={"qw-next" + (done.length >= GOAL ? " ready" : "")} aria-labelledby="qw-next-h">
+        <span className="td-eyebrow">{done.length >= GOAL ? "Next step" : "After " + GOAL + " questions"}</span>
+        <h2 id="qw-next-h">Trade-off drill</h2>
+        <p>The interviewer pushes back on your design call: why, what you trade away, a new constraint, an incident. About 10 minutes.</p>
+        <div className="row">
+          <Link className={"btn " + (done.length >= GOAL ? "btn-primary" : "")} to={defendTo}>Start a trade-off drill {"→"}</Link>
+          {done.length < GOAL && <span className="small muted">{GOAL - done.length} more {GOAL - done.length === 1 ? "question" : "questions"} to go first (recommended)</span>}
         </div>
-      </div>
+      </section>
     </>
   );
 }

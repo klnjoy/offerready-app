@@ -61,6 +61,43 @@ function genCacheKey(rec: StoredAnalysis, category: string | null): string {
 
 const uniqueCats = (list: Scenario[]) => Array.from(new Set(list.map((s) => s.category).filter(Boolean)));
 
+/** An unfinished drill, saved after every answer so leaving never loses it. */
+interface SavedRun {
+  slug: string;
+  title: string;
+  /** Generated drills are stored whole (they aren't in the catalog). */
+  scenario?: Scenario;
+  current: string;
+  path: string[];
+  ratings: Record<string, number>;
+  aiScores: Record<string, number>;
+  answered: number;
+  total: number;
+  at: number;
+}
+const RUN_MAX_AGE = 14 * 86400000;
+function loadRun(): SavedRun | null {
+  const r = readJSON<SavedRun | null>(KEYS.drillRun, null);
+  return r && r.slug && r.current && Date.now() - (r.at || 0) < RUN_MAX_AGE ? r : null;
+}
+function clearRun(): void { writeJSON(KEYS.drillRun, null); }
+
+/** Soft skills make poor trade-off focus areas; keep technical gaps. */
+const SOFT_GAP = /\b(communicat|collaborat|interpersonal|teamwork|presentation|soft skill|stakeholder)/i;
+
+/** Personalization for the CURRENT job (not whichever job was analyzed last). */
+function contextForJob(job: JobRow | null, gap: { result?: { missingSkills?: string[]; missingExperience?: string[]; missingKeywords?: string[] } } | null): JobContext | null {
+  if (!job) return null;
+  const a = job.analysis;
+  const technologies = (a?.technologies || []).filter(Boolean).slice(0, 8);
+  const gaps = [...(gap?.result?.missingSkills || []), ...(a?.potentialGaps || []).map((g) => g.requirement), ...(gap?.result?.missingKeywords || [])]
+    .filter((g): g is string => typeof g === "string" && !!g.trim() && !SOFT_GAP.test(g))
+    .filter((g, i, all) => all.findIndex((x) => x.toLowerCase() === g.toLowerCase()) === i)
+    .slice(0, 6);
+  return { category: classifyFamilyFromJob(job), role: displayJobTitle(job), seniority: "", technologies, gaps };
+}
+const jobDrillKey = (jobId: string) => KEYS.genScenarioPrefix + "job." + jobId;
+
 export default function DefendPage() {
   const auth = useAuth();
   const params = useSearchParams();
@@ -97,6 +134,9 @@ export default function DefendPage() {
   const [notice, setNotice] = useState("");
   const [genBusy, setGenBusy] = useState(false);
   const boundJobId = useRef("");
+  const [jobCtx, setJobCtx] = useState<{ id: string; ctx: JobContext | null; analysis: Analysis | null } | null>(null);
+  const [savedRun, setSavedRun] = useState<SavedRun | null>(loadRun);
+  const [resumeState, setResumeState] = useState<SavedRun | null>(null);
 
   // Load the catalog teasers.
   const loadList = async () => {
@@ -117,6 +157,7 @@ export default function DefendPage() {
 
   // The ACTIVE JOB is authoritative for the family + label (where practice is saved).
   const applyJob = (job: JobRow | undefined, id: string) => {
+    void loadJobContext(id);
     if (!job) { setActiveJobState({ id, title: "" }); return; }
     const title = displayJobTitle(job);
     setActiveJobState({ id, title });
@@ -145,6 +186,18 @@ export default function DefendPage() {
     return () => { alive = false; };
   }, [auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
   const switchJob = (id: string) => { setActiveJob(id); applyJob(myJobs.find((j) => j.id === id), id); };
+
+  /** The current job's own analysis and resume gaps drive personalization and "Write one for this job". */
+  async function loadJobContext(id: string) {
+    if (!id || !API_ENABLED) return;
+    const tok = await auth.getAccessToken();
+    if (!tok) return;
+    const res = await api.getJob(tok, id);
+    if (res.status !== 200 || !res.body?.job) return;
+    setJobCtx({ id, ctx: contextForJob(res.body.job, res.body.gap || null), analysis: res.body.job.analysis || null });
+  }
+  const currentCtx = jobCtx && activeJob && jobCtx.id === activeJob.id ? jobCtx : null;
+  const jobDrill = activeJob?.id ? readJSON<Scenario | null>(jobDrillKey(activeJob.id), null) : null;
 
   const list = offline ? OFFLINE_SCENARIOS : scenarios;
   const [runNonce, setRunNonce] = useState(0);
@@ -176,27 +229,28 @@ export default function DefendPage() {
     if (match) setTimeout(() => openScenario(match), 900);
   };
 
-  const generateForJob = async () => {
-    const rec = getStoredAnalysis();
-    if (!rec) return;
-    const category = initial.jobContext?.category || activeCat;
-    boundJobId.current = bindJobId();
-    const key = genCacheKey(rec, category);
+  const generateForJob = async (fresh = false) => {
+    const jobId = activeJob?.id || bindJobId();
+    const analysis = (currentCtx?.analysis) || getStoredAnalysis()?.analysis || null;
+    if (!jobId && !analysis) return;
+    boundJobId.current = jobId;
+    const category = currentCtx?.ctx?.category || (activeCat !== "all" ? activeCat : null);
+    const key = jobId ? jobDrillKey(jobId) : genCacheKey(getStoredAnalysis()!, category);
     const cached = readJSON<Scenario | null>(key, null);
-    if (cached?.content?.start) {
-      setView({ kind: "run", scenario: { ...cached, exactJob: true, jobId: boundJobId.current || cached.jobId } });
+    if (!fresh && cached?.content?.start) {
+      setView({ kind: "run", scenario: { ...cached, exactJob: true, jobId: jobId || cached.jobId } });
       return;
     }
     setGenBusy(true);
     const res = await api.generateScenario(await auth.getAccessToken(), {
-      targetRole: rec.input?.targetRole || "",
-      category: category === "all" ? null : category,
-      analysis: rec.analysis,
-      jobId: boundJobId.current || null,
+      targetRole: activeJob?.title || getStoredAnalysis()?.input?.targetRole || "",
+      category,
+      analysis: analysis || ({ roleSummary: "" } as Analysis),
+      jobId: jobId || null,
     });
     setGenBusy(false);
     if (res.status === 200 && res.body?.scenario?.content) {
-      const scn: Scenario = { ...res.body.scenario, exactJob: true, jobId: boundJobId.current || undefined };
+      const scn: Scenario = { ...res.body.scenario, slug: res.body.scenario.slug || "gen-" + (jobId || "job"), exactJob: true, jobId: jobId || undefined };
       writeJSON(key, scn);
       setView({ kind: "run", scenario: scn });
     } else if (res.status === 401) setView({ kind: "gate", gate: "sign-in", teaser: { title: "Generate a custom scenario" } });
@@ -205,7 +259,16 @@ export default function DefendPage() {
     else fallback("Couldn't generate a custom scenario right now — opening the standard one for your role.");
   };
 
-  const backToList = () => { setNotice(""); if (offline) setView({ kind: "list" }); else loadList(); };
+  /** Continue an unfinished drill exactly where it stopped. */
+  const resumeRun = async (r: SavedRun) => {
+    setResumeState(r);
+    if (r.scenario?.content) { setView({ kind: "run", scenario: r.scenario }); return; }
+    const s = list.find((x) => x.slug === r.slug) || ({ slug: r.slug, title: r.title, category: "" } as Scenario);
+    await openScenario(s);
+  };
+  const discardRun = () => { clearRun(); setSavedRun(null); };
+
+  const backToList = () => { setNotice(""); setResumeState(null); setSavedRun(loadRun()); if (offline) setView({ kind: "list" }); else loadList(); };
 
   return (
     <div className="page">
@@ -224,21 +287,23 @@ export default function DefendPage() {
         <ScenarioList
           list={list} offline={offline} activeCat={activeCat} matchedRole={matchedRole} activeJob={activeJob}
           jobs={myJobs} onSwitchJob={switchJob} recommended={pickNext(null)}
-          canGenerate={API_ENABLED && !offline && !!getStoredAnalysis()} genBusy={genBusy}
+          canGenerate={API_ENABLED && !offline && (!!activeJob?.id || !!getStoredAnalysis())} genBusy={genBusy}
           onCat={setActiveCat} onClear={() => { setActiveCat("all"); setMatchedRole(null); }}
-          onOpen={openScenario} onGenerate={generateForJob}
+          onOpen={openScenario} onGenerate={() => generateForJob(false)} onRegenerate={() => generateForJob(true)}
+          jobDrill={jobDrill} savedRun={savedRun} onResume={resumeRun} onDiscard={discardRun}
         />
       )}
       {view.kind === "gate" && <Gate kind={view.gate} teaser={view.teaser} onBack={backToList} />}
       {view.kind === "run" && (
         <Runner
           key={view.scenario.slug + (view.scenario.exactJob ? ":gen" : "") + ":" + runNonce}
-          onRetry={() => setRunNonce((r) => r + 1)}
+          onRetry={() => { setResumeState(null); setRunNonce((r) => r + 1); }}
           nextUp={pickNext(view.scenario)}
-          onOpenNext={(sc) => { setRunNonce((r) => r + 1); openScenario(sc); }}
+          onOpenNext={(sc) => { setResumeState(null); setRunNonce((r) => r + 1); openScenario(sc); }}
           scenario={view.scenario}
           offline={offline}
-          jobContext={initial.jobContext}
+          jobContext={currentCtx ? currentCtx.ctx : initial.jobContext}
+          resume={resumeState && resumeState.slug === view.scenario.slug ? resumeState : null}
           whoFallback={activeJob?.title || matchedRole || ""}
           workflowJobId={workflowJobId}
           boundJobId={view.scenario.jobId || boundJobId.current}
@@ -262,10 +327,12 @@ function bestScores(): Record<string, number> {
 
 function ScenarioList({
   list, offline, activeCat, matchedRole, activeJob, jobs, onSwitchJob, recommended, canGenerate, genBusy, onCat, onClear, onOpen, onGenerate,
+  onRegenerate, jobDrill, savedRun, onResume, onDiscard,
 }: {
   list: Scenario[]; offline: boolean; activeCat: string; matchedRole: string | null;
   activeJob: { id: string; title: string } | null; jobs: JobRow[]; onSwitchJob(id: string): void; recommended: Scenario | null; canGenerate: boolean; genBusy: boolean;
   onCat(c: string): void; onClear(): void; onOpen(s: Scenario): void; onGenerate(): void;
+  onRegenerate(): void; jobDrill: Scenario | null; savedRun: SavedRun | null; onResume(r: SavedRun): void; onDiscard(): void;
 }) {
   const pointer = getActiveJob();
   // Best score per scenario from your past runs (synced to your account).
@@ -296,6 +363,28 @@ function ScenarioList({
           )}
         </div>
       )}
+      {savedRun && (
+        <section className="drill-resume" aria-labelledby="drill-resume-h">
+          <span className="drill-hero-kicker">Unfinished drill</span>
+          <h2 id="drill-resume-h">{savedRun.title}</h2>
+          <p className="muted">{savedRun.answered} of {savedRun.total || "?"} answered. Pick up where you left off.</p>
+          <div className="row wrap">
+            <button type="button" className="btn btn-primary" onClick={() => onResume(savedRun)}>Continue</button>
+            <button type="button" className="btn btn-ghost" onClick={onDiscard}>Discard</button>
+          </div>
+        </section>
+      )}
+      {jobDrill?.content && activeJob?.title && (
+        <section className="drill-mine" aria-labelledby="drill-mine-h">
+          <span className="drill-hero-kicker">Written for {activeJob.title}</span>
+          <h2 id="drill-mine-h">{jobDrill.title}</h2>
+          <p className="muted">Your own drill for this job. Saved here, so you can run it as often as you like.</p>
+          <div className="row wrap">
+            <button type="button" className="btn btn-primary" onClick={onGenerate}>{best[jobDrill.slug] != null ? "Run it again" : "Start this drill"}</button>
+            <button type="button" className="btn btn-ghost" disabled={genBusy} onClick={onRegenerate}>{genBusy ? "Writing…" : "Write a different one"}</button>
+          </div>
+        </section>
+      )}
       {recommended && list.length > 0 && (
         <section className="drill-hero" aria-labelledby="drill-hero-h">
           <div className="drill-hero-main">
@@ -305,7 +394,7 @@ function ScenarioList({
             <p className="drill-hero-how">You make a design call, then the interviewer pushes on why, trade-offs, a new constraint and an incident. Each answer gets feedback. About 10 minutes.</p>
             <div className="row wrap">
               <button type="button" className="btn btn-primary" onClick={() => onOpen(recommended)}>{best[recommended.slug] != null ? "Run it again" : "Start this drill"}</button>
-              {canGenerate && <button type="button" className="btn" disabled={genBusy} onClick={onGenerate}>{genBusy ? "Writing your drill…" : "Write one for this exact job"}</button>}
+              {canGenerate && !jobDrill?.content && <button type="button" className="btn" disabled={genBusy} onClick={onGenerate}>{genBusy ? "Writing your drill… (about 20 seconds)" : "Write one for this exact job"}</button>}
             </div>
           </div>
           <div className="drill-hero-stats" aria-label="Your drills">
@@ -446,20 +535,32 @@ const ratingFor = (score: number) => (score >= 90 ? 5 : score >= 75 ? 4 : score 
 export interface StepResult { id: string; kind: string; prompt: string; rating: number; ai?: number }
 
 function Runner({
-  scenario, offline, jobContext, whoFallback, workflowJobId, boundJobId, onBack, onRetry, nextUp, onOpenNext,
+  scenario, offline, jobContext, whoFallback, workflowJobId, boundJobId, onBack, onRetry, nextUp, onOpenNext, resume,
 }: {
   scenario: Scenario; offline: boolean; jobContext: JobContext | null; whoFallback: string;
   workflowJobId: string; boundJobId: string; onBack(): void; onRetry(): void;
-  nextUp: Scenario | null; onOpenNext(s: Scenario): void;
+  nextUp: Scenario | null; onOpenNext(s: Scenario): void; resume?: SavedRun | null;
 }) {
   const nodes = scenario.content?.nodes || {};
   const line = useMemo(() => mainLine(scenario), [scenario]);
   const ratedTotal = line.filter((n) => RATED(n.kind)).length;
-  const [current, setCurrent] = useState<string | undefined>(scenario.content?.start);
-  const [path, setPath] = useState<string[]>(scenario.content?.start ? [scenario.content.start] : []);
-  const [ratings, setRatings] = useState<Record<string, number>>({});
-  const [aiScores, setAiScores] = useState<Record<string, number>>({});
+  const okResume = !!resume && !!nodes[resume.current];
+  const [current, setCurrent] = useState<string | undefined>(okResume ? resume!.current : scenario.content?.start);
+  const [path, setPath] = useState<string[]>(okResume ? resume!.path.filter((id) => nodes[id]) : scenario.content?.start ? [scenario.content.start] : []);
+  const [ratings, setRatings] = useState<Record<string, number>>(okResume ? resume!.ratings : {});
+  const [aiScores, setAiScores] = useState<Record<string, number>>(okResume ? resume!.aiScores : {});
   const [finished, setFinished] = useState(!scenario.content?.start);
+
+  // Save progress after every step so leaving (or a refresh) never loses it.
+  useEffect(() => {
+    if (finished || !current) { clearRun(); return; }
+    const answered = Object.keys(ratings).length;
+    if (!answered && path.length <= 1) return;
+    writeJSON(KEYS.drillRun, {
+      slug: scenario.slug, title: scenario.title, scenario: scenario.exactJob ? scenario : undefined,
+      current, path, ratings, aiScores, answered, total: ratedTotal, at: Date.now(),
+    } satisfies SavedRun);
+  }, [current, ratings, aiScores, finished]); // eslint-disable-line react-hooks/exhaustive-deps
   const runId = useRef(Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
 
   // Personalize only when the analyzed job matches this scenario's family.
@@ -516,7 +617,7 @@ function Runner({
   return (
     <div className="card drill">
       <div className="drill-top">
-        <button type="button" className="btn btn-ghost btn-small" onClick={() => { if (!answered || window.confirm("Leave this drill? Your answers so far won’t be saved.")) onBack(); }}>{"‹"} All drills</button>
+        <button type="button" className="btn btn-ghost btn-small" onClick={onBack} title="Your progress is saved. Continue it later from the drills page.">{"‹"} {answered ? "Save & exit" : "All drills"}</button>
         <span className="drill-title">{scenario.title}</span>
         <span className="drill-count">{answered} of {ratedTotal || "?"} answered</span>
       </div>
@@ -590,6 +691,7 @@ function NodeBody({
   const [revealed, setRevealed] = useState(false);
   const [grading, setGrading] = useState(false);
   const [feedback, setFeedback] = useState<AnswerFeedback | null>(null);
+  const [gradedFor, setGradedFor] = useState("");
   const [gradeNote, setGradeNote] = useState("");
   const [choiceNote, setChoiceNote] = useState("");
   const rateRef = useRef<HTMLDivElement>(null);
@@ -645,6 +747,7 @@ function NodeBody({
     setGrading(false);
     if (res.status === 200 && res.body?.feedback) {
       setFeedback(res.body.feedback);
+      setGradedFor(a);
       if (typeof res.body.feedback.score === "number") onScored(res.body.feedback.score);
     }
     else if (res.status === 401) setGradeNote("Sign in to have your answer graded. You can still reveal the strong answer below.");
@@ -682,8 +785,8 @@ function NodeBody({
         value={answer} onChange={(e) => setAnswer(e.target.value)} />
       <div className="row wrap">
         {canGrade && (
-          <button type="button" className="btn btn-primary" disabled={grading || !!feedback} onClick={grade}>
-            {grading ? "Getting feedback…" : feedback ? "Feedback below" : "Get feedback"}
+          <button type="button" className="btn btn-primary" disabled={grading || (!!feedback && answer.trim() === gradedFor)} onClick={grade}>
+            {grading ? "Getting feedback…" : feedback ? (answer.trim() === gradedFor ? "Feedback below" : "Get feedback again") : "Get feedback"}
           </button>
         )}
         <button type="button" className={"btn " + (canGrade ? "btn-ghost" : "btn-primary")} aria-expanded={revealed} onClick={() => setRevealed((v) => !v)}>
@@ -717,10 +820,16 @@ function NodeBody({
             <div className="progress-label">How well did you hold your ground? {isLast ? "This finishes the drill." : "This moves you to the next step."}</div>
           )}
           <div className="rate">
-            {["1 · hand-waved", "2", "3 · partial", "4", "5 · nailed it"].map((lab, i) => (
-              <button key={lab} type="button" className={"star" + (suggested === i + 1 ? " on" : "")} onClick={() => onRate(i + 1)}>{lab}</button>
-            ))}
+            {["1 · hand-waved", "2", "3 · partial", "4", "5 · nailed it"].map((lab, i) => {
+              // With AI feedback, you can disagree by one level, not jump to 5/5.
+              const capped = !!suggested && i + 1 > suggested + 1;
+              return (
+                <button key={lab} type="button" className={"star" + (suggested === i + 1 ? " on" : "")} disabled={capped}
+                  title={capped ? "Improve the answer and get feedback again to score higher" : undefined} onClick={() => onRate(i + 1)}>{lab}</button>
+              );
+            })}
           </div>
+          {!!suggested && suggested < 4 && <p className="hint">Want a higher score? Rewrite your answer above and press Get feedback again.</p>}
         </div>
       )}
     </>
@@ -903,6 +1012,17 @@ function Summary({
         </div>
       )}
       {status}
+      {(() => {
+        const jid = boundJobId || workflowJobId || getActiveJob();
+        return (
+          <div className="drill-next">
+            <strong>What{"’"}s next:</strong>{" "}
+            {pct >= 70
+              ? <>a mock interview puts it all together under time pressure. <Link to="/mock">Start a mock interview</Link>{jid ? <> or <Link to={"/jobs/" + encodeURIComponent(jid)}>see your path for this job</Link></> : null}.</>
+              : <>run it again and aim for 70%+, or try the next drill below.{jid ? <> Your progress is on <Link to={"/jobs/" + encodeURIComponent(jid)}>the job page</Link>.</> : null}</>}
+          </div>
+        );
+      })()}
       <div className="row wrap">
         <button type="button" className="btn btn-primary" onClick={onRetry}>Run it again</button>
         {nextUp && <button type="button" className="btn" onClick={() => onOpenNext(nextUp)}>Next drill: {nextUp.title}</button>}
