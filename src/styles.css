@@ -2547,3 +2547,39 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .tl-applied { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; background: var(--signal-soft); border-radius: var(--r-sm); padding: 10px 12px; }
 .tl-applied p { margin: 0; }
 @media (max-width: 600px) { .tl-finish-opts { grid-template-columns: 1fr; } }
+
+/* ---- questions: goal line + next step card ---- */
+.qw-goal { margin: 6px 0 0; }
+.qw-next { border-radius: var(--r-md); padding: 18px 20px; border: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; gap: 6px; border-left: 4px solid var(--border-strong); }
+.qw-next.ready { border-left-color: var(--good); background: var(--signal-soft); }
+.qw-next h2 { margin: 0; font-size: 1.15rem; }
+.qw-next p { margin: 0; }
+.q-edit { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.q-edit[open] { display: flex; }
+
+/* ---- drills: resume + your own drill ---- */
+.drill-resume, .drill-mine { border-radius: var(--r-md); padding: 18px 20px; display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--border); background: var(--surface); }
+.drill-resume { border-left: 4px solid var(--accent); }
+.drill-mine { border-left: 4px solid var(--good); }
+.drill-resume h2, .drill-mine h2 { margin: 0; font-size: 1.15rem; }
+.drill-resume p, .drill-mine p { margin: 0; }
+.rate .star:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- job page: path to ready ---- */
+.ptr { display: flex; flex-direction: column; gap: 10px; }
+.ptr-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ptr-head h2 { margin: 0; font-size: 1.1rem; }
+.ptr-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.ptr-steps a { display: flex; gap: 8px; align-items: flex-start; padding: 10px; border-radius: var(--r-sm); border: 1px solid var(--border); text-decoration: none; color: var(--text); height: 100%; box-sizing: border-box; }
+.ptr-steps a:hover { border-color: var(--border-strong); }
+.ptr-dot { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; border: 1px solid var(--border-strong); color: var(--text-2); }
+.ptr-text { display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; min-width: 0; }
+.ptr-steps li.done .ptr-dot { background: var(--good); border-color: var(--good); color: #fff; }
+.ptr-steps li.now a { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.ptr-steps li.now .ptr-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+@media (max-width: 900px) { .ptr-steps { grid-template-columns: 1fr; } .ptr-steps a { align-items: center; } }
+.drill-next { background: var(--signal-soft); border-radius: var(--r-sm); padding: 10px 12px; }
+.hub-mock-note { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px 18px; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
+.hub-mock-note h2 { margin: 0; font-size: 1.05rem; }
+.hub-mock-note p { margin: 0; }
+.ptr-note { margin: -4px 0 0; }

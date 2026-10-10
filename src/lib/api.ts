@@ -68,7 +68,7 @@ export function runGapAnalysis(
   });
 }
 
-export function generateQuestions(token: string | null, p: { jobId: string | null; role: string; jobDescription: string }) {
+export function generateQuestions(token: string | null, p: { jobId: string | null; role: string; jobDescription: string; mode?: "more" }) {
   return call<{ questions: GeneratedQuestion[]; counts?: Record<string, number>; saved?: boolean }>("/api/ai", {
     method: "POST",
     token,
@@ -78,6 +78,7 @@ export function generateQuestions(token: string | null, p: { jobId: string | nul
       jobTitle: p.role,
       targetRole: p.role,
       jobDescription: p.jobDescription,
+      mode: p.mode,
     },
   });
 }

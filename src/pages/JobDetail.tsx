@@ -206,6 +206,40 @@ export function nextBestAction(s: {
   return { label: "Raise your readiness", why: "Today’s plan is done. One more practice round moves the score.", to: "/practice" + jobQ, cta: "Practise" };
 }
 
+/** The whole journey for one job, so "when am I done?" always has an answer. */
+function PathToReady({ jobId, hasFit, questionCount, practised, hasDefend, mockDone, readiness }: {
+  jobId: string; hasFit: boolean; questionCount: number; practised: number; hasDefend: boolean; mockDone: boolean; readiness: number | null;
+}) {
+  const jq = "?job=" + enc(jobId);
+  const steps = [
+    { label: "Resume match", detail: hasFit ? "Done" : "See how your resume fits", done: hasFit, to: jobPath(jobId, "resume") },
+    { label: "Practise 5 questions", detail: questionCount ? Math.min(practised, 5) + " of 5" : "Get your questions", done: practised >= 5, to: "/questions" + jq },
+    { label: "1 trade-off drill", detail: hasDefend ? "Done" : "About 10 minutes", done: hasDefend, to: "/defend" + jq },
+    { label: "1 mock interview", detail: mockDone ? "Done this week" : "Voice or text, about 20 minutes", done: mockDone, to: "/mock" },
+    { label: "Ready: 80+", detail: readiness != null ? "Now " + readiness : "Score builds as you practise", done: readiness != null && readiness >= 80, to: "/dashboard" },
+  ];
+  const current = steps.findIndex((x) => !x.done);
+  return (
+    <section className="card ptr" aria-labelledby="ptr-h">
+      <div className="ptr-head">
+        <h2 id="ptr-h">Your path to ready</h2>
+        <span className="small muted">{current < 0 ? "All done. Keep it warm with light review." : "Step " + (current + 1) + " of " + steps.length}</span>
+      </div>
+      <p className="small muted ptr-note">A recommended order, not a gate: every step is open any time, and you can do a mock interview whenever you like.</p>
+      <ol className="ptr-steps">
+        {steps.map((x, i) => (
+          <li key={x.label} className={x.done ? "done" : i === current ? "now" : ""}>
+            <Link to={x.to}>
+              <span className="ptr-dot" aria-hidden="true">{x.done ? "✓" : i + 1}</span>
+              <span className="ptr-text"><strong>{x.label}</strong><span className="small muted">{x.detail}</span></span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 const parseWhen = (w: string) => { const t = Date.parse(w); return isNaN(t) ? 0 : t; };
 
 function Overview({ data }: { data: JobDetail }) {
@@ -307,6 +341,9 @@ function Overview({ data }: { data: JobDetail }) {
           <div className="row"><Link className="btn btn-primary" to={next.to}>{next.cta} {"→"}</Link></div>
         </section>
       </div>
+
+      <PathToReady jobId={jobId} hasFit={!!data.gap} questionCount={data.questions.length} practised={derived.practised}
+        hasDefend={derived.hasDefend} mockDone={derived.mockRecent} readiness={derived.readiness} />
 
       <div className="jw-pair">
         <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />

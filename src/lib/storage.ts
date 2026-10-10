@@ -31,6 +31,8 @@ export const KEYS = {
   debriefs: "offerready.debriefs.v1",
   /** jobId → { outcome, at, snoozeUntil? } — the "How did it go?" check-in (lib/jobOutcomes.ts) */
   jobOutcomes: "offerready.jobOutcomes.v1",
+  /** An unfinished trade-off drill on this device, to resume (pages/Defend.tsx). */
+  drillRun: "offerready.drillRun.v1",
   /** Job offers being compared (Offer[], see lib/offers.ts) */
   offers: "offerready.offers.v1",
   /** The user's resume text, saved in this browser only so it is entered once
