@@ -2583,3 +2583,20 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hub-mock-note h2 { margin: 0; font-size: 1.05rem; }
 .hub-mock-note p { margin: 0; }
 .ptr-note { margin: -4px 0 0; }
+
+/* ---- mobile: continue bar buttons never wrap their labels ---- */
+.hm-continue-actions .btn { white-space: nowrap; }
+@media (max-width: 560px) {
+  .hm-continue-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hm-continue-actions .btn-primary { grid-column: 1 / -1; justify-content: center; }
+  .hm-continue-actions .btn { justify-content: center; }
+  .hm-continue-all { align-self: center; justify-self: center; }
+  .hm-continue-track { flex: 1 1 auto; width: auto; max-width: none; }
+}
+
+/* ---- mobile: the help button is an icon, so it doesn't cover content ---- */
+@media (max-width: 560px) {
+  .hb-fab { padding: 12px; }
+  .hb-fab > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 560px) { .main { padding-bottom: 72px; } }
