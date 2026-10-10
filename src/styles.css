@@ -2600,3 +2600,6 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .hb-fab > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 @media (max-width: 560px) { .main { padding-bottom: 72px; } }
+.ptr-steps.ptr-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px) { .ptr-steps.ptr-3 { grid-template-columns: 1fr; } }
+.sim-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }

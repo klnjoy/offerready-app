@@ -126,7 +126,10 @@ function Question({ run, setRun, onFinish }: { run: Run; setRun(r: Run): void; o
 
   return (
     <div className="card">
-      <div className="progress-label">Question {run.i + 1} of {run.qs.length} {"·"} {item.area} {"·"} {item.level}</div>
+      <div className="sim-top">
+        <div className="progress-label">Question {run.i + 1} of {run.qs.length} {"·"} {item.area} {"·"} {item.level}</div>
+        {!rated && <button type="button" className="btn btn-ghost btn-small" onClick={onFinish} title="Stop here. Questions you rated are saved.">End mock</button>}
+      </div>
       <div className="bar"><div style={{ width: Math.round((run.i / run.qs.length) * 100) + "%" }} /></div>
       <span className="topic">{item.topic}</span>
       <div className={"timer" + (secs >= 120 ? " timer-over" : "")} aria-label="Elapsed time">{mm}:{ss}</div>
