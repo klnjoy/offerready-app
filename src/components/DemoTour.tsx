@@ -270,6 +270,24 @@ function useReducedMotion(): boolean {
   return r;
 }
 
+/** What the narrator says for a chapter. */
+export function narration(i: number): string {
+  const c = CHAPTERS[i];
+  return "Step " + (i + 1) + ". " + c.title.replace("’", "'") + ". " + c.line.replace(/’/g, "'") + " You'll find it at: " + c.where.replace(/ → /g, ", then ") + ".";
+}
+
+function canSpeak(): boolean {
+  return typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+}
+
+/** A clear English voice if the device has one. */
+function pickVoice(): SpeechSynthesisVoice | null {
+  const vs = window.speechSynthesis.getVoices().filter((v) => /^en(-|_|$)/i.test(v.lang));
+  const pref = [/natural/i, /google us english/i, /samantha/i, /aria|jenny|guy/i, /google uk english female/i, /daniel/i];
+  for (const r of pref) { const v = vs.find((x) => r.test(x.name)); if (v) return v; }
+  return vs.find((v) => /en-us/i.test(v.lang)) || vs[0] || null;
+}
+
 export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?: boolean; loop?: boolean; onEnd?: () => void }) {
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
@@ -280,11 +298,14 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
   const last = useRef(0);
   const tRef = useRef(0);
   const stepRef = useRef(0);
+  const [sound, setSound] = useState(false);
+  const speaking = useRef(false);
+  const speech = canSpeak();
 
   // Start when scrolled into view (unless reduced motion or paused by the user).
   useEffect(() => {
     if (reduced) { tRef.current = CHAPTER_MS; setT(CHAPTER_MS); return; }
-    if (autoStart) { setPlaying(true); return; }
+    if (autoStart) { if (!userPaused) setPlaying(true); return; }
     const el = root.current;
     if (!el || !("IntersectionObserver" in window)) { setPlaying(true); return; }
     const io = new IntersectionObserver(([e]) => { if (!userPaused) setPlaying(e.isIntersecting); }, { threshold: 0.35 });
@@ -302,6 +323,7 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
       last.current = now;
       let nt = tRef.current + dt;
       let ns = stepRef.current;
+      if (nt >= CHAPTER_MS && speaking.current) nt = CHAPTER_MS - 1;
       if (nt >= CHAPTER_MS) {
         if (ns < CHAPTERS.length - 1) { ns += 1; nt = 0; }
         else if (loop) { ns = 0; nt = 0; onEnd?.(); }
@@ -316,6 +338,32 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [playing, reduced]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Narration: read each chapter aloud while sound is on and the tour plays.
+  useEffect(() => {
+    if (!speech) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    speaking.current = false;
+    if (!sound || (!playing && !reduced)) return;
+    const u = new SpeechSynthesisUtterance(narration(step));
+    const v = pickVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-US";
+    u.rate = 1;
+    u.onend = u.onerror = () => { speaking.current = false; };
+    speaking.current = true;
+    // Never hold a chapter for more than 10 extra seconds if a voice misbehaves.
+    const guard = window.setTimeout(() => { speaking.current = false; }, CHAPTER_MS + 10000);
+    synth.speak(u);
+    return () => { window.clearTimeout(guard); synth.cancel(); speaking.current = false; };
+  }, [step, sound, playing, reduced, speech]);
+  useEffect(() => () => { if (speech) window.speechSynthesis.cancel(); }, [speech]);
+
+  const toggleSound = () => {
+    const on = !sound;
+    setSound(on);
+    if (on && !playing && !reduced) { setUserPaused(false); setPlaying(true); }
+  };
 
   const go = (i: number) => { const nt = reduced ? CHAPTER_MS : 0; stepRef.current = i; tRef.current = nt; setStep(i); setT(nt); };
   const toggle = () => { setUserPaused(playing); setPlaying(!playing); };
@@ -349,6 +397,12 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
         <div className="dt-ctl">
           {!reduced ? (
             <button type="button" className="btn btn-small" onClick={toggle} aria-label={playing ? "Pause the demo" : "Play the demo"}>{playing ? "Pause" : "Play"}</button>
+          ) : null}
+          {speech ? (
+            <button type="button" className={"btn btn-small dt-sound" + (sound ? " on" : "")} onClick={toggleSound} aria-pressed={sound}
+              aria-label={sound ? "Turn narration off" : "Turn narration on"}>
+              <Icon name={sound ? "volume" : "mute"} size={15} /> {sound ? "Sound on" : "Sound off"}
+            </button>
           ) : null}
           <span className="small muted">{reduced ? "Sample data. Choose a chapter to see it." : "Sample data · about a minute"}</span>
         </div>

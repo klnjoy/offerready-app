@@ -19,9 +19,10 @@ export default function DemoPage() {
       </div>
       <section className="demo-video" aria-labelledby="demo-video-h">
         <h2 id="demo-video-h">Prefer a video?</h2>
-        <p className="muted">The same tour as a one-minute video, to watch here or share.</p>
+        <p className="muted">The same nine steps as a one-minute video with captions. For a spoken walkthrough, turn on Sound in the tour above.</p>
         <video controls preload="none" poster={BASE + "offerready-demo-poster.jpg"} width={1280} height={720}>
           <source src={DEMO_VIDEO} type="video/mp4" />
+          <track kind="captions" src={BASE + "offerready-demo.vtt"} srcLang="en" label="English" default />
         </video>
         <p><a className="hm-link" href={DEMO_VIDEO} download="offerready-demo.mp4">Download the video (MP4, 1 minute)</a></p>
       </section>
