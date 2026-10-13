@@ -40,6 +40,14 @@ export default function MockHubPage() {
           </Link>
         </li>
       </ol>
+      <Link className="hub-real" to="/notes">
+        <span className="hub-ico" aria-hidden="true"><Icon name="list" size={20} className="hub-svg" /></span>
+        <span className="hub-real-body">
+          <span className="hub-real-title">Real interview today? Take notes</span>
+          <span className="hub-real-text">Type each question as it’s asked. Afterwards, your notes become a debrief in one click.</span>
+        </span>
+        <Icon name="arrow" size={16} className="hub-svg" />
+      </Link>
       <p className="small muted">A voice interview for a saved job counts toward that job{"’"}s score in <Link to="/dashboard">Readiness</Link>. Text interview scores stay in this browser and feed your weak areas.</p>
     </div>
   );
