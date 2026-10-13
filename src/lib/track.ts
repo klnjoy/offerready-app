@@ -25,7 +25,10 @@ export type TrackEvent =
   | "checkout_started"
   | "feedback_sent"
   | "debrief_saved"
-  | "outcome_reported";
+  | "outcome_reported"
+  | "copilot_used"
+  | "answer_retried"
+  | "answer_saved";
 
 type Props = Record<string, string | number | boolean | null | undefined>;
 

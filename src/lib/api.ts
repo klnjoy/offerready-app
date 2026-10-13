@@ -543,3 +543,30 @@ export function importJobUrl(token: string | null, url: string) {
     body: { action: "import_job_url", url },
   });
 }
+
+// ---- Interview Copilot (api/ai.js action "copilot", api/_lib/copilot.js) -------
+
+export type CopilotMode = "answer" | "example" | "star" | "tradeoff" | "design" | "followups" | "improve";
+export type CopilotSource = "resume" | "story" | "you" | "general" | "suggestion";
+
+export interface CopilotResult {
+  question_type: "technical" | "behavioral" | "system_design" | "leadership" | "general";
+  headline: string;
+  outline: { point: string; source: CopilotSource; quote: string }[];
+  example: { title: string; source: "resume" | "story" | "none"; quote: string; how_to_use: string } | null;
+  improved_answer: string;
+  followups: string[];
+  gaps: string[];
+  /** Numbers in the answer that aren't in your resume, stories or draft. */
+  unverified: string[];
+  downgraded: number;
+  has_resume: boolean;
+  has_stories: boolean;
+}
+
+export function copilot(token: string | null, p: {
+  mode: CopilotMode; question: string; jobTitle?: string; requirements?: string[]; gaps?: string[];
+  resume?: string; stories?: string[]; draft?: string;
+}) {
+  return call<{ ok: boolean; result: CopilotResult }>("/api/ai", { method: "POST", token, body: { action: "copilot", ...p } });
+}

@@ -2622,3 +2622,54 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .pt-short { display: inline; }
   .pt-note { display: none; }
 }
+
+/* ---- Interview Copilot (pages/Copilot.tsx) ---- */
+.cp-grid { display: grid; grid-template-columns: minmax(240px, 300px) 1fr; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .cp-grid { grid-template-columns: 1fr; } }
+.cp-context { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 76px; }
+@media (max-width: 860px) { .cp-context { position: static; } }
+.cp-context h2 { margin: 0; font-size: 1.05rem; }
+.cp-ctx-block { display: flex; flex-direction: column; gap: 6px; }
+.cp-ctx-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.cp-ctx-list li { padding-left: 20px; position: relative; }
+.cp-ctx-list li::before { content: "○"; position: absolute; left: 0; color: var(--text-3); }
+.cp-ctx-list li.ok::before { content: "✓"; color: var(--good); }
+.cp-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cp-ask { display: flex; flex-direction: column; gap: 8px; }
+.cp-suggest { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cp-chip { border: 1px solid var(--border); background: var(--surface-2); border-radius: 999px; padding: 5px 10px; font: inherit; font-size: 0.82rem; cursor: pointer; color: var(--text); text-align: left; }
+.cp-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+.cp-result { display: flex; flex-direction: column; gap: 10px; }
+.cp-headline { font-size: 1.1rem; font-weight: 650; margin: 0; }
+.cp-outline { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 8px; }
+.cp-outline li > span:first-child { display: block; }
+.cp-src { display: inline-block; font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 1px 8px; margin-top: 3px; margin-right: 6px; border: 1px solid var(--border); }
+.cp-src-resume, .cp-src-story, .cp-src-you { color: var(--good); border-color: var(--good); }
+.cp-src-general { color: var(--text-2); }
+.cp-src-suggestion { color: var(--mid); border-color: var(--mid); }
+.cp-quote { font-size: 0.85rem; color: var(--text-3); font-style: italic; }
+.cp-example { border: 1px solid var(--border); border-left: 4px solid var(--good); border-radius: var(--r-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.cp-example.none { border-left-color: var(--mid); }
+.cp-example p { margin: 0; }
+.cp-answer { background: var(--surface-2); border-radius: var(--r-sm); padding: 12px 14px; }
+.cp-answer p { margin: 6px 0 0; }
+.cp-warn { color: var(--mid); font-size: 0.88rem; }
+.cp-gaps ul, .cp-followups ul { margin: 4px 0 0; padding-left: 1.2rem; }
+.cp-followups .link-btn { text-align: left; }
+.cp-actions { border-top: 1px solid var(--border); padding-top: 12px; }
+.cp-practise h2 { margin: 0 0 4px; font-size: 1.1rem; }
+.cp-lib-item h3 { margin: 4px 0; font-size: 1rem; }
+.cp-lib-item p { margin: 0 0 8px; white-space: pre-wrap; }
+
+/* ---- answer coach: retry, compare, improve ---- */
+.coach-next { border-top: 1px dashed var(--border-strong); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.coach-compare { border-radius: var(--r-sm); padding: 10px 12px; border: 1px solid var(--border); background: var(--surface); }
+.coach-compare.up { border-left: 4px solid var(--good); }
+.coach-compare.down { border-left: 4px solid var(--weak); }
+.coach-compare.same { border-left: 4px solid var(--border-strong); }
+.coach-compare ul { margin: 6px 0 0; padding-left: 1.2rem; }
+.coach-delta { font-weight: 700; }
+.coach-compare.up .coach-delta { color: var(--good); }
+.coach-compare.down .coach-delta { color: var(--weak); }
+.coach-improve { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--r-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.coach-improve p { margin: 0; }
