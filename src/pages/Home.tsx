@@ -366,11 +366,11 @@ export default function HomePage() {
       {/* 3. how it works: the three-step demo */}
       <section className="hm-section" aria-labelledby="hm-demo-h">
         <header className="hm-head">
-          <h2 id="hm-demo-h" className="hm-h2">How it works, in three steps</h2>
-          <p className="hm-sub">A one-minute demo with sample data. Choose a step to jump to it.</p>
+          <h2 id="hm-demo-h" className="hm-h2">See everything in one minute</h2>
+          <p className="hm-sub">Nine short chapters: prepare, practise, interview. Each shows what the feature does and where to find it. Choose any chapter to jump to it.</p>
         </header>
         <DemoTour />
-        <p className="hm-demo-more"><Link className="hm-link" to="/example">See a full worked example<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo">Open the demo full screen<Icon name="arrow" size={15} /></Link></p>
+        <p className="hm-demo-more"><Link className="hm-link" to="/example">See a full worked example<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo">Open the demo full screen<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 3b. every round */}
