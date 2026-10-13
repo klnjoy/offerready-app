@@ -3137,3 +3137,48 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .gs-text { margin: 0; font-size: 0.9rem; color: var(--text-2); line-height: 1.45; }
 .gs-cta { align-self: flex-start; margin-top: 6px; }
 @media (min-width: 820px) { .gs-steps { grid-template-columns: repeat(3, 1fr); } }
+
+/* ===== Demo tour v2: nine chapters in three phases ===== */
+.dt-side { display: flex; flex-direction: column; gap: 14px; }
+.dt-phase { display: flex; flex-direction: column; gap: 6px; }
+.dt-phase-h { margin: 0; font-size: 0.8rem; font-weight: 750; color: var(--text-2); }
+.dt-steps { gap: 6px; }
+.dt-step { padding: 10px 12px; border-radius: 12px; }
+.dt-step .dt-num { width: 24px; height: 24px; font-size: 0.78rem; }
+.dt-step-title { font-size: 0.95rem; }
+.dt-where { display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; font-weight: 650; color: var(--signal-600); }
+.dt-cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 22px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.dt-cap-n { font-size: 0.8rem; font-weight: 750; color: var(--signal-600); font-variant-numeric: tabular-nums; }
+.dt-cap-t { font-weight: 750; letter-spacing: -0.01em; }
+.dt-cap-w { margin-left: auto; font-size: 0.82rem; color: var(--text-2); }
+.dt-before { margin: 0; color: var(--text-3); text-decoration: line-through; }
+.dt-after { margin: 0; font-weight: 600; line-height: 1.5; }
+.dt-chip.hit { background: var(--signal-soft); color: var(--signal-600); }
+.dt-topics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.dt-topic { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 0.9rem; font-weight: 600; background: var(--surface); transition: border-color 0.2s ease, background 0.2s ease; }
+.dt-topic.on { border-color: var(--border-strong); background: var(--surface-2); }
+.dt-topic.pick { border-color: var(--signal); background: var(--signal-soft); }
+.dt-outline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.dt-outline li { margin: 0; display: flex; gap: 10px; align-items: flex-start; font-size: 0.92rem; line-height: 1.45; }
+.dt-src { flex: none; font-size: 0.72rem; font-weight: 750; padding: 2px 8px; border-radius: 999px; margin-top: 1px; }
+.dt-src-resume { background: var(--signal-soft); color: var(--signal-600); }
+.dt-src-story { background: var(--blue-soft); color: var(--ink-800); }
+.dt-src-general { background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); }
+.dt-flag { margin: 0; display: flex; gap: 8px; align-items: flex-start; font-size: 0.86rem; color: var(--amber); background: var(--amber-soft); border: 1px solid var(--amber-border); border-radius: 10px; padding: 8px 10px; }
+.dt-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.dt-choice { padding: 8px 14px; border-radius: 10px; border: 1px solid var(--border-strong); font-weight: 650; font-size: 0.92rem; transition: all 0.2s ease; }
+.dt-choice.on { border-color: var(--signal); background: var(--signal-soft); color: var(--signal-600); }
+.dt-me { margin: 0 0 0 auto; max-width: 85%; padding: 10px 14px; border-radius: 12px 12px 4px 12px; background: var(--ink-950); color: #fff; font-size: 0.92rem; line-height: 1.5; }
+.dt-notes { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 0.95rem; }
+.dt-notes li { margin: 0; }
+.dt-scene > .dt-bubble { margin-right: 15%; }
+@media (min-width: 900px) { .dt { grid-template-columns: 320px 1fr; } }
+@media (max-width: 899px) {
+  .dt-side { order: 2; }
+  .dt-cap-w { margin-left: 0; width: 100%; }
+}
+@media (prefers-color-scheme: dark) { .dt-me { background: var(--ink-800); color: #0b1322; } }
+.dt-muted .hm-ico, .dt-flag .hm-ico { display: inline-block; vertical-align: -2px; margin-right: 6px; }
+.dt-flag .hm-ico { margin-top: 2px; }
+.demo-video { display: flex; flex-direction: column; gap: 10px; margin-top: 28px; }
+.demo-video video { width: 100%; height: auto; border-radius: 14px; border: 1px solid var(--border); background: var(--surface-2); }

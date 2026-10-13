@@ -83,7 +83,7 @@ const ROUTES: Route[] = [
   { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", component: AccountPage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
-  { path: "/demo", title: "OfferReady in three steps", subtitle: "A one-minute demo with sample data: add the job, practise what it will ask, then rehearse and get ready.", component: DemoPage },
+  { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
