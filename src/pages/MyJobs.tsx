@@ -1,5 +1,6 @@
 /* Jobs — the job-centered list (was content/assets/jobs.js, #jobs-app). */
 
+import { GettingStarted } from "../components/GettingStarted";
 import { useMemo, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -78,6 +79,7 @@ export default function MyJobsPage() {
   if (!list.length) {
     return (
       <Page>
+        <GettingStarted where="jobs" />
         <Card>
           <div className="question">No jobs yet</div>
           <p>Add the job you want. Paste a link or the description, and you get a day-by-day plan up to your interview.</p>
@@ -89,6 +91,7 @@ export default function MyJobsPage() {
 
   return (
     <Page>
+      <GettingStarted where="jobs" />
       <JobList jobs={list} activeId={jobs.activeId} onRemoved={(id) => setGone((g) => [...g, id])} />
     </Page>
   );

@@ -37,6 +37,7 @@ const OffersPage = lazy(() => import("./pages/Offers"));
 const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.TodayRedirect })));
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
 const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
+const DemoPage = lazy(() => import("./pages/Demo"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -82,6 +83,7 @@ const ROUTES: Route[] = [
   { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", component: AccountPage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
+  { path: "/demo", title: "OfferReady in three steps", subtitle: "A one-minute demo with sample data: add the job, practise what it will ask, then rehearse and get ready.", component: DemoPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
