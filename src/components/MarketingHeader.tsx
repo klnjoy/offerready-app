@@ -31,6 +31,7 @@ const GROUPS: Group[] = [
     { label: "Practice", text: "Job questions, trade-off drills, stories and a question bank", icon: "target", to: "/practice" },
     { label: "Mock interview", text: "Voice or text, with follow-ups on what you said", icon: "mic", to: "/mock" },
     { label: "Tailor your resume", text: "Rewrite bullets for one job, without inventing anything", icon: "fit", to: "/tailor" },
+    { label: "Interview notes", text: "Type questions during a real interview; they become your debrief", icon: "list", to: "/notes" },
     { label: "Interview debrief", text: "Log each round; weak spots come back in your plan", icon: "calendar", to: "/debrief" },
   ] },
   { id: "roles", label: "For your role", items: [

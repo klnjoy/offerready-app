@@ -141,6 +141,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
         <div className="acct-menu" id="acct-menu" role="menu">
           {auth.email && <p className="acct-email">{auth.email}</p>}
           <Link role="menuitem" className="acct-item" to="/account">Account &amp; plan</Link>
+          <Link role="menuitem" className="acct-item" to="/notes">Interview notes</Link>
           <Link role="menuitem" className="acct-item" to="/pricing">Pricing</Link>
           <button type="button" role="menuitem" className="acct-item" onClick={() => { setOpen(false); openFeedback(); }}>Send feedback</button>
         </div>
@@ -243,6 +244,7 @@ export default function App() {
             <Link to="/coach">AI Interview Coach</Link>
             <Link to="/practice">Practice</Link>
             <Link to="/mock">Mock interview</Link>
+            <Link to="/notes">Interview notes</Link>
             <Link to="/debrief">Interview debrief</Link>
             <Link to="/dashboard">Readiness</Link>
           </div>
