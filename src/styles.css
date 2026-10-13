@@ -162,6 +162,9 @@ tbody tr:last-child td { border-bottom: 0; }
 .footer-col h2 { color: #fff; font-size: 0.86rem; font-weight: 650; margin-bottom: 2px; }
 .footer-col a { color: rgba(255, 255, 255, 0.72); text-decoration: none; font-size: 0.9rem; }
 .footer-col a:hover { color: #fff; text-decoration: underline; }
+.footer-legal { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.footer-legal a { color: rgba(255, 255, 255, 0.72); text-decoration: none; }
+.footer-legal a:hover { color: #fff; text-decoration: underline; }
 .footer-base { max-width: 1160px; margin: 0 auto; padding: 16px var(--gutter) 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; font-size: 0.82rem; color: rgba(255, 255, 255, 0.5); }
 @media (max-width: 560px) { .footer-brand { grid-column: 1 / -1; } }
 
@@ -2673,3 +2676,22 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .coach-compare.down .coach-delta { color: var(--weak); }
 .coach-improve { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--r-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .coach-improve p { margin: 0; }
+
+/* Home: every round you'll face (formats grid) */
+.hm-fmt { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 12px; }
+.hm-fmt li { margin: 0; }
+.hm-fmt-card { display: flex; align-items: center; gap: 14px; height: 100%; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; color: var(--text); text-decoration: none; transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease; }
+.hm-fmt-card:hover { border-color: var(--border-strong); box-shadow: var(--raise); transform: translateY(-1px); }
+.hm-fmt-card > .hm-feature-ico { flex: none; width: 40px; height: 40px; }
+.hm-fmt-card > .hm-ico { flex: none; margin-left: auto; color: var(--text-3); transition: transform 0.15s ease, color 0.15s ease; }
+.hm-fmt-card:hover > .hm-ico { color: var(--link); transform: translateX(3px); }
+.hm-fmt-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hm-fmt-title { font-weight: 700; font-size: 1rem; }
+.hm-fmt-text { color: var(--text-2); font-size: 0.88rem; line-height: 1.45; }
+.hm-fmt-roles { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; margin: 22px 0 0; font-size: 0.92rem; color: var(--text-2); }
+.hm-fmt-roles a { font-weight: 600; color: var(--link); text-decoration: none; }
+.hm-fmt-roles a:hover { text-decoration: underline; }
+.hm-po-more { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 18px 0 0; }
+@media (min-width: 640px) { .hm-fmt { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 980px) { .hm-fmt { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
+@media (max-width: 640px) { .footer-base { padding-bottom: 76px; } }

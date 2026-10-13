@@ -3,6 +3,7 @@
  *
  * Sections: continue bar, hero (a sample readiness forecast + the 3-step
  * journey: Add a job → Practise → Mock interview & readiness), how it works,
+ * every round you'll face (formats grid + role guides),
  * "practice-only, by design", what only OfferReady does (+ an honest
  * comparison with general AI chat), Free vs Pro (from lib/plans), the study
  * library, FAQ and a closing CTA. Styles live under "Home (marketing)" and
@@ -61,16 +62,16 @@ const UNIQUE: { icon: IconName; title: string; text: string; to: string; cta: st
       "Checked against your interview date: on track, or how many days late",
       "Running late? The extra minutes a day that close the gap",
     ] },
-  { icon: "calendar", title: "A plan to one job’s interview date", to: "/jobs", cta: "Plan to your date",
-    text: "Built from the job description and your gaps: a day-by-day plan to the date, with one clear “do this next” each time you open the job." },
+  { icon: "spark", title: "Interview Copilot, built from your experience", isNew: true, to: "/copilot", cta: "Open the Copilot",
+    text: "Ask any question and get an answer outline from your own resume and stories. Every point shows where it came from, and numbers you never gave it are flagged. For practice, never during an interview." },
   { icon: "mic", title: "Follow-ups on what you actually said", isNew: true, to: "/interview/voice", cta: "Try a voice interview",
     text: "The voice interviewer listens, then asks about your answer. Deep mode keeps asking why, up to three times, and system design rounds come with a whiteboard to sketch on." },
   { icon: "shield", title: "Trade-off drills", to: "/defend", cta: "Start a drill",
     text: "Make the call on a real scenario, then hold it while the interviewer pushes on cost, limits and incidents." },
   { icon: "list", title: "Debriefs that feed the plan", to: "/debrief", cta: "Write a debrief",
     text: "After a real round, note what was asked and how it went. Questions that went badly come back into your plan for the next round." },
-  { icon: "book", title: "Depth on AI and data roles", ext: true, to: DOCS_BASE, cta: "Open the study library",
-    text: "Role guides for AI engineer, forward-deployed engineer and AI platform roles, with deep notes on RAG, agents and data platforms behind them." },
+  { icon: "fit", title: "Proof you’re getting better", isNew: true, to: "/questions", cta: "Answer and compare",
+    text: "Answer, get rubric feedback with your own words quoted as evidence, then try again. See the change side by side: 42% → 61%, “Vague → Solid”." },
 ];
 
 const COMPARE: { topic: string; chat: string; us: string }[] = [
@@ -88,6 +89,23 @@ const PRACTICE_ONLY: { icon: IconName; title: string; text: string }[] = [
     text: "Interviewers spot scripted or AI-fed answers by asking why, then why again. That is exactly what the follow-ups train, so the reasoning in the room is yours." },
   { icon: "lock", title: "Your resume stays on your device",
     text: "It is read in your browser and saved only on this device. Its text goes with an analysis you ask for and is never stored on our servers." },
+];
+
+/* Every round you'll face: each card opens the tool that practises it. */
+const FORMATS: { icon: IconName; title: string; text: string; to: string }[] = [
+  { icon: "chat", title: "Behavioral", text: "STAR stories matched to the job, then said out loud.", to: "/stories" },
+  { icon: "layers", title: "System design", text: "A voice round with a whiteboard to sketch on.", to: "/interview/voice" },
+  { icon: "shield", title: "Trade-offs and “why?”", text: "Hold a design call while the interviewer pushes back.", to: "/defend" },
+  { icon: "target", title: "Technical deep dive", text: "Questions written from the job’s skills and your gaps.", to: "/questions" },
+  { icon: "mic", title: "Phone and recruiter screen", text: "A short voice mock with delivery feedback.", to: "/interview/voice" },
+  { icon: "search", title: "Concepts: SQL, Python, cloud", text: "Quick reps, flashcards and timed exams by topic.", to: "/practice/bank" },
+];
+
+const ROLE_PAGES: { label: string; path: string }[] = [
+  { label: "AI / GenAI Engineers", path: "For/ai-engineers/index.html" },
+  { label: "Data Engineers", path: "For/data-engineers/index.html" },
+  { label: "Platform / DevOps Engineers", path: "For/platform-engineers/index.html" },
+  { label: "Staff / Principal Engineers", path: "For/staff-engineers/index.html" },
 ];
 
 const ROLES = ["AI / ML engineering", "Data & platform engineering", "Solutions & forward-deployed", "Architects", "Senior · Staff · Principal"];
@@ -109,6 +127,10 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: <>General assistants are great at answering the questions you think to ask. OfferReady is organised around one job and one date: it keeps your gaps, practice, stories and debriefs, runs an interview loop with follow-ups on what you said, and forecasts when you’ll be ready. You can still use your favourite assistant alongside it.</> },
   { q: "Which roles and levels does it cover?",
     a: <>Technical roles in AI/ML, data and platform engineering, solutions and forward-deployed engineering, and architecture. Questions, scenarios and scoring take the level into account, from senior through staff and principal.</> },
+  { q: "Which interview rounds can I practise?",
+    a: <>Behavioral (STAR stories, said out loud), system design (a voice round with a whiteboard), trade-off rounds where the interviewer keeps asking why, technical deep dives written from the job, phone and recruiter screens, and concept reps for SQL, Python and cloud. There is no live coding environment yet; coding concepts are covered in the question bank.</> },
+  { q: "Is my data safe?",
+    a: <>Your resume stays on your device unless you turn on sync, payments go through Stripe, there are no ads or third-party trackers, and you can download or delete your data any time. <ExternalLink href={DOCS_BASE + "Security/index.html"}>Security and your data</ExternalLink> lists exactly what we do.</> },
   { q: "Does the voice interview work in my browser?",
     a: <>It works best in Chrome or Edge on desktop, which have the most reliable speech recognition. Your browser will ask for microphone access when you start. If voice isn’t supported in your browser, every other practice tool still works.</> },
 ];
@@ -289,6 +311,33 @@ export default function HomePage() {
         </ol>
       </section>
 
+      {/* 3b. every round */}
+      <section className="hm-section" aria-labelledby="hm-fmt-h">
+        <header className="hm-head">
+          <p className="hm-kicker">Every round</p>
+          <h2 id="hm-fmt-h" className="hm-h2">Practise each round you’ll face</h2>
+          <p className="hm-sub">Pick the round that’s coming up. Each one opens the tool built to practise it.</p>
+        </header>
+        <ul className="hm-fmt">
+          {FORMATS.map((f) => (
+            <li key={f.title}>
+              <Link className="hm-fmt-card" to={f.to}>
+                <span className="hm-feature-ico" aria-hidden="true"><Icon name={f.icon} size={20} /></span>
+                <span className="hm-fmt-body">
+                  <span className="hm-fmt-title">{f.title}</span>
+                  <span className="hm-fmt-text">{f.text}</span>
+                </span>
+                <Icon name="arrow" size={16} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <p className="hm-fmt-roles">
+          <span>Guides by role:</span>
+          {ROLE_PAGES.map((r) => <ExternalLink key={r.path} href={DOCS_BASE + r.path}>{r.label}</ExternalLink>)}
+        </p>
+      </section>
+
       {/* 4. practice-only, by design */}
       <section className="hm-po" aria-labelledby="hm-po-h">
         <header className="hm-po-head">
@@ -307,6 +356,10 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
+        <p className="hm-po-more">
+          <ExternalLink className="hm-link" href={DOCS_BASE + "Security/index.html"}>Security and your data<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
+          <ExternalLink className="hm-link" href={DOCS_BASE + "Compare/index.html"}>Compare with live interview assistants<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
+        </p>
       </section>
 
       {/* 5. what only OfferReady does */}

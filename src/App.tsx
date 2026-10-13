@@ -226,6 +226,7 @@ export default function App() {
           </div>
           <div className="footer-col">
             <h2>Practice</h2>
+            <Link to="/copilot">Interview Copilot</Link>
             <Link to="/questions">Questions for this job</Link>
             <Link to="/defend">Trade-off drills</Link>
             <Link to="/stories">Your stories</Link>
@@ -241,16 +242,23 @@ export default function App() {
           </div>
           <div className="footer-col">
             <h2>Company</h2>
-            <button type="button" className="footer-btn" onClick={openFeedback}>Send feedback</button>
+            <ExternalLink href={DOCS_BASE + "About/index.html"}>About</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Compare/index.html"}>Compare</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Security/index.html"}>Security and your data</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Changelog/index.html"}>Changelog</ExternalLink>
             <ExternalLink href={DOCS_BASE + "Contact/index.html"}>Contact</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Privacy/index.html"}>Privacy</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Terms/index.html"}>Terms</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Disclaimer/index.html"}>Disclaimer</ExternalLink>
+            <button type="button" className="footer-btn" onClick={openFeedback}>Send feedback</button>
           </div>
         </div>
         <div className="footer-base">
           <span>{"©"} {new Date().getFullYear()} OfferReady</span>
-          <span>Preparation guidance only. Not a prediction of interview or offer outcomes.</span>
+          <nav className="footer-legal" aria-label="Legal">
+            <ExternalLink href={DOCS_BASE + "Privacy/index.html"}>Privacy</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Terms/index.html"}>Terms</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Terms/index.html#7-refunds"}>Refunds</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Disclaimer/index.html"}>Disclaimer</ExternalLink>
+          </nav>
+          <span>Practice only, never during a live interview. Preparation guidance, not a prediction of interview or offer outcomes.</span>
         </div>
       </footer>
     </div>
