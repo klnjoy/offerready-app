@@ -62,7 +62,7 @@ const UNIQUE: { id: string; icon: IconName; tab: string; title: string; text: st
       "Checked against your interview date: on track, or how many days late",
       "Running late? The extra minutes a day that close the gap",
     ] },
-  { id: "studio", icon: "spark", tab: "Answer Studio", title: "Answers built from your own experience", isNew: true, to: "/studio", cta: "Open Answer Studio",
+  { id: "coach", icon: "spark", tab: "AI Interview Coach", title: "Answers built from your own experience", isNew: true, to: "/coach", cta: "Open the AI Interview Coach",
     text: "Ask any interview question and get an answer outline from your resume and stories, for the job you’re preparing for.",
     points: [
       "Every point shows where it came from: your resume, a story, or general knowledge",
@@ -146,6 +146,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
     a: <>Yes, there is a free plan. It includes the study library, question banks and practice mode, {fmt(LIMITS.free.saved_jobs)} saved job, {fmt(LIMITS.free.analyses)} job analyses a month, the day-by-day plan to your interview date and {fmt(LIMITS.free.voice_mock)} voice mock interview a month. Pro raises the limits and unlocks the full scenario library. <Link to="/pricing">See pricing</Link>.</> },
   { q: "What happens to my resume and data?",
     a: <>Your resume is read in your browser and saved on your device, so you add it once; it syncs to your account only if you turn that on. Jobs, plans, practice and stories sync to your account so you can pick up on any device. You can download or delete your data any time from Account.</> },
+  { q: "Is OfferReady an AI interview assistant?",
+    a: <>Yes, for practice. The <Link to="/coach">AI Interview Coach</Link> answers any interview question with an outline built from your resume and stories, flags anything it couldn’t verify, and lets you rehearse and compare attempts. Unlike live interview assistants, it doesn’t run during the real interview: you go in able to give the answer yourself.</> },
   { q: "Does OfferReady help during a live interview?",
     a: <>No, and that’s on purpose. OfferReady is practice-only: there is no live mode, overlay or answer feed. It prepares you before the interview and helps you debrief after it. The follow-ups you practise are the same kind interviewers use to tell rehearsed or AI-fed answers from real understanding, so what you bring into the room is your own.</> },
   { q: "How is this different from ChatGPT, Claude or Gemini?",

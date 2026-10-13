@@ -3,7 +3,7 @@
  *
  *   /today → the active job's page (or the most recent job), else /jobs.
  *   /fit   → the job's Resume tab (?job= or the active job), else Add a job.
- *   /copilot → /studio (the feature's old name, before Answer Studio). */
+ *   /copilot, /studio → /coach (the AI Interview Coach's earlier names). */
 
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "../lib/router";
@@ -49,7 +49,7 @@ export function StudioRedirect() {
   const params = useSearchParams();
   useEffect(() => {
     const q = params.toString();
-    navigate("/studio" + (q ? "?" + q : ""), { replace: true });
+    navigate("/coach" + (q ? "?" + q : ""), { replace: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  return <div className="page"><Loading>Opening Answer Studio{"…"}</Loading></div>;
+  return <div className="page"><Loading>Opening the AI Interview Coach{"…"}</Loading></div>;
 }

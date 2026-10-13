@@ -112,7 +112,7 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
       const r = res.body.result;
       setImprove({ busy: false, text: r.improved_answer, unverified: r.unverified, note: r.gaps.join(" ") });
     } else if (res.status === 403) { setImprove(null); setLimit(res.body?.error || "You’ve used your AI coaching for now."); }
-    else setImprove({ busy: false, text: "", unverified: [], note: res.status === 401 ? "Sign in to use Answer Studio." : "Answer Studio couldn’t improve this right now. Try again in a moment." });
+    else setImprove({ busy: false, text: "", unverified: [], note: res.status === 401 ? "Sign in to use the AI Interview Coach." : "The AI Interview Coach couldn’t improve this right now. Try again in a moment." });
   };
 
   const saveIt = (text: string, score: number | null) => {
@@ -175,7 +175,7 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
             <span className="field-label">Make it stronger</span>
             <div className="row wrap">
               <button type="button" className="btn btn-small btn-primary" onClick={retry}>Try again and compare</button>
-              <button type="button" className="btn btn-small" disabled={!!improve?.busy} onClick={improveIt}>{improve?.busy ? "Improving…" : "Improve in Answer Studio"}</button>
+              <button type="button" className="btn btn-small" disabled={!!improve?.busy} onClick={improveIt}>{improve?.busy ? "Improving…" : "Improve with AI Coach"}</button>
               <button type="button" className="btn btn-small btn-ghost" disabled={saved} onClick={() => saveIt(gradedText, typeof fb.score === "number" ? fb.score : null)}>{saved ? "Saved" : "Save this answer"}</button>
             </div>
           </div>
