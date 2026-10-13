@@ -40,6 +40,7 @@ const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
 const DemoPage = lazy(() => import("./pages/Demo"));
 const TryPage = lazy(() => import("./pages/Try"));
 const FaqPage = lazy(() => import("./pages/Faq"));
+const SampleReportPage = lazy(() => import("./pages/SampleReport"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -88,6 +89,7 @@ const ROUTES: Route[] = [
   { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
   { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },
   { path: "/faq", title: "Questions and study notes", subtitle: "Quick answers about OfferReady, and the free study library behind the questions.", component: FaqPage },
+  { path: "/sample-report", title: "Sample mock interview report", subtitle: "What you get after a voice mock interview. Sample data, no account needed.", component: SampleReportPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
@@ -241,6 +243,7 @@ export default function App() {
           <div className="footer-col">
             <h2>Product</h2>
             <Link to="/example">How it works</Link>
+            <Link to="/sample-report">Sample report</Link>
             <Link to="/pricing">Pricing</Link>
             <ExternalLink href={DOCS_BASE + "Compare/index.html"}>Compare</ExternalLink>
             <Link to="/analyze">Add a job</Link>

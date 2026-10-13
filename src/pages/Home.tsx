@@ -312,7 +312,7 @@ export default function HomePage() {
             <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
             <Link className="btn btn-lg hm-btn-ghost" to="/try">Try a sample question</Link>
           </div>
-          <p className="hm-try"><a className="hm-link" href="#hm-demo-h">Watch the 1-minute demo<Icon name="arrow" size={15} /></a></p>
+          <p className="hm-try"><a className="hm-link" href="#hm-demo-h">Watch the 1-minute demo<Icon name="arrow" size={15} /></a><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
           <ul className="hm-trust" aria-label="Good to know">
             <li><Icon name="check" size={16} /> Free, no card needed</li>
             <li><Icon name="shield" size={16} /> Practice only, never live</li>
@@ -339,7 +339,7 @@ export default function HomePage() {
           <p className="hm-sub">Nine short chapters: prepare, practise, interview. Each shows what the feature does and where to find it. Choose any chapter to jump to it.</p>
         </header>
         <DemoTour />
-        <p className="hm-demo-more"><Link className="hm-link" to="/example">See a full worked example<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo">Open the demo full screen<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link></p>
+        <p className="hm-demo-more"><Link className="hm-link" to="/example">See a full worked example<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo">Open the demo full screen<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 3b. every round */}
