@@ -3244,3 +3244,53 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 @media (prefers-color-scheme: dark) { .faqp-study { background: var(--surface); } .mh-study:hover { background: var(--surface-2); } }
 .faqp-study > div { min-width: 0; }
 @media (max-width: 700px) { .faqp-study { grid-template-columns: 1fr; } .faqp-study .btn { justify-self: start; } }
+/* /sample-report */
+.sr { display: flex; flex-direction: column; gap: 22px; }
+.sr-head { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+.sr-head h2 { margin: 2px 0 4px; font-size: 1.35rem; }
+.sr-kicker { margin: 0; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--signal-600, var(--signal)); }
+.sr-ready { display: flex; align-items: center; gap: 14px; }
+.sr-ready > div { display: flex; flex-direction: column; gap: 2px; }
+.sr-ring { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--signal) 0 72%, var(--surface-2) 72% 100%); flex: none; }
+.sr-ring b { width: 50px; height: 50px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: 1.2rem; }
+.sr-label { display: block; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); margin-bottom: 4px; }
+.sr-label.sr-ok { color: var(--signal-600, var(--signal)); }
+.sr-label.sr-warn { color: var(--amber); }
+.sr-h { font-size: 1.1rem; margin: 0 0 12px; }
+.sr-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .sr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .sr-grid { grid-template-columns: 1fr; } }
+.sr-crit { padding: 14px 16px; }
+.sr-crit p { margin: 6px 0 0; }
+.sr-crit-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 650; }
+.sr-qs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.sr-q h4 { margin: 2px 0 10px; font-size: 1.05rem; }
+.sr-qn { margin: 0; font-size: 0.78rem; color: var(--text-2); font-weight: 650; }
+.sr-levels { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.86rem; color: var(--text-2); margin-bottom: 12px; }
+.sr-said { margin: 0 0 12px; padding: 10px 14px; border-left: 3px solid var(--border-strong); background: var(--bg); border-radius: 0 10px 10px 0; font-style: italic; }
+.sr-said .sr-label { font-style: normal; }
+.sr-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.sr-two p { margin: 0; }
+@media (max-width: 640px) { .sr-two { grid-template-columns: 1fr; } }
+.sr-follow { margin: 12px 0 0; }
+.sr-follow .sr-label { display: inline; margin-right: 6px; }
+.sr-better { margin-top: 10px; }
+.sr-better summary { cursor: pointer; font-weight: 650; color: var(--ink-800); }
+.sr-better ul { margin: 8px 0 0; padding-left: 20px; }
+.sr-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 760px) { .sr-row2 { grid-template-columns: 1fr; } }
+.sr-stats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sr-stats li { display: flex; align-items: baseline; gap: 10px; }
+.sr-stats b { font-size: 1.25rem; min-width: 52px; }
+.sr-big { font-size: 1.8rem; font-weight: 800; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; color: var(--signal-600, var(--signal)); }
+.sr-next { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sr-next li { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.sr-when { font-size: 0.78rem; font-weight: 700; min-width: 44px; color: var(--text-2); }
+.sr-note { margin: 0; }
+.sr-cta { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.sr-cta h3 { margin: 0 0 4px; }
+.sr-cta p { margin: 0; }
+.hm-try { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.sr .card { text-align: left; }
+.sr-head, .sr-cta { align-items: center; }
+.sr-head, .sr-cta { flex-direction: row; }

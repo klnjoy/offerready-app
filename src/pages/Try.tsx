@@ -109,7 +109,7 @@ export default function TryPage() {
                 <p><strong>Want this from your own resume?</strong> Add your job and resume free, no card needed.</p>
                 <div className="row">
                   <Link className="btn btn-primary" to="/analyze">Start free <Icon name="arrow" size={16} /></Link>
-                  <Link className="btn" to="/demo">Watch the 1-minute demo</Link>
+                  <Link className="btn" to="/sample-report">See a full sample report</Link>
                 </div>
               </div>
             </div>
