@@ -205,72 +205,6 @@ function ContinueBar() {
   );
 }
 
-/* ---------- hero visual: the 3-step journey ---------- */
-
-const JOURNEY: { icon: IconName; title: string; line: string; chips: string[] }[] = [
-  { icon: "briefcase", title: "Add a job", line: "Paste a job link or the description. Add your resume once.", chips: ["Your match", "Your gaps", "Your plan"] },
-  { icon: "target", title: "Practise", line: "Questions, trade-off drills and stories written for this job.", chips: ["Questions", "Trade-off drills", "Stories"] },
-  { icon: "mic", title: "Mock interview & readiness", line: "Rehearse out loud and watch one score rise to ready.", chips: ["Voice", "Follow-ups", "Readiness"] },
-];
-
-/* A static sample: Today (58) → Ready Oct 18 (80) → Interview Oct 22.
- * 10 days to ready, then a 4-day buffer, so Ready sits at 10/14 of the track. */
-function ForecastSample() {
-  return (
-    <figure className="hm-fc" aria-labelledby="hm-fc-cap">
-      <figcaption id="hm-fc-cap" className="hm-sr">Sample readiness forecast: ready by Oct 18, 4 days before an interview on Oct 22.</figcaption>
-      <div className="hm-fc-top" aria-hidden="true">
-        <span className="hm-fc-kicker"><Icon name="gauge" size={16} /> Readiness forecast</span>
-        <span className="hm-fc-sample">Sample</span>
-      </div>
-      <div aria-hidden="true">
-        <p className="hm-fc-job">Senior AI Engineer · interview Thu, Oct 22</p>
-        <p className="hm-fc-big">Ready by Oct 18</p>
-        <p className="hm-fc-margin"><Icon name="check" size={15} /> 4 days before your interview</p>
-      </div>
-      <div className="hm-fc-tl" aria-hidden="true">
-        <span className="hm-fc-flag" style={{ left: "71.4%" }}>Ready · 80</span>
-        <div className="hm-fc-track">
-          <span className="hm-fc-run" style={{ width: "71.4%" }} />
-          <span className="hm-fc-buf" style={{ left: "71.4%" }} />
-          <span className="hm-fc-dot hm-fc-dot-now" style={{ left: "0%" }} />
-          <span className="hm-fc-dot hm-fc-dot-ready" style={{ left: "71.4%" }} />
-          <span className="hm-fc-dot hm-fc-dot-int" style={{ left: "100%" }} />
-        </div>
-        <div className="hm-fc-ends">
-          <span><b>Today</b> 58 now</span>
-          <span><b>Interview</b> Oct 22</span>
-        </div>
-      </div>
-      <p className="hm-fc-foot" aria-hidden="true">From your last 14 days of practice: about +2 points a day.</p>
-    </figure>
-  );
-}
-
-function Journey() {
-  return (
-    <div className="hm-visual hm-journey-wrap">
-      <ForecastSample />
-      <p className="hm-jhow" aria-hidden="true">How you get there</p>
-      <ol className="hm-journey" aria-label="How OfferReady works, in three steps">
-        {JOURNEY.map((j, i) => (
-          <li key={j.title} className={"hm-jstep hm-jstep-" + (i + 1)}>
-            <span className="hm-jmark" aria-hidden="true">
-              <Icon name={j.icon} size={22} />
-              <span className="hm-jnum">{i + 1}</span>
-            </span>
-            <div className="hm-jbody">
-              <p className="hm-jtitle">{j.title}</p>
-              <p className="hm-jline">{j.line}</p>
-              <p className="hm-jchips" aria-hidden="true">{j.chips.map((c) => <span key={c}>{c}</span>)}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
 /* ---------- what only OfferReady does: tabbed showcase ---------- */
 
 function FeatureTabs() {
@@ -391,26 +325,26 @@ export default function HomePage() {
     <div className="page hm">
       <ContinueBar />
 
-      {/* 1. hero */}
-      <section className="hm-hero hm-band" aria-labelledby="hm-hero-h">
+      {/* 1. hero: what OfferReady is, in one line, then the product */}
+      <section className="hm-hero hm-band hm-hero-c" aria-labelledby="hm-hero-h">
         <div className="hm-hero-copy">
-          <p className="hm-eyebrow"><span className="hm-eyebrow-new">New</span> A forecast of your ready date, before the interview</p>
-          <h1 id="hm-hero-h" className="hm-h1 hm-h1-pos">One job. One date. <em>Know when you’ll be ready.</em></h1>
+          <p className="hm-pill"><span className="hm-pill-dot" aria-hidden="true" />AI Interview Coach for engineers</p>
+          <h1 id="hm-hero-h" className="hm-h1">Ace your next tech interview with an <mark className="hm-mark">AI interview coach</mark></h1>
           <p className="hm-lede">
-            Add the job you’re interviewing for and its date. OfferReady plans every day up to it, practises you on what this interview will ask, and forecasts the day you’ll be ready, so you find out you’re behind while there’s still time to fix it.
+            OfferReady reads the job and your resume, practises you on the questions that interview will ask, and shows the day you{"’"}ll be ready. Built for AI, data and platform engineers.
           </p>
-          <div className="hm-cta-row">
-            <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
-            <Link className="btn btn-lg hm-btn-ghost" to="/example">See a sample walkthrough</Link>
+          <div className="hm-cta-row hm-cta-center">
+            <Link className="btn btn-lg hm-btn-ink" to="/analyze">Start free <Icon name="arrow" size={18} /></Link>
+            <Link className="btn btn-lg hm-btn-ghost" to="/example">See how it works</Link>
           </div>
-          <ul className="hm-trust" aria-label="Why people trust it">
-            <li className="hm-trust-chip"><a href="#hm-po-h"><Icon name="shield" size={15} /> Practice-only</a></li>
-            <li><Icon name="check" size={16} /> Free plan available</li>
-            <li><Icon name="lock" size={16} /> Resume stays on your device</li>
-            <li><Icon name="target" size={16} /> Built for senior technical interviews</li>
+          <p className="hm-hero-note">Free to start. Practice only, never during your live interview.</p>
+          <ul className="hm-stats" aria-label="OfferReady in numbers">
+            <li><b>6</b> interview rounds to practise</li>
+            <li><b>14</b> answer rubrics</li>
+            <li><b>$0</b> to start</li>
           </ul>
         </div>
-        <Journey />
+        <AppPreview />
       </section>
 
       {/* roles strip */}
@@ -616,7 +550,6 @@ export default function HomePage() {
           <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
           <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
         </div>
-        <AppPreview />
       </section>
     </div>
   );

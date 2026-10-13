@@ -40,6 +40,7 @@ const GROUPS: Group[] = [
     { label: "Staff / Principal Engineers", text: "Scope, influence and trade-offs at the next level", icon: "target", to: D + "For/staff-engineers/index.html", ext: true },
   ] },
   { id: "resources", label: "Resources", items: [
+    { label: "Help Center", text: "How to use OfferReady, step by step", icon: "chat", to: D + "Help/index.html", ext: true },
     { label: "Study library", text: "Free notes on GenAI, data and cloud topics", icon: "book", to: STUDY_URL, ext: true },
     { label: "Interview guide", text: "How senior technical loops work, round by round", icon: "list", to: D + "Personal-SourceCode/Interview_Guide_Overview.html", ext: true },
     { label: "Cheat sheets", text: "One-page reviews before the interview", icon: "check", to: D + "Personal-SourceCode/Interview_Cheat_Sheets.html", ext: true },
@@ -136,6 +137,10 @@ export function MarketingHeader() {
         </nav>
 
         <div className="mh-actions">
+          <ExternalLink className="mh-help" href={D + "Help/index.html"} onClick={close}>
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M7.8 7.6a2.3 2.3 0 0 1 4.4.9c0 1.5-2.2 1.9-2.2 3.1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="10" cy="14.4" r="1" fill="currentColor" /></svg>
+            Help<span className="hm-sr"> center (opens in a new tab)</span>
+          </ExternalLink>
           {signedIn ? (
             <>
               <Link className="mh-signin" to="/account">Account</Link>
