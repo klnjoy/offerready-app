@@ -306,6 +306,10 @@ const Icon = {
 
 // ---- widget -----------------------------------------------------------------
 
+/** Window event that opens the help panel; see openHelp(). */
+const OPEN_HELP_EVENT = "offerready:help-open";
+export function openHelp() { window.dispatchEvent(new Event(OPEN_HELP_EVENT)); }
+
 export function HelpBot() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -356,6 +360,13 @@ export function HelpBot() {
     // Account sync brought chats from another device.
     const off = onDataChanged([STORE_KEY], () => onStorage({ key: STORE_KEY } as StorageEvent));
     return () => { window.removeEventListener("storage", onStorage); off(); };
+  }, []);
+
+  // Other parts of the app (the Help link in the home header) open the panel.
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_HELP_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_HELP_EVENT, onOpen);
   }, []);
 
   // Open: focus the input. Close: focus back to the launcher.

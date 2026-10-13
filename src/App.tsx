@@ -217,43 +217,47 @@ export default function App() {
       <FeedbackDialog />
 
       <footer className="footer">
+        <div className="footer-top">
+          <Link className="footer-logo" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
+          <Link className="btn footer-cta" to="/analyze">Start free</Link>
+        </div>
         <div className="footer-inner">
-          <div className="footer-brand">
-            <span className="footer-logo">Offer<b>Ready</b></span>
-            <p>Interview preparation built around the one job you{"’"}re trying to land.</p>
-          </div>
-          <div className="footer-col">
-            <h2>Prepare</h2>
-            <Link to="/analyze">Add a job</Link>
-            <Link to="/jobs">Jobs</Link>
-            <Link to="/practice">Practice</Link>
-            <Link to="/mock">Mock interview</Link>
-            <Link to="/dashboard">Readiness</Link>
-          </div>
-          <div className="footer-col">
-            <h2>Practice</h2>
-            <Link to="/coach">AI Interview Coach</Link>
-            <Link to="/questions">Questions for this job</Link>
-            <Link to="/defend">Trade-off drills</Link>
-            <Link to="/stories">Your stories</Link>
-            <Link to="/practice/bank">Question bank</Link>
-          </div>
-          <div className="footer-col">
-            <h2>More</h2>
-            <Link to="/debrief">Interview debrief</Link>
-            <Link to="/offers">Compare offers</Link>
-            <Link to="/example">Sample walkthrough</Link>
-            <ExternalLink href={STUDY_URL}>Study notes</ExternalLink>
-            <Link to="/pricing">Pricing</Link>
-          </div>
           <div className="footer-col">
             <h2>Company</h2>
             <ExternalLink href={DOCS_BASE + "About/index.html"}>About</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Compare/index.html"}>Compare</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Security/index.html"}>Security and your data</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Contact/index.html"}>Contact us</ExternalLink>
             <ExternalLink href={DOCS_BASE + "Changelog/index.html"}>Changelog</ExternalLink>
-            <ExternalLink href={DOCS_BASE + "Contact/index.html"}>Contact</ExternalLink>
             <button type="button" className="footer-btn" onClick={openFeedback}>Send feedback</button>
+          </div>
+          <div className="footer-col">
+            <h2>Product</h2>
+            <Link to="/example">How it works</Link>
+            <Link to="/pricing">Pricing</Link>
+            <ExternalLink href={DOCS_BASE + "Compare/index.html"}>Compare</ExternalLink>
+            <Link to="/analyze">Add a job</Link>
+          </div>
+          <div className="footer-col">
+            <h2>Features</h2>
+            <Link to="/coach">AI Interview Coach</Link>
+            <Link to="/practice">Practice</Link>
+            <Link to="/mock">Mock interview</Link>
+            <Link to="/debrief">Interview debrief</Link>
+            <Link to="/dashboard">Readiness</Link>
+          </div>
+          <div className="footer-col">
+            <h2>For your role</h2>
+            <ExternalLink href={DOCS_BASE + "For/ai-engineers/index.html"}>AI / GenAI Engineers</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "For/data-engineers/index.html"}>Data Engineers</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "For/platform-engineers/index.html"}>Platform Engineers</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "For/staff-engineers/index.html"}>Staff / Principal</ExternalLink>
+          </div>
+          <div className="footer-col">
+            <h2>Resources</h2>
+            <ExternalLink href={DOCS_BASE + "Help/index.html"}>Help Center</ExternalLink>
+            <ExternalLink href={STUDY_URL}>Study library</ExternalLink>
+            <Link to="/practice/bank">Question bank</Link>
+            <ExternalLink href={DOCS_BASE + "Personal-SourceCode/Interview_Guide_Overview.html"}>Interview guide</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "Security/index.html"}>Security</ExternalLink>
           </div>
         </div>
         <div className="footer-base">
@@ -264,7 +268,7 @@ export default function App() {
             <ExternalLink href={DOCS_BASE + "Terms/index.html#7-refunds"}>Refunds</ExternalLink>
             <ExternalLink href={DOCS_BASE + "Disclaimer/index.html"}>Disclaimer</ExternalLink>
           </nav>
-          <span>Practice only, never during a live interview. Preparation guidance, not a prediction of interview or offer outcomes.</span>
+          <span className="footer-note">Practice only, never during a live interview. Preparation guidance, not a prediction of interview or offer outcomes.</span>
         </div>
       </footer>
     </div>

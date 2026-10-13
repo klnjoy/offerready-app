@@ -2922,3 +2922,53 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hm-final .hm-app .hm-app-h { font-size: 0.74rem; }
 .hm-final .hm-app .hm-app-kicker { font-size: 0.78rem; }
 .hm-final .hm-app .hm-app-title { font-size: 1.15rem; }
+
+/* ===== First look: centered hero with one clear line ===== */
+.hm-hero.hm-hero-c { display: flex; flex-direction: column; align-items: center; gap: 56px; text-align: center; padding-top: 96px; padding-bottom: 0; overflow: hidden; }
+.hm-hero-c .hm-hero-copy { align-items: center; max-width: 52rem; gap: 20px; }
+.hm-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 650; color: var(--signal-600); background: rgba(255, 255, 255, 0.85); border: 1px solid rgba(26, 158, 100, 0.35); border-radius: 999px; padding: 6px 14px; }
+.hm-pill-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
+.hm-hero-c .hm-h1 { font-size: clamp(2.4rem, 1.2rem + 4.2vw, 4.4rem); line-height: 1.04; max-width: 15ch; }
+.hm-mark { color: var(--signal-600); background: linear-gradient(transparent 62%, rgba(43, 192, 127, 0.24) 62%); padding: 0 0.06em; }
+.hm-hero-c .hm-lede { max-width: 40rem; font-size: 1.18rem; }
+.hm-btn-ink { background: var(--ink-950); border-color: var(--ink-950); color: #fff; box-shadow: 0 10px 26px -12px rgba(12, 28, 56, 0.6); }
+.hm-btn-ink:hover { background: var(--ink-800); border-color: var(--ink-800); color: #fff; }
+.hm-hero-note { font-size: 0.88rem; color: var(--text-3); margin-top: -4px; }
+.hm-stats { list-style: none; margin: 8px 0 0; padding: 18px 0 0; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 40px; width: min(100%, 40rem); }
+.hm-stats li { margin: 0; font-size: 0.95rem; color: var(--text-2); }
+.hm-stats b { color: var(--signal-600); font-weight: 800; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.hm-hero-c .hm-app { margin: 0 auto -1px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.hm-final .hm-app { display: none; }
+.hm-final.hm-band { padding-bottom: 96px; }
+.mh-help { text-decoration: none; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 0.95rem; font-weight: 600; color: var(--ink-950); background: transparent; border: 0; border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+.mh-help:hover { background: rgba(12, 28, 56, 0.05); }
+@media (max-width: 640px) {
+  .hm-hero.hm-hero-c { padding-top: 64px; gap: 40px; }
+  .hm-stats { gap: 8px 22px; }
+  .mh-help { display: none; }
+}
+@media (prefers-color-scheme: dark) {
+  .hm-pill { background: rgba(255, 255, 255, 0.05); color: #5fd9a0; }
+  .hm-mark { color: #5fd9a0; background: linear-gradient(transparent 62%, rgba(95, 217, 160, 0.18) 62%); }
+  .hm-btn-ink { background: var(--signal); border-color: var(--signal); color: #06281a; }
+  .hm-btn-ink:hover { background: var(--signal-600); border-color: var(--signal-600); color: #06281a; }
+  .mh-help { color: var(--text); }
+  .mh-help:hover { background: rgba(255, 255, 255, 0.06); }
+}
+
+/* ===== Footer: logo row, five plain columns, legal row ===== */
+.footer-top { max-width: 1160px; margin: 0 auto; padding: 40px var(--gutter) 8px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.footer-top .footer-logo { display: inline-flex; align-items: center; gap: 10px; color: #fff; text-decoration: none; font-size: 1.6rem; font-weight: 750; letter-spacing: -0.03em; }
+.footer-top .footer-logo svg { width: 34px; height: 34px; }
+.footer-cta { background: #22c07a; border-color: #22c07a; color: var(--ink-950); font-weight: 700; border-radius: 999px; }
+.footer-cta:hover { background: #3cd08e; border-color: #3cd08e; color: var(--ink-950); }
+.footer .footer-inner { grid-template-columns: repeat(5, minmax(0, 1fr)); padding-top: 28px; padding-bottom: 36px; }
+.footer-col { gap: 12px; }
+.footer-col h2 { font-size: 0.98rem; font-weight: 700; margin-bottom: 4px; }
+.footer-col a, .footer-col .footer-btn { font-size: 0.95rem; }
+.footer-note { flex-basis: 100%; }
+@media (max-width: 900px) { .footer .footer-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .footer .footer-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .footer-top .footer-logo { font-size: 1.3rem; }
+}
