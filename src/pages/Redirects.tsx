@@ -2,7 +2,8 @@
  * history.replace) so old links, plan tasks and Help actions keep working.
  *
  *   /today → the active job's page (or the most recent job), else /jobs.
- *   /fit   → the job's Resume tab (?job= or the active job), else Add a job. */
+ *   /fit   → the job's Resume tab (?job= or the active job), else Add a job.
+ *   /copilot → /studio (the feature's old name, before Answer Studio). */
 
 import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "../lib/router";
@@ -41,4 +42,14 @@ export function FitRedirect() {
     return id ? "/jobs/" + encodeURIComponent(id) + "?tab=resume" : "/analyze";
   });
   return <div className="page"><Loading>Opening your resume match{"…"}</Loading></div>;
+}
+
+export function StudioRedirect() {
+  const navigate = useNavigate();
+  const params = useSearchParams();
+  useEffect(() => {
+    const q = params.toString();
+    navigate("/studio" + (q ? "?" + q : ""), { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return <div className="page"><Loading>Opening Answer Studio{"…"}</Loading></div>;
 }
