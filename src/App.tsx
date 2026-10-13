@@ -39,6 +39,7 @@ const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ defaul
 const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
 const DemoPage = lazy(() => import("./pages/Demo"));
 const TryPage = lazy(() => import("./pages/Try"));
+const FaqPage = lazy(() => import("./pages/Faq"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -86,6 +87,7 @@ const ROUTES: Route[] = [
   { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
   { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },
+  { path: "/faq", title: "Questions and study notes", subtitle: "Quick answers about OfferReady, and the free study library behind the questions.", component: FaqPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
@@ -263,6 +265,7 @@ export default function App() {
           <div className="footer-col">
             <h2>Resources</h2>
             <ExternalLink href={DOCS_BASE + "Help/index.html"}>Help Center</ExternalLink>
+            <Link to="/faq">FAQ</Link>
             <ExternalLink href={STUDY_URL}>Study library</ExternalLink>
             <Link to="/practice/bank">Question bank</Link>
             <ExternalLink href={DOCS_BASE + "Personal-SourceCode/Interview_Guide_Overview.html"}>Interview guide</ExternalLink>

@@ -3224,3 +3224,23 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hm-hero-b .hm-trust { gap: 8px 16px; }
 .hm-hero-b .hm-trust li { white-space: nowrap; font-size: 0.85rem; }
 .hm-hero-b .hm-try { margin: 12px 0 4px; }
+/* Header: highlighted link to the free study notes */
+.mh-study { text-decoration: none; display: inline-flex; align-items: center; gap: 7px; font-size: 0.93rem; font-weight: 650; color: var(--ink-900); background: var(--signal-soft, #e3f6ec); border: 1px solid rgba(26, 158, 100, 0.35); border-radius: 999px; padding: 6px 12px 6px 11px; white-space: nowrap; }
+.mh-study svg { color: var(--signal); }
+.mh-study:hover { border-color: var(--signal); background: #d6f1e3; }
+.mh-free { font-size: 0.68rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; background: var(--signal); border-radius: 999px; padding: 1px 7px; }
+.mh-trigger, .mh-signin, .mh-help { white-space: nowrap; }
+@media (max-width: 1399px) { .mh-study .mh-free { display: none; } }
+@media (max-width: 1239px) { .mh-actions .mh-help { display: none; } }
+@media (max-width: 1099px) { .mh-actions .mh-study { display: none; } }
+/* /faq */
+.faqp { display: flex; flex-direction: column; gap: 28px; }
+.faqp-study { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; text-align: left; gap: 24px; padding: 24px 28px; background: linear-gradient(135deg, #eaf7f0 0%, var(--surface) 60%); }
+.faqp-study h2 { margin: 4px 0 6px; font-size: 1.3rem; }
+.faqp-study .hm-chips { margin-top: 12px; }
+.faqp-h { font-size: 1.3rem; margin: 0 0 10px; }
+.faqp-list { max-width: none; }
+.hm-faq-more { margin: 16px 0 0; }
+@media (prefers-color-scheme: dark) { .faqp-study { background: var(--surface); } .mh-study:hover { background: var(--surface-2); } }
+.faqp-study > div { min-width: 0; }
+@media (max-width: 700px) { .faqp-study { grid-template-columns: 1fr; } .faqp-study .btn { justify-self: start; } }
