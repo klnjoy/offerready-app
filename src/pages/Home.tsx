@@ -10,7 +10,7 @@
  * "Positioning v2" in styles.css; every class here is prefixed hm- so
  * nothing leaks. */
 
-import type { ReactNode } from "react";
+import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { DOCS_BASE, STUDY_URL } from "../config";
 import { LIMITS, PLAN_MATRIX } from "../lib/plans";
 import { PASSES } from "../lib/passes";
@@ -53,25 +53,50 @@ const STAGES: { n: string; icon: IconName; name: string; line: string; tools: { 
   },
 ];
 
-/* What only OfferReady does: the forecast leads (it gets the wide card). */
-const UNIQUE: { icon: IconName; title: string; text: string; to: string; cta: string; isNew?: boolean; lead?: boolean; ext?: boolean; points?: string[] }[] = [
-  { icon: "gauge", title: "A forecast of your ready date", lead: true, isNew: true, to: "/dashboard", cta: "See your readiness",
+/* What only OfferReady does: a tabbed showcase (tab list + one detail panel). */
+const UNIQUE: { id: string; icon: IconName; tab: string; title: string; text: string; points: string[]; to: string; cta: string; isNew?: boolean; forecast?: boolean }[] = [
+  { id: "forecast", icon: "gauge", tab: "Readiness forecast", title: "Know your ready date before the interview", forecast: true, to: "/dashboard", cta: "See your readiness",
     text: "Most prep tools tell you how you did today. OfferReady tells you when you’ll be ready, and whether that’s before your interview.",
     points: [
       "A ready date from your pace over the last 14 days of practice",
       "Checked against your interview date: on track, or how many days late",
       "Running late? The extra minutes a day that close the gap",
     ] },
-  { icon: "spark", title: "Answer Studio, built from your experience", isNew: true, to: "/studio", cta: "Open Answer Studio",
-    text: "Ask any question and get an answer outline from your own resume and stories. Every point shows where it came from, and numbers you never gave it are flagged. For practice, never during an interview." },
-  { icon: "mic", title: "Follow-ups on what you actually said", isNew: true, to: "/interview/voice", cta: "Try a voice interview",
-    text: "The voice interviewer listens, then asks about your answer. Deep mode keeps asking why, up to three times, and system design rounds come with a whiteboard to sketch on." },
-  { icon: "shield", title: "Trade-off drills", to: "/defend", cta: "Start a drill",
-    text: "Make the call on a real scenario, then hold it while the interviewer pushes on cost, limits and incidents." },
-  { icon: "list", title: "Debriefs that feed the plan", to: "/debrief", cta: "Write a debrief",
-    text: "After a real round, note what was asked and how it went. Questions that went badly come back into your plan for the next round." },
-  { icon: "fit", title: "Proof you’re getting better", isNew: true, to: "/questions", cta: "Answer and compare",
-    text: "Answer, get rubric feedback with your own words quoted as evidence, then try again. See the change side by side: 42% → 61%, “Vague → Solid”." },
+  { id: "studio", icon: "spark", tab: "Answer Studio", title: "Answers built from your own experience", isNew: true, to: "/studio", cta: "Open Answer Studio",
+    text: "Ask any interview question and get an answer outline from your resume and stories, for the job you’re preparing for.",
+    points: [
+      "Every point shows where it came from: your resume, a story, or general knowledge",
+      "Numbers you never gave it are flagged, never invented",
+      "Save your best version of each answer and practise it again",
+    ] },
+  { id: "voice", icon: "mic", tab: "Voice mock interview", title: "Rehearse out loud, with follow-ups on what you said", to: "/interview/voice", cta: "Try a voice interview",
+    text: "The interviewer listens to your answer, then asks about it, the way a real interviewer would.",
+    points: [
+      "Behavioral, technical and system design rounds, or a mixed loop",
+      "Deep mode keeps asking why, up to three times",
+      "A whiteboard for system design, and feedback on content and delivery",
+    ] },
+  { id: "drills", icon: "shield", tab: "Trade-off drills", title: "Defend a design call under pressure", to: "/defend", cta: "Start a drill",
+    text: "Make the call on a real scenario, then hold it while the interviewer pushes on cost, limits and incidents.",
+    points: [
+      "Scenarios matched to the job’s skills and your gaps",
+      "Interviewer pushback at every stage, with tips when you need them",
+      "Leave at any point; your progress is saved",
+    ] },
+  { id: "proof", icon: "fit", tab: "Proof you improved", title: "See your answer get better", isNew: true, to: "/questions", cta: "Answer and compare",
+    text: "Answer a question, get rubric feedback, then try again and compare the two attempts side by side.",
+    points: [
+      "Every score is backed by a quote from your own answer",
+      "Each criterion shows its change, for example “Vague → Solid”",
+      "A “staff upgrade” tip shows what lifts the answer a level",
+    ] },
+  { id: "debrief", icon: "list", tab: "Interview debrief", title: "Real rounds feed the next one", to: "/debrief", cta: "Write a debrief",
+    text: "After a real round, write down what was asked and how it went while it’s fresh.",
+    points: [
+      "Questions that went badly come back into your plan",
+      "Optionally share questions anonymously to help others prepare",
+      "Log the outcome so readiness scores keep getting more accurate",
+    ] },
 ];
 
 const COMPARE: { topic: string; chat: string; us: string }[] = [
@@ -244,6 +269,55 @@ function Journey() {
   );
 }
 
+/* ---------- what only OfferReady does: tabbed showcase ---------- */
+
+function FeatureTabs() {
+  const [cur, setCur] = useState(0);
+  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
+  const f = UNIQUE[cur];
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const k = e.key;
+    let n = -1;
+    if (k === "ArrowDown" || k === "ArrowRight") n = (cur + 1) % UNIQUE.length;
+    else if (k === "ArrowUp" || k === "ArrowLeft") n = (cur - 1 + UNIQUE.length) % UNIQUE.length;
+    else if (k === "Home") n = 0;
+    else if (k === "End") n = UNIQUE.length - 1;
+    if (n < 0) return;
+    e.preventDefault();
+    setCur(n);
+    tabs.current[n]?.focus();
+  };
+  return (
+    <div className="hm-ft">
+      <div className="hm-ft-tabs" role="tablist" aria-label="OfferReady features" aria-orientation="vertical" onKeyDown={onKey}>
+        {UNIQUE.map((t, i) => (
+          <button key={t.id} ref={(el) => { tabs.current[i] = el; }} type="button" role="tab" id={"hm-ft-tab-" + t.id}
+            aria-selected={i === cur} aria-controls="hm-ft-panel" tabIndex={i === cur ? 0 : -1}
+            className={"hm-ft-tab" + (i === cur ? " on" : "")} onClick={() => setCur(i)}>
+            <Icon name={t.icon} size={18} />
+            <span>{t.tab}</span>
+            {t.isNew ? <span className="hm-new">New</span> : null}
+          </button>
+        ))}
+      </div>
+      <div className="hm-ft-panel" id="hm-ft-panel" role="tabpanel" aria-labelledby={"hm-ft-tab-" + f.id} key={f.id}>
+        <h3 className="hm-ft-title">{f.title}</h3>
+        <p className="hm-ft-text">{f.text}</p>
+        <ul className="hm-uniq-points">
+          {f.points.map((pt) => <li key={pt}><Icon name="check" size={16} />{pt}</li>)}
+        </ul>
+        {f.forecast ? (
+          <div className="hm-uniq-eg" aria-label="Two example forecasts">
+            <p><span className="hm-uniq-pill hm-uniq-ok">On track</span><span>Ready by <b>Oct 18</b>, 4 days before the interview</span></p>
+            <p><span className="hm-uniq-pill hm-uniq-late">3 days late</span><span>Add <b>15 minutes a day</b> to be ready in time</span></p>
+          </div>
+        ) : null}
+        <Link className="btn hm-ft-cta" to={f.to}>{f.cta}<Icon name="arrow" size={16} /></Link>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- page ---------- */
 
 export default function HomePage() {
@@ -367,35 +441,9 @@ export default function HomePage() {
         <header className="hm-head">
           <p className="hm-kicker">What only OfferReady does</p>
           <h2 id="hm-feat-h" className="hm-h2">Plenty of tools can ask you questions. These parts are ours.</h2>
+          <p className="hm-sub">Everything runs on the job you added: its requirements, your resume, your stories and your interview date.</p>
         </header>
-        <div className="hm-features hm-uniq">
-          {UNIQUE.map((f) => (
-            <article key={f.title} className={"hm-feature" + (f.lead ? " hm-uniq-lead" : "")}>
-              <div className="hm-feature-top">
-                <span className="hm-feature-ico"><Icon name={f.icon} size={22} /></span>
-                {f.isNew ? <span className="hm-new">New</span> : null}
-              </div>
-              <h3 className="hm-feature-title">{f.title}</h3>
-              <p className="hm-feature-text">{f.text}</p>
-              {f.points ? (
-                <ul className="hm-uniq-points">
-                  {f.points.map((pt) => <li key={pt}><Icon name="check" size={16} />{pt}</li>)}
-                </ul>
-              ) : null}
-              {f.lead ? (
-                <div className="hm-uniq-eg" aria-label="Two example forecasts">
-                  <p><span className="hm-uniq-pill hm-uniq-ok">On track</span><span>Ready by <b>Oct 18</b>, 4 days before the interview</span></p>
-                  <p><span className="hm-uniq-pill hm-uniq-late">3 days late</span><span>Add <b>15 minutes a day</b> to be ready in time</span></p>
-                </div>
-              ) : null}
-              {f.ext ? (
-                <ExternalLink className="hm-link" href={f.to}>{f.cta}<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
-              ) : (
-                <Link className="hm-link" to={f.to}>{f.cta}<Icon name="arrow" size={15} /><span className="hm-sr"> ({f.title})</span></Link>
-              )}
-            </article>
-          ))}
-        </div>
+        <FeatureTabs />
         <p className="hm-helpnote">
           <Icon name="chat" size={18} />
           <span>Stuck on a screen? <strong>Ask OfferReady</strong>, the help assistant in the bottom-right corner, knows which screen and which job you are on.</span>

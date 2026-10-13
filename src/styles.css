@@ -2777,3 +2777,27 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .hm-final.hm-band { padding-top: 64px; padding-bottom: 64px; border-radius: 0; }
   .hm > .hm-continue { margin-bottom: -130px; }
 }
+
+/* Home: "what only OfferReady does" as tabs (list left, detail right) */
+.hm-ft { display: grid; grid-template-columns: 1fr; gap: 20px; }
+.hm-ft-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.hm-ft-tab { flex: none; display: inline-flex; align-items: center; gap: 8px; font: inherit; font-size: 0.95rem; font-weight: 600; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
+.hm-ft-tab:hover { color: var(--text); border-color: var(--border-strong); }
+.hm-ft-tab.on { color: var(--text); border-color: var(--signal); background: var(--signal-soft); }
+.hm-ft-tab .hm-ico { color: var(--text-3); }
+.hm-ft-tab.on .hm-ico { color: var(--signal-600); }
+.hm-ft-tab .hm-new { margin-left: 2px; }
+.hm-ft-panel { display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; animation: hm-ft-in 0.25s ease both; }
+.hm-ft-title { font-size: clamp(1.4rem, 1rem + 1.4vw, 2rem); font-weight: 780; line-height: 1.12; letter-spacing: -0.03em; max-width: 30rem; text-wrap: balance; }
+.hm-ft-text { color: var(--text-2); font-size: 1.06rem; line-height: 1.6; max-width: 40rem; }
+.hm-ft-panel .hm-uniq-points { flex: none; }
+.hm-ft-cta { align-self: flex-start; margin-top: 6px; }
+@keyframes hm-ft-in { from { opacity: 0.4; } to { opacity: 1; } }
+@media (min-width: 900px) {
+  .hm-ft { grid-template-columns: 280px 1fr; gap: 40px; align-items: start; }
+  .hm-ft-tabs { flex-direction: column; gap: 2px; overflow: visible; padding: 0; border-left: 2px solid var(--border); }
+  .hm-ft-tab { border: 0; border-radius: 0 10px 10px 0; background: transparent; padding: 14px 16px; margin-left: -2px; border-left: 2px solid transparent; font-size: 1rem; }
+  .hm-ft-tab.on { background: var(--signal-soft); border-left-color: var(--signal); }
+  .hm-ft-panel { padding: 40px 44px; min-height: 380px; }
+}
+@media (prefers-reduced-motion: reduce) { .hm-ft-panel { animation: none; } }
