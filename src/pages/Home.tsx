@@ -252,7 +252,7 @@ export default function HomePage() {
       <ContinueBar />
 
       {/* 1. hero */}
-      <section className="hm-hero" aria-labelledby="hm-hero-h">
+      <section className="hm-hero hm-band" aria-labelledby="hm-hero-h">
         <div className="hm-hero-copy">
           <p className="hm-eyebrow"><span className="hm-eyebrow-new">New</span> A forecast of your ready date, before the interview</p>
           <h1 id="hm-hero-h" className="hm-h1 hm-h1-pos">One job. One date. <em>Know when you’ll be ready.</em></h1>
@@ -261,7 +261,7 @@ export default function HomePage() {
           </p>
           <div className="hm-cta-row">
             <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
-            <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
+            <Link className="btn btn-lg hm-btn-ghost" to="/example">See a sample walkthrough</Link>
           </div>
           <ul className="hm-trust" aria-label="Why people trust it">
             <li className="hm-trust-chip"><a href="#hm-po-h"><Icon name="shield" size={15} /> Practice-only</a></li>
@@ -339,7 +339,7 @@ export default function HomePage() {
       </section>
 
       {/* 4. practice-only, by design */}
-      <section className="hm-po" aria-labelledby="hm-po-h">
+      <section className="hm-po hm-band" aria-labelledby="hm-po-h">
         <header className="hm-po-head">
           <p className="hm-kicker">Practice-only, by design</p>
           <h2 id="hm-po-h" className="hm-h2">Ready on your own, in any interview room</h2>
@@ -492,7 +492,7 @@ export default function HomePage() {
       </section>
 
       {/* 9. final CTA */}
-      <section className="hm-final" aria-labelledby="hm-final-h">
+      <section className="hm-final hm-band" aria-labelledby="hm-final-h">
         <h2 id="hm-final-h" className="hm-final-h">Your interview has a date. Now you’ll know your ready date too.</h2>
         <p>Add the job: paste its link or description to see what it requires, where you fall short, and a plan to close the gap before the day. Free to start.</p>
         <div className="hm-cta-row hm-cta-center">

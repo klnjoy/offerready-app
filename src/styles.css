@@ -2695,3 +2695,85 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 @media (min-width: 640px) { .hm-fmt { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 980px) { .hm-fmt { grid-template-columns: repeat(3, 1fr); gap: 14px; } }
 @media (max-width: 640px) { .footer-base { padding-bottom: 76px; } }
+
+/* ===== Home v3: full-width, light hero ===== */
+/* The home page runs edge to edge. .main-home drops its width cap; every
+ * section is re-centred at 1080px, except .hm-band sections, which span the
+ * full width and centre their own content with padding. The hero is light
+ * (mint and sky washes on paper); the practice-only band and the closing CTA
+ * are the two dark bands, so the page alternates light / dark / light. */
+.main-home { max-width: none; padding-left: 0; padding-right: 0; padding-top: 0; }
+.hm > * { width: 100%; max-width: calc(1080px + 2 * var(--gutter)); margin-left: auto; margin-right: auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+.hm > .hm-band { max-width: none; border-radius: 0; --band-pad: max(var(--gutter), calc((100% - 1080px) / 2)); padding-left: var(--band-pad); padding-right: var(--band-pad); }
+.hm > .hm-continue { max-width: calc(1080px); margin-top: 20px; padding: 16px 20px; position: relative; z-index: 2; margin-bottom: -150px; }
+
+.hm-hero.hm-band {
+  color: var(--text);
+  background:
+    radial-gradient(50rem 28rem at 92% 8%, rgba(77, 132, 214, 0.20), transparent 62%),
+    radial-gradient(44rem 30rem at 4% 96%, rgba(43, 192, 127, 0.24), transparent 64%),
+    linear-gradient(180deg, #f3fbf7 0%, #f6f9fd 100%);
+  box-shadow: none; border-bottom: 1px solid var(--border);
+  padding-top: 112px; padding-bottom: 104px;
+}
+.hm-hero.hm-band::before {
+  background-image: linear-gradient(rgba(12, 28, 56, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(12, 28, 56, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at 75% 40%, #000 0%, transparent 65%); mask-image: radial-gradient(ellipse at 75% 40%, #000 0%, transparent 65%);
+}
+.hm-hero .hm-h1 { color: var(--ink-950); font-size: clamp(2.6rem, 1.3rem + 4.4vw, 4.6rem); font-weight: 820; line-height: 1.0; letter-spacing: -0.045em; }
+.hm-hero .hm-h1 em { color: inherit; }
+.hm-hero .hm-lede { color: var(--text-2); font-size: 1.2rem; }
+.hm-hero .hm-eyebrow { color: var(--ink-800); background: rgba(255, 255, 255, 0.75); border-color: rgba(26, 158, 100, 0.35); box-shadow: 0 1px 0 rgba(12, 28, 56, 0.04); }
+.hm-hero .hm-eyebrow-new { background: var(--signal); color: #fff; }
+.hm-hero .hm-trust li { color: var(--text-2); }
+.hm-hero .hm-trust .hm-ico { color: var(--signal); }
+.hm-hero .hm-trust .hm-trust-chip a { color: var(--signal-600); background: var(--signal-soft); border-color: rgba(26, 158, 100, 0.35); }
+.hm-hero .hm-trust .hm-trust-chip .hm-ico { color: var(--signal-600); }
+.hm-btn-ghost { background: rgba(255, 255, 255, 0.8); color: var(--ink-950); border-color: var(--border-strong); }
+.hm-btn-ghost:hover { background: #fff; border-color: var(--ink-700); }
+.hm-hero .hm-fc { box-shadow: 0 40px 80px -36px rgba(12, 28, 56, 0.45), 0 0 0 1px rgba(12, 28, 56, 0.06), 0 0 0 8px rgba(43, 192, 127, 0.16); }
+.hm-hero .hm-fc-big { color: var(--signal-600); font-size: clamp(2rem, 1.4rem + 1.6vw, 2.6rem); }
+.hm-hero .hm-jhow { color: var(--text-2); }
+.hm-hero .hm-jstep { box-shadow: 0 18px 40px -26px rgba(12, 28, 56, 0.35), 0 0 0 1px rgba(12, 28, 56, 0.06); }
+.hm-hero .hm-jstep + .hm-jstep::before { background: linear-gradient(var(--signal), rgba(26, 158, 100, 0.3)); }
+
+.hm > .hm-roles { margin-top: -56px; }
+
+.hm-po.hm-band { border: 0; color: rgba(255, 255, 255, 0.8); padding-top: 88px; padding-bottom: 88px;
+  background: radial-gradient(40rem 22rem at 100% 0%, rgba(77, 132, 214, 0.30), transparent 62%), radial-gradient(36rem 22rem at 0% 100%, rgba(43, 192, 127, 0.18), transparent 62%), var(--ink-950); }
+.hm-po.hm-band .hm-h2, .hm-po.hm-band .hm-po-title { color: #fff; }
+.hm-po.hm-band .hm-kicker { color: #5fd9a0; }
+.hm-po.hm-band .hm-sub, .hm-po.hm-band .hm-po-text { color: rgba(255, 255, 255, 0.74); }
+.hm-po.hm-band .hm-po-ico { background: rgba(95, 217, 160, 0.14); border-color: rgba(95, 217, 160, 0.4); color: #5fd9a0; }
+.hm-po.hm-band .hm-link { color: #8fe3bb; }
+
+.hm-final.hm-band { padding-top: 96px; padding-bottom: 96px; color: rgba(12, 28, 56, 0.82);
+  background: radial-gradient(40rem 22rem at 85% 0%, rgba(255, 255, 255, 0.35), transparent 60%), linear-gradient(120deg, #2bc07f 0%, #5fd9a0 100%); }
+.hm-final.hm-band::after { border-color: rgba(12, 28, 56, 0.08); }
+.hm-final.hm-band .hm-final-h { color: var(--ink-950); }
+.hm-final.hm-band .hm-btn-signal { background: var(--ink-950); border-color: var(--ink-950); color: #fff; box-shadow: 0 10px 28px -10px rgba(12, 28, 56, 0.55); }
+.hm-final.hm-band .hm-btn-signal:hover { background: var(--ink-800); border-color: var(--ink-800); }
+.hm-final.hm-band .btn-on-dark { color: var(--ink-950); border-color: rgba(12, 28, 56, 0.45); background: rgba(255, 255, 255, 0.35); }
+.hm-final.hm-band .btn-on-dark:hover { background: rgba(255, 255, 255, 0.6); border-color: var(--ink-950); }
+.hm { padding-bottom: 0; }
+.main-home { padding-bottom: 0; }
+.main-home + .footer, .main-home ~ .footer { margin-top: 0; }
+
+@media (prefers-color-scheme: dark) {
+  .hm-hero.hm-band { background: radial-gradient(50rem 28rem at 92% 8%, rgba(77, 132, 214, 0.22), transparent 62%), radial-gradient(44rem 30rem at 4% 96%, rgba(43, 192, 127, 0.18), transparent 64%), #0b1527; border: 0; border-bottom: 1px solid var(--border); }
+  .hm-hero.hm-band::before { background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px); }
+  .hm-hero .hm-h1 { color: #fff; }
+  .hm-hero .hm-eyebrow { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .hm-hero .hm-eyebrow-new { color: #06281a; }
+  .hm-btn-ghost { background: transparent; color: var(--text); }
+  .hm-po.hm-band { border: 0; border-top: 1px solid #1d2d4a; border-bottom: 1px solid #1d2d4a; }
+  .hm-final.hm-band { border: 0; }
+  .hm-final.hm-band .hm-btn-signal { color: #fff; }
+}
+@media (max-width: 560px) {
+  .hm-hero.hm-band { padding-top: 88px; padding-bottom: 64px; border-radius: 0; }
+  .hm-po.hm-band { padding-top: 56px; padding-bottom: 56px; border-radius: 0; }
+  .hm-final.hm-band { padding-top: 64px; padding-bottom: 64px; border-radius: 0; }
+  .hm > .hm-continue { margin-bottom: -130px; }
+}
