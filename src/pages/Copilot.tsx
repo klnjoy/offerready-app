@@ -1,4 +1,4 @@
-/* Answer Studio (/studio; /copilot redirects here) — builds practice answers
+/* AI Interview Coach (/coach; /copilot and /studio redirect here) — builds practice answers
  * from YOUR material. Internally still called "copilot" (API action, files).
  *
  * Pick a job, ask any interview question and get a speakable answer built
@@ -115,23 +115,23 @@ export default function CopilotPage() {
       setRun({ kind: "done", result: res.body.result, mode, question: text });
     } else if (res.status === 403) setRun({ kind: "limit", msg: res.body?.error || "You’ve used your AI coaching for now." });
     else if (res.status === 401) setRun({ kind: "error", msg: "Your session expired. Sign in again and retry." });
-    else if (res.status === 503) setRun({ kind: "error", msg: "Answer Studio isn’t switched on for this site yet." });
-    else if (res.status === 0) setRun({ kind: "error", msg: "Couldn’t reach Answer Studio. Check your connection and try again." });
-    else setRun({ kind: "error", msg: res.body?.error || "Answer Studio couldn’t build an answer this time. Please try again." });
+    else if (res.status === 503) setRun({ kind: "error", msg: "The AI Interview Coach isn’t switched on for this site yet." });
+    else if (res.status === 0) setRun({ kind: "error", msg: "Couldn’t reach the AI Interview Coach. Check your connection and try again." });
+    else setRun({ kind: "error", msg: res.body?.error || "The AI Interview Coach couldn’t build an answer this time. Please try again." });
   };
 
   if (jobs.status === "loading") return <div className="page"><Loading /></div>;
   if (jobs.status === "signedout") return (
     <div className="page">
-      <SignInCard title="Sign in to use Answer Studio">
-        <Muted>Answer Studio builds answers from your saved jobs, resume and stories, so it needs your account.</Muted>
+      <SignInCard title="Sign in to use the AI Interview Coach">
+        <Muted>The AI Interview Coach builds answers from your saved jobs, resume and stories, so it needs your account.</Muted>
       </SignInCard>
     </div>
   );
 
   return (
     <div className="page cp">
-      <div className="pt-tabs" role="tablist" aria-label="Answer Studio sections">
+      <div className="pt-tabs" role="tablist" aria-label="AI Interview Coach sections">
         <button type="button" role="tab" aria-selected={tab === "copilot"} className={"pt-tab" + (tab === "copilot" ? " on" : "")} onClick={() => setTab("copilot")}>Build an answer</button>
         <button type="button" role="tab" aria-selected={tab === "library"} className={"pt-tab" + (tab === "library" ? " on" : "")} onClick={() => setTab("library")}>Your answers ({answers.length})</button>
       </div>
@@ -177,7 +177,7 @@ export default function CopilotPage() {
                   {suggested.map((q) => <button key={q} type="button" className="cp-chip" onClick={() => setQuestion(q)}>{q.length > 90 ? q.slice(0, 88) + "…" : q}</button>)}
                 </div>
               )}
-              <div className="cp-modes" role="group" aria-label="What should Answer Studio do?">
+              <div className="cp-modes" role="group" aria-label="What should the coach do?">
                 {MODES.map((m) => (
                   <button key={m.key} type="button" className={"btn " + (m.key === "answer" ? "btn-primary" : "")} disabled={run.kind === "busy"} title={m.hint} onClick={() => ask(m.key)}>{m.label}</button>
                 ))}
@@ -264,7 +264,7 @@ function ResultView({ r, onFollowup, children }: { r: CopilotResult; onFollowup(
           <ul>{r.followups.map((f, i) => <li key={i}><button type="button" className="link-btn" onClick={() => onFollowup(f)}>{f}</button></li>)}</ul>
         </div>
       )}
-      {!r.has_resume && <p className="small muted">Tip: add your resume and Answer Studio will build from your real projects instead of general advice.</p>}
+      {!r.has_resume && <p className="small muted">Tip: add your resume and the coach will build from your real projects instead of general advice.</p>}
       {children}
     </Card>
   );
@@ -277,7 +277,7 @@ function Library({ onPractise }: { onPractise(q: string): void }) {
   if (!answers.length) return (
     <Card>
       <h2>No saved answers yet</h2>
-      <Muted>Build an answer in Answer Studio, or practise a question, then press Save. Your best version of each answer lives here, ready to review before the interview.</Muted>
+      <Muted>Build an answer with the AI Interview Coach, or practise a question, then press Save. Your best version of each answer lives here, ready to review before the interview.</Muted>
     </Card>
   );
   return (
@@ -286,7 +286,7 @@ function Library({ onPractise }: { onPractise(q: string): void }) {
       {shown.map((a) => (
         <Card key={a.id} className="cp-lib-item">
           <div className="cp-lib-top">
-            <span className="small muted">{a.jobTitle || "General"}{a.score != null ? " · scored " + a.score + "%" : ""}{" · "}{a.source === "copilot" ? "from Answer Studio" : "from practice"}</span>
+            <span className="small muted">{a.jobTitle || "General"}{a.score != null ? " · scored " + a.score + "%" : ""}{" · "}{a.source === "copilot" ? "from AI Coach" : "from practice"}</span>
           </div>
           <h3>{a.question}</h3>
           <p>{a.answer}</p>

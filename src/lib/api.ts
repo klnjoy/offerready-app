@@ -544,7 +544,7 @@ export function importJobUrl(token: string | null, url: string) {
   });
 }
 
-// ---- Answer Studio (api/ai.js action "copilot", api/_lib/copilot.js) -------
+// ---- AI Interview Coach (api/ai.js action "copilot", api/_lib/copilot.js) -------
 
 export type CopilotMode = "answer" | "example" | "star" | "tradeoff" | "design" | "followups" | "improve";
 export type CopilotSource = "resume" | "story" | "you" | "general" | "suggestion";
