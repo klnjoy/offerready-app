@@ -38,6 +38,7 @@ const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ defa
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
 const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
 const DemoPage = lazy(() => import("./pages/Demo"));
+const TryPage = lazy(() => import("./pages/Try"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -84,6 +85,7 @@ const ROUTES: Route[] = [
   { path: "/account", title: "Account", component: AccountPage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
+  { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 

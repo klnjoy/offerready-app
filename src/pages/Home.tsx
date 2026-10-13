@@ -72,14 +72,6 @@ const UNIQUE: { id: string; icon: IconName; tab: string; title: string; text: st
     ] },
 ];
 
-const COMPARE: { topic: string; chat: string; us: string }[] = [
-  { topic: "Where you start", chat: "With whatever question you think to ask.", us: "With one job, one interview date and a plan to it." },
-  { topic: "Knowing when you’re ready", chat: "No running measure; you guess.", us: "A forecast ready date, checked against your interview date." },
-  { topic: "Practice", chat: "Can role-play an interviewer if you set it up each time.", us: "Follow-ups on what you said, scored on content and delivery." },
-  { topic: "What it keeps", chat: "Context lives in chat threads; you re-explain the role.", us: "Your jobs, gaps, practice, stories and debriefs, across sessions." },
-  { topic: "Live-interview help", chat: "General purpose: it answers whatever it’s asked.", us: "Never. Practice only, by design." },
-];
-
 const PRACTICE_ONLY: { icon: IconName; title: string; text: string }[] = [
   { icon: "shield", title: "We prepare you. We never sit in your interview.",
     text: "There is no live-interview mode, no overlay and no answer feed. OfferReady works before the interview and after it, never during." },
@@ -342,11 +334,12 @@ export default function HomePage() {
           </p>
           <div className="hm-cta-row">
             <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
-            <a className="btn btn-lg hm-btn-ghost" href="#hm-demo-h">Watch the 1-minute demo</a>
+            <Link className="btn btn-lg hm-btn-ghost" to="/try">Try a sample question</Link>
           </div>
+          <p className="hm-try"><a className="hm-link" href="#hm-demo-h">Watch the 1-minute demo<Icon name="arrow" size={15} /></a></p>
           <ul className="hm-trust" aria-label="Good to know">
-            <li><Icon name="check" size={16} /> Free to start</li>
-            <li><Icon name="shield" size={16} /> Practice only, never in your live interview</li>
+            <li><Icon name="check" size={16} /> Free, no card needed</li>
+            <li><Icon name="shield" size={16} /> Practice only, never live</li>
             <li><Icon name="lock" size={16} /> Resume stays on your device</li>
           </ul>
         </div>
@@ -435,34 +428,6 @@ export default function HomePage() {
         <p className="hm-helpnote">
           <Icon name="chat" size={18} />
           <span>Stuck on a screen? <strong>Ask OfferReady</strong>, the help assistant in the bottom-right corner, knows which screen and which job you are on.</span>
-        </p>
-      </section>
-
-      {/* 5. comparison */}
-      <section className="hm-section" aria-labelledby="hm-cmp-h">
-        <header className="hm-head">
-          <p className="hm-kicker">An honest comparison</p>
-          <h2 id="hm-cmp-h" className="hm-h2">Why not just use ChatGPT, Claude or Gemini?</h2>
-          <p className="hm-sub">
-            General assistants are excellent at answering the questions you think to ask. Interview prep is a different job: one role, one date, and weeks of practice that should add up.
-          </p>
-        </header>
-        <div className="hm-cmp" role="table" aria-label="General AI chat compared with OfferReady">
-          <div className="hm-cmp-row hm-cmp-headrow" role="row">
-            <span className="hm-cmp-topic" role="columnheader"><span className="hm-sr">Topic</span></span>
-            <span className="hm-cmp-chat" role="columnheader">General AI chat</span>
-            <span className="hm-cmp-us" role="columnheader">OfferReady</span>
-          </div>
-          {COMPARE.map((r) => (
-            <div key={r.topic} className="hm-cmp-row" role="row">
-              <span className="hm-cmp-topic" role="rowheader">{r.topic}</span>
-              <span className="hm-cmp-chat" role="cell"><span className="hm-cmp-mlabel">General AI chat</span>{r.chat}</span>
-              <span className="hm-cmp-us" role="cell"><span className="hm-cmp-mlabel">OfferReady</span><Icon name="check" size={16} />{r.us}</span>
-            </div>
-          ))}
-        </div>
-        <p className="hm-cmp-note">
-          <strong>Use both.</strong> Keep your favourite assistant for explaining a concept or polishing a draft, and let OfferReady run the prep: the plan, the practice and the score.
         </p>
       </section>
 

@@ -6,9 +6,11 @@ import type { ReactNode } from "react";
 export type IconName =
   | "mic" | "calendar" | "shield" | "book" | "fit" | "gauge" | "check" | "arrow"
   | "lock" | "target" | "layers" | "search" | "spark" | "chat" | "plus" | "ext"
-  | "briefcase" | "list" | "link";
+  | "briefcase" | "list" | "link" | "volume" | "mute";
 
 const PATHS: Record<IconName, ReactNode> = {
+  volume: <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></>,
+  mute: <><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></>,
   mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" /></>,
   calendar: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M8.5 14.5l2 2 4-4" /></>,
   shield: <><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="M9 12.5l2 2 4-4.5" /></>,

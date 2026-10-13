@@ -13,6 +13,7 @@ import {
   type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode,
 } from "react";
 import { API_ENABLED, STUDY_URL, docsUrl } from "../config";
+import { HelpFaq } from "./HelpFaq";
 import * as api from "../lib/api";
 import { buildAppContext, contextLabel, readJobContext, startersFor } from "../lib/helpContext";
 import { useLocation, useNavigate } from "../lib/router";
@@ -256,6 +257,9 @@ function Markdown({ md, tail }: { md: string; tail?: ReactNode }) {
 // ---- icons ------------------------------------------------------------------
 
 const Icon = {
+  faq: (
+    <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M8 8a2.1 2.1 0 0 1 4 .8c0 1.4-2 1.7-2 2.8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="10" cy="14" r="0.9" fill="currentColor" /></svg>
+  ),
   chat: (
     <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A2.5 2.5 0 0 1 4 13.5z" />
@@ -317,7 +321,7 @@ export function HelpBot() {
   const [open, setOpen] = useState(ui0.open);
   const [wide, setWide] = useState(ui0.wide);
   const [store, setStore] = useState<Store>(loadStore);
-  const [view, setView] = useState<"chat" | "history">("chat");
+  const [view, setView] = useState<"chat" | "history" | "faq">("chat");
   const [running, setRunning] = useState<string[]>([]); // chat ids with an answer streaming
   const [text, setText] = useState("");
   const [announce, setAnnounce] = useState("");
@@ -387,7 +391,9 @@ export function HelpBot() {
   // Keep the log pinned to the bottom unless the user scrolled up to read.
   useEffect(() => {
     const el = logRef.current;
-    if (el && stickToBottom.current) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (view !== "chat") { el.scrollTop = 0; return; }
+    if (stickToBottom.current) el.scrollTop = el.scrollHeight;
   }, [msgs, open, view]);
   const onScroll = () => {
     const el = logRef.current;
@@ -601,6 +607,10 @@ export function HelpBot() {
                 <h2 id="hb-title">OfferReady Help</h2>
               </div>
               <div className="hb-tools">
+                <button type="button" className={"hb-tool hb-faqbtn" + (view === "faq" ? " hb-tool--on" : "")} aria-pressed={view === "faq"}
+                  onClick={() => setView((v) => (v === "faq" ? "chat" : "faq"))} title="Quick answers">
+                  {Icon.faq}<span className="hb-tool-label">FAQ</span>
+                </button>
                 <button type="button" className={"hb-tool hb-hist" + (view === "history" ? " hb-tool--on" : "")} aria-pressed={view === "history"}
                   onClick={() => setView((v) => (v === "history" ? "chat" : "history"))} title="Your chats">
                   {Icon.history}<span className="hb-tool-label">Chats</span>
@@ -633,8 +643,10 @@ export function HelpBot() {
             </div>
           </header>
 
-          <div className="hb-log" ref={logRef} role="log" aria-label={view === "history" ? "Your chats" : "Conversation"} onScroll={onScroll}>
-            {view === "history" ? (
+          <div className="hb-log" ref={logRef} role="log" aria-label={view === "history" ? "Your chats" : view === "faq" ? "Quick answers" : "Conversation"} onScroll={onScroll}>
+            {view === "faq" ? (
+              <HelpFaq onAsk={() => setView("chat")} />
+            ) : view === "history" ? (
               <div className="hb-history">
                 <div><button type="button" className="hb-mini hb-back" onClick={() => setView("chat")}>{Icon.back}<span>Back to chat</span></button></div>
                 <p className="hb-history-title">Your chats</p>
@@ -668,6 +680,7 @@ export function HelpBot() {
                   <div className="hb-welcome">
                     <p className="hb-welcome-title">How can I help?</p>
                     <p>Ask about this screen, your job, or any interview topic. Answers stream in as they{"’"}re written.</p>
+                    <p className="hb-note"><button type="button" className="hb-link" onClick={() => setView("faq")}>Quick answers to common questions</button></p>
                     <div className="hb-starters" role="group" aria-label="Suggested questions">
                       {starters.map((s) => (
                         <button key={s} type="button" className="hb-starter" onClick={() => ask(s)}>
