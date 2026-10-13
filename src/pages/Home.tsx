@@ -18,7 +18,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import { DemoTour } from "../components/DemoTour";
-import { FAQ } from "../content/faq";
+import { HOME_FAQ } from "../content/faq";
 import type { JobRow } from "../types";
 
 /* ---------- content ---------- */
@@ -268,7 +268,7 @@ export default function HomePage() {
           <h2 id="hm-faq-h" className="hm-h2">Questions, answered</h2>
         </header>
         <div className="hm-faq">
-          {FAQ.slice(0, 5).map((f) => (
+          {HOME_FAQ.map((f) => (
             <details key={f.q} className="hm-qa">
               <summary><span>{f.q}</span><span className="hm-qa-ico" aria-hidden="true"><Icon name="plus" size={18} /></span></summary>
               <div className="hm-qa-body"><p>{f.a}</p></div>
