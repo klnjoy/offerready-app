@@ -36,6 +36,7 @@ const DebriefPage = lazy(() => import("./pages/Debrief"));
 const OffersPage = lazy(() => import("./pages/Offers"));
 const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.TodayRedirect })));
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
+const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -65,6 +66,7 @@ const ROUTES: Route[] = [
   { path: "/fit", title: "Resume match", section: "jobs", component: FitRedirect },
   { path: "/copilot", title: "AI Interview Coach", section: "copilot", component: StudioRedirect },
   { path: "/tailor", title: "Tailor your resume", section: "jobs", back: { to: "@job:resume", label: "Your job" }, subtitle: "Rewrite your resume bullets for one job’s skills and gaps, without inventing anything.", component: TailorPage },
+  { path: "/notes", title: "Interview notes", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Type each question as it’s asked. Afterwards, turn your notes into a debrief in one click.", component: InterviewNotesPage },
   { path: "/debrief", title: "Interview debrief", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Write down each round while it’s fresh. Questions that went badly come back in your plan.", component: DebriefPage },
   { path: "/offers", title: "Compare offers", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Put your offers side by side on year-1 and yearly pay, then plan how to negotiate.", component: OffersPage },
   { path: "/coach", title: "AI Interview Coach", section: "copilot", subtitle: "Ask any interview question. Get an answer built from your resume and stories, for the job you’re preparing for. For practice, never during a live interview.", component: CopilotPage },
@@ -247,6 +249,7 @@ export default function App() {
           <div className="footer-col">
             <h2>For your role</h2>
             <ExternalLink href={DOCS_BASE + "For/ai-engineers/index.html"}>AI / GenAI Engineers</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "For/forward-deployed-engineers/index.html"}>Forward Deployed Engineers</ExternalLink>
             <ExternalLink href={DOCS_BASE + "For/data-engineers/index.html"}>Data Engineers</ExternalLink>
             <ExternalLink href={DOCS_BASE + "For/platform-engineers/index.html"}>Platform Engineers</ExternalLink>
             <ExternalLink href={DOCS_BASE + "For/staff-engineers/index.html"}>Staff / Principal</ExternalLink>

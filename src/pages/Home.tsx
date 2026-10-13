@@ -93,9 +93,9 @@ const UNIQUE: { id: string; icon: IconName; tab: string; title: string; text: st
   { id: "debrief", icon: "list", tab: "Interview debrief", title: "Real rounds feed the next one", to: "/debrief", cta: "Write a debrief",
     text: "After a real round, write down what was asked and how it went while it’s fresh.",
     points: [
+      "Type questions into the notes pad during the interview; it becomes your debrief in one click",
       "Questions that went badly come back into your plan",
       "Optionally share questions anonymously to help others prepare",
-      "Log the outcome so readiness scores keep getting more accurate",
     ] },
 ];
 
@@ -128,6 +128,7 @@ const FORMATS: { icon: IconName; title: string; text: string; to: string }[] = [
 
 const ROLE_PAGES: { label: string; path: string }[] = [
   { label: "AI / GenAI Engineers", path: "For/ai-engineers/index.html" },
+  { label: "Forward Deployed Engineers", path: "For/forward-deployed-engineers/index.html" },
   { label: "Data Engineers", path: "For/data-engineers/index.html" },
   { label: "Platform / DevOps Engineers", path: "For/platform-engineers/index.html" },
   { label: "Staff / Principal Engineers", path: "For/staff-engineers/index.html" },

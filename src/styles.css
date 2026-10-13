@@ -2972,3 +2972,36 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .footer .footer-inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .footer-top .footer-logo { font-size: 1.3rem; }
 }
+
+/* ===== Interview notes (/notes) ===== */
+.inn { gap: 18px; max-width: 760px; }
+.inn-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 20px; }
+.inn-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.inn-field select { min-width: 200px; }
+.inn-status { margin-left: auto; font-size: 0.86rem; color: var(--text-2); padding-bottom: 8px; }
+.inn-add { display: flex; gap: 10px; position: sticky; top: 64px; z-index: 5; background: var(--bg); padding: 6px 0; }
+.inn-input { flex: 1; font-size: 1.08rem; padding: 14px 16px; border-radius: 12px; }
+.inn-add .btn { flex: none; border-radius: 12px; padding-left: 20px; padding-right: 20px; }
+.inn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.inn-q { margin: 0; display: flex; align-items: flex-start; gap: 12px; padding: 12px 12px 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.inn-num { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 750; background: var(--signal-soft); color: var(--signal-600); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.inn-q-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.inn-q-text, .inn-q-note { width: 100%; border: 0; background: transparent; font: inherit; color: var(--text); padding: 4px 6px; border-radius: 6px; }
+.inn-q-text { font-weight: 650; font-size: 1rem; }
+.inn-q-note { font-size: 0.9rem; color: var(--text-2); }
+.inn-q-text:focus, .inn-q-note:focus { outline: 2px solid var(--signal); outline-offset: 0; background: var(--surface-2); }
+.inn-del { flex: none; width: 30px; height: 30px; border: 0; border-radius: 8px; background: transparent; color: var(--text-3); font-size: 1.3rem; line-height: 1; cursor: pointer; }
+.inn-del:hover { background: var(--surface-2); color: var(--text); }
+.inn-end { height: 0; padding: 0; border: 0; margin: 0; }
+.inn-empty { color: var(--text-2); padding: 18px; border: 1px dashed var(--border-strong); border-radius: 12px; text-align: center; }
+.inn-other { display: flex; flex-direction: column; gap: 6px; }
+.inn-other textarea { resize: vertical; }
+.inn-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.inn-tip { margin: 0; }
+.dto-notes { margin-right: 8px; }
+@media (max-width: 560px) {
+  .inn-status { margin-left: 0; padding-bottom: 0; width: 100%; }
+  .inn-field, .inn-field select { width: 100%; }
+  .inn-add { top: 56px; }
+  .inn-actions .btn { width: 100%; }
+}
