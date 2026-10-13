@@ -10,9 +10,8 @@
  * "Positioning v2" in styles.css; every class here is prefixed hm- so
  * nothing leaks. */
 
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { DOCS_BASE, STUDY_URL } from "../config";
-import { LIMITS } from "../lib/plans";
+import { useRef, useState, type KeyboardEvent } from "react";
+import { DOCS_BASE } from "../config";
 import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
@@ -20,6 +19,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import { DemoTour } from "../components/DemoTour";
+import { FAQ } from "../content/faq";
 import { GettingStarted } from "../components/GettingStarted";
 import type { JobRow } from "../types";
 
@@ -101,32 +101,8 @@ const ROLE_PAGES: { label: string; path: string }[] = [
 
 const ROLES = ["AI / ML engineering", "Data & platform engineering", "Solutions & forward-deployed", "Architects", "Senior · Staff · Principal"];
 
-const STUDY_TOPICS = ["GenAI foundations", "Agents", "RAG", "Data platforms", "System design", "Interview guides"];
 
-const fmt = (n: number | null) => (n == null ? "unlimited" : String(n));
 
-const FAQ: { q: string; a: ReactNode }[] = [
-  { q: "Who is OfferReady for?",
-    a: <>Engineers preparing for a specific technical interview: AI/ML engineering, data and platform engineering, solutions and forward-deployed engineering, and architect roles, especially at senior, staff and principal level, where interviewers probe trade-offs and judgment rather than trivia.</> },
-  { q: "Is it free?",
-    a: <>Yes, there is a free plan. It includes the study library, question banks and practice mode, {fmt(LIMITS.free.saved_jobs)} saved job, {fmt(LIMITS.free.analyses)} job analyses a month, the day-by-day plan to your interview date and {fmt(LIMITS.free.voice_mock)} voice mock interview a month. Pro raises the limits and unlocks the full scenario library. <Link to="/pricing">See pricing</Link>.</> },
-  { q: "What happens to my resume and data?",
-    a: <>Your resume is read in your browser and saved on your device, so you add it once; it syncs to your account only if you turn that on. Jobs, plans, practice and stories sync to your account so you can pick up on any device. You can download or delete your data any time from Account.</> },
-  { q: "Is OfferReady an AI interview assistant?",
-    a: <>Yes, for practice. The <Link to="/coach">AI Interview Coach</Link> answers any interview question with an outline built from your resume and stories, flags anything it couldn’t verify, and lets you rehearse and compare attempts. Unlike live interview assistants, it doesn’t run during the real interview: you go in able to give the answer yourself.</> },
-  { q: "Does OfferReady help during a live interview?",
-    a: <>No, and that’s on purpose. OfferReady is practice-only: there is no live mode, overlay or answer feed. It prepares you before the interview and helps you debrief after it. The follow-ups you practise are the same kind interviewers use to tell rehearsed or AI-fed answers from real understanding, so what you bring into the room is your own.</> },
-  { q: "How is this different from ChatGPT, Claude or Gemini?",
-    a: <>General assistants are great at answering the questions you think to ask. OfferReady is organised around one job and one date: it keeps your gaps, practice, stories and debriefs, runs an interview loop with follow-ups on what you said, and forecasts when you’ll be ready. You can still use your favourite assistant alongside it.</> },
-  { q: "Which roles and levels does it cover?",
-    a: <>Technical roles in AI/ML, data and platform engineering, solutions and forward-deployed engineering, and architecture. Questions, scenarios and scoring take the level into account, from senior through staff and principal.</> },
-  { q: "Which interview rounds can I practise?",
-    a: <>Behavioral (STAR stories, said out loud), system design (a voice round with a whiteboard), trade-off rounds where the interviewer keeps asking why, technical deep dives written from the job, phone and recruiter screens, and concept reps for SQL, Python and cloud. There is no live coding environment yet; coding concepts are covered in the question bank.</> },
-  { q: "Is my data safe?",
-    a: <>Your resume stays on your device unless you turn on sync, payments go through Stripe, there are no ads or third-party trackers, and you can download or delete your data any time. <ExternalLink href={DOCS_BASE + "Security/index.html"}>Security and your data</ExternalLink> lists exactly what we do.</> },
-  { q: "Does the voice interview work in my browser?",
-    a: <>It works best in Chrome or Edge on desktop, which have the most reliable speech recognition. Your browser will ask for microphone access when you start. If voice isn’t supported in your browser, every other practice tool still works.</> },
-];
 
 /* ---------- continue bar (signed in, has jobs) ---------- */
 
@@ -464,21 +440,6 @@ export default function HomePage() {
         <p className="hm-tier-more"><Link className="hm-link" to="/pricing">Compare every limit on the pricing page<Icon name="arrow" size={15} /></Link></p>
       </section>
 
-      {/* 7. study library */}
-      <section className="hm-study" aria-labelledby="hm-study-h">
-        <div className="hm-study-copy">
-          <p className="hm-kicker">Free study library</p>
-          <h2 id="hm-study-h" className="hm-h2">Study the concepts behind the questions</h2>
-          <p className="hm-sub">Deep notes written for interviews, free and open to everyone, no account needed.</p>
-          <ul className="hm-chips">
-            {STUDY_TOPICS.map((t) => <li key={t}>{t}</li>)}
-          </ul>
-        </div>
-        <ExternalLink className="btn btn-lg hm-study-btn" href={STUDY_URL}>
-          Open the study notes <Icon name="ext" size={17} /><span className="hm-sr"> (opens in a new tab)</span>
-        </ExternalLink>
-      </section>
-
       {/* 8. FAQ */}
       <section className="hm-section hm-faq-wrap" aria-labelledby="hm-faq-h">
         <header className="hm-head">
@@ -486,13 +447,14 @@ export default function HomePage() {
           <h2 id="hm-faq-h" className="hm-h2">Questions, answered</h2>
         </header>
         <div className="hm-faq">
-          {FAQ.map((f) => (
+          {FAQ.slice(0, 5).map((f) => (
             <details key={f.q} className="hm-qa">
               <summary><span>{f.q}</span><span className="hm-qa-ico" aria-hidden="true"><Icon name="plus" size={18} /></span></summary>
               <div className="hm-qa-body"><p>{f.a}</p></div>
             </details>
           ))}
         </div>
+        <p className="hm-faq-more"><Link className="hm-link" to="/faq">All questions, plus the free study notes<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 9. final CTA */}
