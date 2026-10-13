@@ -120,7 +120,7 @@ export default function PricingPage() {
           const sold = sells(k);
           return (
             <section key={k} className={"card pr-plan pr-pass" + (rec ? " pr-rec" : "")} aria-labelledby={"pr-" + k}>
-              {rec ? <p className="pr-rec-tag">{days != null && !mine ? "Fits your interview date" : "Most popular"}</p> : null}
+              {rec ? <p className="pr-rec-tag">{days != null && !mine ? "Fits your interview date" : "Recommended"}</p> : null}
               <div className="pr-plan-top">
                 <h2 id={"pr-" + k}>{def.name}</h2>
                 {isMine ? <span className="pill pill-ok">Your pass</span> : <span className="pr-days">{def.days} days</span>}
@@ -272,7 +272,7 @@ export default function PricingPage() {
           <summary>Which pass should I pick?</summary>
           <p>
             One interview booked: the {PASSES.job.name}. A few interviews in the next month: the {PASSES.pass30.name}.
-            A full job search: the {PASSES.pass90.name}, which most people choose. Preparing over many months: the {PASSES.pass365.name}.
+            A full job search: the {PASSES.pass90.name}, which suits most searches. Preparing over many months: the {PASSES.pass365.name}.
             {anyPassSold ? null : " Passes open for checkout soon."}
           </p>
         </details>
