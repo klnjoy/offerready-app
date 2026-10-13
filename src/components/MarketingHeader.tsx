@@ -35,6 +35,7 @@ const GROUPS: Group[] = [
   ] },
   { id: "roles", label: "For your role", items: [
     { label: "AI / GenAI Engineers", text: "RAG, agents, evaluation and LLM system design", icon: "spark", to: D + "For/ai-engineers/index.html", ext: true },
+    { label: "Forward Deployed Engineers", text: "Discovery, customer scenarios, practical coding and demos", icon: "briefcase", to: D + "For/forward-deployed-engineers/index.html", ext: true },
     { label: "Data Engineers", text: "SQL, pipelines, warehouses and governance", icon: "layers", to: D + "For/data-engineers/index.html", ext: true },
     { label: "Platform / DevOps Engineers", text: "Reliability, Kubernetes and AI platforms", icon: "shield", to: D + "For/platform-engineers/index.html", ext: true },
     { label: "Staff / Principal Engineers", text: "Scope, influence and trade-offs at the next level", icon: "target", to: D + "For/staff-engineers/index.html", ext: true },

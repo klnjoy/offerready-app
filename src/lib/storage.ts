@@ -29,6 +29,8 @@ export const KEYS = {
   stories: "offerready.stories.v1",
   /** Post-interview debriefs (Debrief[], see lib/debrief.ts) */
   debriefs: "offerready.debriefs.v1",
+  /** jobId → notes typed during a real interview, until they become a debrief (lib/interviewNotes.ts). Device only. */
+  interviewNotes: "offerready.interviewNotes.v1",
   /** jobId → { outcome, at, snoozeUntil? } — the "How did it go?" check-in (lib/jobOutcomes.ts) */
   jobOutcomes: "offerready.jobOutcomes.v1",
   /** Your best answers, saved from the Copilot or practice (lib/answerLibrary.ts). */

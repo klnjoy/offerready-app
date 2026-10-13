@@ -12,6 +12,7 @@ import {
 import { deleteDebrief, newId, upsertDebrief, useDebriefs } from "../lib/debriefStore";
 import { syncSharedDebrief, unshareDebrief } from "../lib/communityShare";
 import { getOutcomes } from "../lib/jobOutcomes";
+import { clearNotes, getNotes, hasContent, toDebriefQuestions } from "../lib/interviewNotes";
 import { useAuth } from "../lib/auth";
 import { track } from "../lib/track";
 import { submitOutcome } from "../components/OutcomeCheckIn";
@@ -58,10 +59,10 @@ export default function DebriefPage() {
   );
   const want = params.get("job") || "";
   const initial = jobs.jobs.some((j) => j.id === want) ? want : jobs.activeId || jobs.jobs[0].id;
-  return <DebriefForJobs jobs={jobs.jobs} initialJob={initial} openNew={params.get("new") === "1"} />;
+  return <DebriefForJobs jobs={jobs.jobs} initialJob={initial} openNew={params.get("new") === "1"} fromNotes={params.get("from") === "notes"} />;
 }
 
-function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initialJob: string; openNew: boolean }) {
+function DebriefForJobs({ jobs, initialJob, openNew, fromNotes }: { jobs: JobRow[]; initialJob: string; openNew: boolean; fromNotes?: boolean }) {
   const navigate = useNavigate();
   const auth = useAuth();
   const all = useDebriefs();
@@ -77,12 +78,16 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
   const stats = useMemo(() => debriefStats(all, jobId, today), [all, jobId, today]);
   const revisit = useMemo(() => debriefReviewTopics(all, jobId, today), [all, jobId, today]);
 
-  const startNew = () => {
+  const startNew = (withNotes = false) => {
     const iv = getInterviewDate(jobId);
     const date = iv && iv <= today ? iv : today;
+    // Notes typed during the interview (Interview notes) seed the debrief.
+    const pad = withNotes ? getNotes(jobId) : null;
+    const fromPad = hasContent(pad) ? pad : null;
     setEditing({
-      id: newId(), jobId, date, round: list[0]?.nextRound || "technical", interviewers: "", questions: [], feeling: 0,
-      outcome: "waiting", nextDate: "", nextRound: "", notes: "", createdAt: new Date().toISOString(), updatedAt: "",
+      id: newId(), jobId, date, round: fromPad?.round || list[0]?.nextRound || "technical", interviewers: "",
+      questions: fromPad ? toDebriefQuestions(fromPad) : [], feeling: 0,
+      outcome: "waiting", nextDate: "", nextRound: "", notes: fromPad ? fromPad.notes.trim().slice(0, 4000) : "", createdAt: new Date().toISOString(), updatedAt: "",
       company: job?.company || all.find((x) => x.jobId === jobId && x.company)?.company || "",
       // Keep the user's last choice about sharing.
       share: !!all.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))[0]?.share,
@@ -90,7 +95,7 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
     setFlash([]);
   };
 
-  useEffect(() => { if (openNew) startNew(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (openNew) startNew(!!fromNotes); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (editing) setTimeout(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }, [editing?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -107,6 +112,8 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
     const saved = { ...d, updatedAt: new Date().toISOString() };
     const before = all.find((x) => x.id === d.id);
     const next = upsertDebrief(saved);
+    // The notes pad for this job has done its job once a debrief is saved from it.
+    if (fromNotes) clearNotes(jobId);
     track("debrief_saved", { round: saved.round, outcome: saved.outcome, questions: saved.questions.length, shared: !!saved.share });
     if (saved.share || before?.share) void syncSharedDebrief(saved, job);
     // A final result logged here answers the "How did it go?" check-in too.
@@ -139,7 +146,8 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
         ) : (
           <div className="dto-jobpick"><span className="td-job-label">Job</span><Link className="td-job-title" to={"/jobs/" + encodeURIComponent(jobId)}>{title}</Link></div>
         )}
-        {!editing && <button type="button" className="btn btn-primary dto-new" onClick={startNew}>+ Log an interview</button>}
+        {!editing && <Link className="btn dto-notes" to={"/notes?job=" + encodeURIComponent(jobId)}>Take notes during an interview</Link>}
+        {!editing && <button type="button" className="btn btn-primary dto-new" onClick={() => startNew()}>+ Log an interview</button>}
       </div>
 
       {flash.length > 0 && (
@@ -205,7 +213,7 @@ function DebriefForJobs({ jobs, initialJob, openNew }: { jobs: JobRow[]; initial
             <div className="stack-sm">
               <h3>No rounds logged for this job yet</h3>
               <p className="muted">Right after each interview, note what they asked and how each answer went. It takes two minutes, and the answers that went badly come back in your plan.</p>
-              <div className="row"><button type="button" className="btn btn-primary" onClick={startNew}>Log your first interview</button></div>
+              <div className="row"><button type="button" className="btn btn-primary" onClick={() => startNew()}>Log your first interview</button></div>
             </div>
           </div>
         ) : (

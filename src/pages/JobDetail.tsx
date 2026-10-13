@@ -316,6 +316,8 @@ function Overview({ data }: { data: JobDetail }) {
   const firstOpen = [...tasks, ...catchUp].find((t) => !state.done[t.id]);
   const next: Next = unlogged && passed
     ? { label: "Log how your interview went", why: "Note the questions while you still remember them. The ones that went badly come back in your plan, and a next round date re-plans up to it.", to: logTo, cta: "Log interview" }
+    : unlogged && days === 0
+    ? { label: "Your interview is today", why: "Keep the notes pad open to type each question as it’s asked. Afterwards it becomes your debrief in one click.", to: "/notes?job=" + enc(jobId), cta: "Open interview notes" }
     : nextBestAction({
       jobId, hasAnalysis: derived.hasAnalysis, hasFit: !!data.gap, questionCount: data.questions.length, practised: derived.practised,
       hasDefend: derived.hasDefend, storyGap: derived.storyGap, mockRecent: derived.mockRecent, readiness: derived.readiness, firstOpen,
@@ -728,13 +730,17 @@ function AfterTab({ jobId, title, company }: { jobId: string; title: string; com
         {list.length === 0 ? (
           <Card>
             <p className="muted">After each interview, write down the questions and how they went. The ones that went badly come back in your plan, and a next round date re-plans up to it.</p>
-            <div className="row"><Link className="btn btn-primary btn-small" to={"/debrief?job=" + enc(jobId) + "&new=1"}>Log an interview</Link></div>
+            <div className="row">
+              <Link className="btn btn-primary btn-small" to={"/debrief?job=" + enc(jobId) + "&new=1"}>Log an interview</Link>
+              <Link className="btn btn-ghost btn-small" to={"/notes?job=" + enc(jobId)}>Take notes during an interview</Link>
+            </div>
           </Card>
         ) : (
           <>
             {list.slice(0, 4).map((d) => <DebriefCard key={d.id} d={d} job={{ title, company }} compact />)}
             <div className="row">
               <Link className="btn btn-primary btn-small" to={"/debrief?job=" + enc(jobId) + "&new=1"}>Log another round</Link>
+              <Link className="btn btn-ghost btn-small" to={"/notes?job=" + enc(jobId)}>Take notes during an interview</Link>
               <Link className="btn btn-ghost btn-small" to={"/debrief?job=" + enc(jobId)}>See all {list.length} {list.length === 1 ? "round" : "rounds"}</Link>
             </div>
           </>
