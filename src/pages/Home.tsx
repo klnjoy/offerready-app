@@ -10,7 +10,6 @@
  * "Positioning v2" in styles.css; every class here is prefixed hm- so
  * nothing leaks. */
 
-import { useRef, useState, type KeyboardEvent } from "react";
 import { DOCS_BASE } from "../config";
 import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
 import { displayJobTitle } from "../lib/roles";
@@ -20,58 +19,12 @@ import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import { DemoTour } from "../components/DemoTour";
 import { FAQ } from "../content/faq";
-import { GettingStarted } from "../components/GettingStarted";
 import type { JobRow } from "../types";
 
 /* ---------- content ---------- */
 
 
 /* What only OfferReady does: a tabbed showcase (tab list + one detail panel). */
-const UNIQUE: { id: string; icon: IconName; tab: string; title: string; text: string; points: string[]; to: string; cta: string; isNew?: boolean; forecast?: boolean }[] = [
-  { id: "forecast", icon: "gauge", tab: "Readiness forecast", title: "Know your ready date before the interview", forecast: true, to: "/dashboard", cta: "See your readiness",
-    text: "Most prep tools tell you how you did today. OfferReady tells you when you’ll be ready, and whether that’s before your interview.",
-    points: [
-      "A ready date from your pace over the last 14 days of practice",
-      "Checked against your interview date: on track, or how many days late",
-      "Running late? The extra minutes a day that close the gap",
-    ] },
-  { id: "coach", icon: "spark", tab: "AI Interview Coach", title: "Answers built from your own experience", isNew: true, to: "/coach", cta: "Open the AI Interview Coach",
-    text: "Ask any interview question and get an answer outline from your resume and stories, for the job you’re preparing for.",
-    points: [
-      "Every point shows where it came from: your resume, a story, or general knowledge",
-      "Numbers you never gave it are flagged, never invented",
-      "Save your best version of each answer and practise it again",
-    ] },
-  { id: "voice", icon: "mic", tab: "Voice mock interview", title: "Rehearse out loud, with follow-ups on what you said", to: "/interview/voice", cta: "Try a voice interview",
-    text: "The interviewer listens to your answer, then asks about it, the way a real interviewer would.",
-    points: [
-      "Behavioral, technical and system design rounds, or a mixed loop",
-      "Deep mode keeps asking why, up to three times",
-      "A whiteboard for system design, and feedback on content and delivery",
-    ] },
-  { id: "drills", icon: "shield", tab: "Trade-off drills", title: "Defend a design call under pressure", to: "/defend", cta: "Start a drill",
-    text: "Make the call on a real scenario, then hold it while the interviewer pushes on cost, limits and incidents.",
-    points: [
-      "Scenarios matched to the job’s skills and your gaps",
-      "Interviewer pushback at every stage, with tips when you need them",
-      "Leave at any point; your progress is saved",
-    ] },
-  { id: "proof", icon: "fit", tab: "Proof you improved", title: "See your answer get better", isNew: true, to: "/questions", cta: "Answer and compare",
-    text: "Answer a question, get rubric feedback, then try again and compare the two attempts side by side.",
-    points: [
-      "Every score is backed by a quote from your own answer",
-      "Each criterion shows its change, for example “Vague → Solid”",
-      "A “staff upgrade” tip shows what lifts the answer a level",
-    ] },
-  { id: "debrief", icon: "list", tab: "Interview debrief", title: "Real rounds feed the next one", to: "/debrief", cta: "Write a debrief",
-    text: "After a real round, write down what was asked and how it went while it’s fresh.",
-    points: [
-      "Type questions into the notes pad during the interview; it becomes your debrief in one click",
-      "Questions that went badly come back into your plan",
-      "Optionally share questions anonymously to help others prepare",
-    ] },
-];
-
 const PRACTICE_ONLY: { icon: IconName; title: string; text: string }[] = [
   { icon: "shield", title: "We prepare you. We never sit in your interview.",
     text: "There is no live-interview mode, no overlay and no answer feed. OfferReady works before the interview and after it, never during." },
@@ -99,7 +52,6 @@ const ROLE_PAGES: { label: string; path: string }[] = [
   { label: "Staff / Principal Engineers", path: "For/staff-engineers/index.html" },
 ];
 
-const ROLES = ["AI / ML engineering", "Data & platform engineering", "Solutions & forward-deployed", "Architects", "Senior · Staff · Principal"];
 
 
 
@@ -149,53 +101,6 @@ function ContinueBar() {
 
 /* ---------- what only OfferReady does: tabbed showcase ---------- */
 
-function FeatureTabs() {
-  const [cur, setCur] = useState(0);
-  const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const f = UNIQUE[cur];
-  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    const k = e.key;
-    let n = -1;
-    if (k === "ArrowDown" || k === "ArrowRight") n = (cur + 1) % UNIQUE.length;
-    else if (k === "ArrowUp" || k === "ArrowLeft") n = (cur - 1 + UNIQUE.length) % UNIQUE.length;
-    else if (k === "Home") n = 0;
-    else if (k === "End") n = UNIQUE.length - 1;
-    if (n < 0) return;
-    e.preventDefault();
-    setCur(n);
-    tabs.current[n]?.focus();
-  };
-  return (
-    <div className="hm-ft">
-      <div className="hm-ft-tabs" role="tablist" aria-label="OfferReady features" aria-orientation="vertical" onKeyDown={onKey}>
-        {UNIQUE.map((t, i) => (
-          <button key={t.id} ref={(el) => { tabs.current[i] = el; }} type="button" role="tab" id={"hm-ft-tab-" + t.id}
-            aria-selected={i === cur} aria-controls="hm-ft-panel" tabIndex={i === cur ? 0 : -1}
-            className={"hm-ft-tab" + (i === cur ? " on" : "")} onClick={() => setCur(i)}>
-            <Icon name={t.icon} size={18} />
-            <span>{t.tab}</span>
-            {t.isNew ? <span className="hm-new">New</span> : null}
-          </button>
-        ))}
-      </div>
-      <div className="hm-ft-panel" id="hm-ft-panel" role="tabpanel" aria-labelledby={"hm-ft-tab-" + f.id} key={f.id}>
-        <h3 className="hm-ft-title">{f.title}</h3>
-        <p className="hm-ft-text">{f.text}</p>
-        <ul className="hm-uniq-points">
-          {f.points.map((pt) => <li key={pt}><Icon name="check" size={16} />{pt}</li>)}
-        </ul>
-        {f.forecast ? (
-          <div className="hm-uniq-eg" aria-label="Two example forecasts">
-            <p><span className="hm-uniq-pill hm-uniq-ok">On track</span><span>Ready by <b>Oct 18</b>, 4 days before the interview</span></p>
-            <p><span className="hm-uniq-pill hm-uniq-late">3 days late</span><span>Add <b>15 minutes a day</b> to be ready in time</span></p>
-          </div>
-        ) : null}
-        <Link className="btn hm-ft-cta" to={f.to}>{f.cta}<Icon name="arrow" size={16} /></Link>
-      </div>
-    </div>
-  );
-}
-
 /* A static sample: Today (58) → Ready Oct 18 (80) → Interview Oct 22.
  * 10 days to ready, then a 4-day buffer, so Ready sits at 10/14 of the track. */
 function ForecastSample() {
@@ -230,70 +135,6 @@ function ForecastSample() {
   );
 }
 
-/* ---------- product preview: a sample of the job workspace ---------- */
-
-const PREVIEW_PLAN: { day: string; task: string; done?: boolean }[] = [
-  { day: "Today", task: "Trade-off drill: retrieval vs fine-tuning", done: true },
-  { day: "Today", task: "Answer 3 questions on evaluation" },
-  { day: "Thu", task: "Voice mock: system design with whiteboard" },
-  { day: "Sat", task: "Re-drill the answers you rated weakest" },
-];
-
-function AppPreview() {
-  return (
-    <figure className="hm-app" aria-label="A sample of the OfferReady job workspace, with made-up data">
-      <div className="hm-app-bar" aria-hidden="true">
-        <span className="hm-app-dots"><i /><i /><i /></span>
-        <span className="hm-app-url">offerready · Jobs</span>
-        <span className="hm-app-sample">Sample data</span>
-      </div>
-      <div className="hm-app-body" aria-hidden="true">
-        <aside className="hm-app-side">
-          <p className="hm-app-h">Your jobs</p>
-          <div className="hm-app-job on">
-            <b>Senior AI Engineer</b><span>Northwind · interview Oct 22</span>
-          </div>
-          <div className="hm-app-job">
-            <b>Data Platform Engineer</b><span>Contoso · interview Nov 4</span>
-          </div>
-          <div className="hm-app-job">
-            <b>Staff ML Engineer</b><span>Fabrikam · no date yet</span>
-          </div>
-        </aside>
-        <div className="hm-app-main">
-          <div className="hm-app-top">
-            <div>
-              <p className="hm-app-kicker">Next interview · Thu, Oct 22</p>
-              <p className="hm-app-title">Senior AI Engineer at Northwind</p>
-            </div>
-            <div className="hm-app-score"><b>72</b><span>readiness</span></div>
-          </div>
-          <div className="hm-app-cards">
-            <div className="hm-app-card">
-              <span>Ready by</span><b className="hm-app-green">Oct 18</b><em>4 days to spare</em>
-            </div>
-            <div className="hm-app-card">
-              <span>Resume match</span><b>81%</b><em>2 gaps to back up</em>
-            </div>
-            <div className="hm-app-card">
-              <span>Answers improved</span><b>+19</b><em>42% → 61% on retry</em>
-            </div>
-          </div>
-          <p className="hm-app-h">Your plan</p>
-          <ul className="hm-app-plan">
-            {PREVIEW_PLAN.map((p) => (
-              <li key={p.task} className={p.done ? "done" : ""}>
-                <span className="hm-app-check">{p.done ? <Icon name="check" size={13} /> : null}</span>
-                <span className="hm-app-day">{p.day}</span>{p.task}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </figure>
-  );
-}
-
 /* ---------- page ---------- */
 
 export default function HomePage() {
@@ -322,24 +163,22 @@ export default function HomePage() {
         <div className="hm-visual hm-hero-fc"><ForecastSample /></div>
       </section>
 
-      <GettingStarted where="home" />
-
       {/* roles strip */}
       <section className="hm-roles" aria-label="Roles OfferReady is built for">
         <p className="hm-roles-label">Built for technical interviews in</p>
         <ul>
-          {ROLES.map((r) => <li key={r}>{r}</li>)}
+          {ROLE_PAGES.map((r) => <li key={r.path}><ExternalLink href={DOCS_BASE + r.path}>{r.label}</ExternalLink></li>)}
         </ul>
       </section>
 
       {/* 3. how it works: the three-step demo */}
       <section className="hm-section" aria-labelledby="hm-demo-h">
         <header className="hm-head">
-          <h2 id="hm-demo-h" className="hm-h2">See everything in one minute</h2>
-          <p className="hm-sub">Nine short chapters: prepare, practise, interview. Each shows what the feature does and where to find it. Choose any chapter to jump to it.</p>
+          <h2 id="hm-demo-h" className="hm-h2">How it works, in three steps</h2>
+          <p className="hm-sub">Prepare, practise, interview: every feature in one minute, with where to find it. Choose any chapter to jump to it.</p>
         </header>
         <DemoTour />
-        <p className="hm-demo-more"><Link className="hm-link" to="/example">See a full worked example<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo">Open the demo full screen<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
+        <p className="hm-demo-more"><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 3b. every round */}
@@ -363,10 +202,6 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
-        <p className="hm-fmt-roles">
-          <span>Guides by role:</span>
-          {ROLE_PAGES.map((r) => <ExternalLink key={r.path} href={DOCS_BASE + r.path}>{r.label}</ExternalLink>)}
-        </p>
       </section>
 
       {/* 4. practice-only, by design */}
@@ -390,20 +225,6 @@ export default function HomePage() {
         <p className="hm-po-more">
           <ExternalLink className="hm-link" href={DOCS_BASE + "Security/index.html"}>Security and your data<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
           <ExternalLink className="hm-link" href={DOCS_BASE + "Compare/index.html"}>Compare with live interview assistants<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
-        </p>
-      </section>
-
-      {/* 5. what only OfferReady does */}
-      <section className="hm-section" aria-labelledby="hm-feat-h">
-        <header className="hm-head">
-          <p className="hm-kicker">What only OfferReady does</p>
-          <h2 id="hm-feat-h" className="hm-h2">Plenty of tools can ask you questions. These parts are ours.</h2>
-          <p className="hm-sub">Everything runs on the job you added: its requirements, your resume, your stories and your interview date.</p>
-        </header>
-        <FeatureTabs />
-        <p className="hm-helpnote">
-          <Icon name="chat" size={18} />
-          <span>Stuck on a screen? <strong>Ask OfferReady</strong>, the help assistant in the bottom-right corner, knows which screen and which job you are on.</span>
         </p>
       </section>
 
@@ -463,9 +284,8 @@ export default function HomePage() {
         <p>Add the job: paste its link or description to see what it requires, where you fall short, and a plan to close the gap before the day. Free to start.</p>
         <div className="hm-cta-row hm-cta-center">
           <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
-          <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
+          <Link className="btn btn-lg btn-on-dark" to="/sample-report">See a sample report</Link>
         </div>
-        <AppPreview />
       </section>
     </div>
   );

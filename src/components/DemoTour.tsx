@@ -376,7 +376,7 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
       <div className="dt-side">
         {phases.map((ph) => (
           <div key={ph} className="dt-phase">
-            <p className="dt-phase-h">{ph}</p>
+            <p className="dt-phase-h">Step {phases.indexOf(ph) + 1} · {ph}</p>
             <ol className="dt-steps">
               {CHAPTERS.map((c, i) => (c.phase !== ph ? null : (
                 <li key={c.title}>
