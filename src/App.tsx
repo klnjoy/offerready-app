@@ -35,6 +35,7 @@ const DebriefPage = lazy(() => import("./pages/Debrief"));
 const OffersPage = lazy(() => import("./pages/Offers"));
 const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.TodayRedirect })));
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
+const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
 type Section = "jobs" | "practice" | "copilot" | "mock" | "readiness";
@@ -61,10 +62,11 @@ const ROUTES: Route[] = [
   { path: "/analyze", title: "Add a job", section: "jobs", subtitle: "Paste a job link or description. You get what the role needs, how your resume matches, and a day-by-day plan to your interview.", component: AnalyzePage },
   { path: "/today", title: "Your plan", section: "jobs", component: TodayRedirect },
   { path: "/fit", title: "Resume match", section: "jobs", component: FitRedirect },
+  { path: "/copilot", title: "Answer Studio", section: "copilot", component: StudioRedirect },
   { path: "/tailor", title: "Tailor your resume", section: "jobs", back: { to: "@job:resume", label: "Your job" }, subtitle: "Rewrite your resume bullets for one job’s skills and gaps, without inventing anything.", component: TailorPage },
   { path: "/debrief", title: "Interview debrief", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Write down each round while it’s fresh. Questions that went badly come back in your plan.", component: DebriefPage },
   { path: "/offers", title: "Compare offers", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Put your offers side by side on year-1 and yearly pay, then plan how to negotiate.", component: OffersPage },
-  { path: "/copilot", title: "Interview Copilot", section: "copilot", subtitle: "Your interview context, your experience, your next best answer. Built only from your resume and stories, for practice.", component: CopilotPage },
+  { path: "/studio", title: "Answer Studio", section: "copilot", subtitle: "Your interview context, your experience, your next best answer. Built only from your resume and stories, for practice.", component: CopilotPage },
   { path: "/practice", title: "Practice", section: "practice", subtitle: "Four ways to practise. Pick what fits; you don’t need all four. Start with the first if you’re not sure.", component: PracticeHubPage },
   { path: "/practice/bank", title: "Question bank", section: "practice", back: BACK_PRACTICE, subtitle: "Quick reps on any topic: answer and rate yourself, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
   { path: "/questions", title: "Questions for this job", section: "practice", back: BACK_PRACTICE, subtitle: "Likely interview questions written from the job and the gaps in your resume, saved to the job.", component: QuestionsPage },
@@ -82,7 +84,7 @@ const ROUTES: Route[] = [
 const NAV: { key: Section; to: string; label: string }[] = [
   { key: "jobs", to: "/jobs", label: "Jobs" },
   { key: "practice", to: "/practice", label: "Practice" },
-  { key: "copilot", to: "/copilot", label: "Copilot" },
+  { key: "copilot", to: "/studio", label: "Answer Studio" },
   { key: "mock", to: "/mock", label: "Mock interview" },
   { key: "readiness", to: "/dashboard", label: "Readiness" },
 ];
@@ -226,7 +228,7 @@ export default function App() {
           </div>
           <div className="footer-col">
             <h2>Practice</h2>
-            <Link to="/copilot">Interview Copilot</Link>
+            <Link to="/studio">Answer Studio</Link>
             <Link to="/questions">Questions for this job</Link>
             <Link to="/defend">Trade-off drills</Link>
             <Link to="/stories">Your stories</Link>

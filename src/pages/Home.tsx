@@ -62,7 +62,7 @@ const UNIQUE: { icon: IconName; title: string; text: string; to: string; cta: st
       "Checked against your interview date: on track, or how many days late",
       "Running late? The extra minutes a day that close the gap",
     ] },
-  { icon: "spark", title: "Interview Copilot, built from your experience", isNew: true, to: "/copilot", cta: "Open the Copilot",
+  { icon: "spark", title: "Answer Studio, built from your experience", isNew: true, to: "/studio", cta: "Open Answer Studio",
     text: "Ask any question and get an answer outline from your own resume and stories. Every point shows where it came from, and numbers you never gave it are flagged. For practice, never during an interview." },
   { icon: "mic", title: "Follow-ups on what you actually said", isNew: true, to: "/interview/voice", cta: "Try a voice interview",
     text: "The voice interviewer listens, then asks about your answer. Deep mode keeps asking why, up to three times, and system design rounds come with a whiteboard to sketch on." },
