@@ -20,6 +20,7 @@ const JobDetailPage = lazy(() => import("./pages/JobDetail"));
 const QuestionsPage = lazy(() => import("./pages/Questions"));
 const DefendPage = lazy(() => import("./pages/Defend"));
 const PracticeHubPage = lazy(() => import("./pages/PracticeHub"));
+const CopilotPage = lazy(() => import("./pages/Copilot"));
 const PracticePage = lazy(() => import("./pages/Practice"));
 const MockHubPage = lazy(() => import("./pages/MockHub"));
 const SimulatorPage = lazy(() => import("./pages/Simulator"));
@@ -36,7 +37,7 @@ const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ defa
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
-type Section = "jobs" | "practice" | "mock" | "readiness";
+type Section = "jobs" | "practice" | "copilot" | "mock" | "readiness";
 
 interface Route {
   path: string;
@@ -63,6 +64,7 @@ const ROUTES: Route[] = [
   { path: "/tailor", title: "Tailor your resume", section: "jobs", back: { to: "@job:resume", label: "Your job" }, subtitle: "Rewrite your resume bullets for one job’s skills and gaps, without inventing anything.", component: TailorPage },
   { path: "/debrief", title: "Interview debrief", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Write down each round while it’s fresh. Questions that went badly come back in your plan.", component: DebriefPage },
   { path: "/offers", title: "Compare offers", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Put your offers side by side on year-1 and yearly pay, then plan how to negotiate.", component: OffersPage },
+  { path: "/copilot", title: "Interview Copilot", section: "copilot", subtitle: "Your interview context, your experience, your next best answer. Built only from your resume and stories, for practice.", component: CopilotPage },
   { path: "/practice", title: "Practice", section: "practice", subtitle: "Four ways to practise. Pick what fits; you don’t need all four. Start with the first if you’re not sure.", component: PracticeHubPage },
   { path: "/practice/bank", title: "Question bank", section: "practice", back: BACK_PRACTICE, subtitle: "Quick reps on any topic: answer and rate yourself, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
   { path: "/questions", title: "Questions for this job", section: "practice", back: BACK_PRACTICE, subtitle: "Likely interview questions written from the job and the gaps in your resume, saved to the job.", component: QuestionsPage },
@@ -80,6 +82,7 @@ const ROUTES: Route[] = [
 const NAV: { key: Section; to: string; label: string }[] = [
   { key: "jobs", to: "/jobs", label: "Jobs" },
   { key: "practice", to: "/practice", label: "Practice" },
+  { key: "copilot", to: "/copilot", label: "Copilot" },
   { key: "mock", to: "/mock", label: "Mock interview" },
   { key: "readiness", to: "/dashboard", label: "Readiness" },
 ];

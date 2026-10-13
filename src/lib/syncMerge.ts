@@ -82,6 +82,7 @@ export const SYNC_SPECS: Spec[] = [
   { key: "offerready.questionProgress.v1", kind: "map" },
   { key: "offerready.jobOutcomes.v1", kind: "map" },
   { key: "offerready.stories.v1", kind: "list", tsOf: (x) => isoTs(x.updatedAt) },
+  { key: "offerready.answers.v1", kind: "list", tsOf: (x) => isoTs(x.updatedAt) },
   { key: "offerready.debriefs.v1", kind: "list", tsOf: (x) => isoTs(x.updatedAt) },
   // Offers have ids but no updatedAt: merged by id, the newer side wins per offer.
   { key: "offerready.offers.v1", kind: "list" },
