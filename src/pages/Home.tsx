@@ -12,8 +12,8 @@
 
 import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { DOCS_BASE, STUDY_URL } from "../config";
-import { LIMITS, PLAN_MATRIX } from "../lib/plans";
-import { PASSES } from "../lib/passes";
+import { LIMITS } from "../lib/plans";
+import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
 import { Icon, type IconName } from "../components/Icon";
@@ -320,6 +320,70 @@ function FeatureTabs() {
   );
 }
 
+/* ---------- product preview: a sample of the job workspace ---------- */
+
+const PREVIEW_PLAN: { day: string; task: string; done?: boolean }[] = [
+  { day: "Today", task: "Trade-off drill: retrieval vs fine-tuning", done: true },
+  { day: "Today", task: "Answer 3 questions on evaluation" },
+  { day: "Thu", task: "Voice mock: system design with whiteboard" },
+  { day: "Sat", task: "Re-drill the answers you rated weakest" },
+];
+
+function AppPreview() {
+  return (
+    <figure className="hm-app" aria-label="A sample of the OfferReady job workspace, with made-up data">
+      <div className="hm-app-bar" aria-hidden="true">
+        <span className="hm-app-dots"><i /><i /><i /></span>
+        <span className="hm-app-url">offerready · Jobs</span>
+        <span className="hm-app-sample">Sample data</span>
+      </div>
+      <div className="hm-app-body" aria-hidden="true">
+        <aside className="hm-app-side">
+          <p className="hm-app-h">Your jobs</p>
+          <div className="hm-app-job on">
+            <b>Senior AI Engineer</b><span>Northwind · interview Oct 22</span>
+          </div>
+          <div className="hm-app-job">
+            <b>Data Platform Engineer</b><span>Contoso · interview Nov 4</span>
+          </div>
+          <div className="hm-app-job">
+            <b>Staff ML Engineer</b><span>Fabrikam · no date yet</span>
+          </div>
+        </aside>
+        <div className="hm-app-main">
+          <div className="hm-app-top">
+            <div>
+              <p className="hm-app-kicker">Next interview · Thu, Oct 22</p>
+              <p className="hm-app-title">Senior AI Engineer at Northwind</p>
+            </div>
+            <div className="hm-app-score"><b>72</b><span>readiness</span></div>
+          </div>
+          <div className="hm-app-cards">
+            <div className="hm-app-card">
+              <span>Ready by</span><b className="hm-app-green">Oct 18</b><em>4 days to spare</em>
+            </div>
+            <div className="hm-app-card">
+              <span>Resume match</span><b>81%</b><em>2 gaps to back up</em>
+            </div>
+            <div className="hm-app-card">
+              <span>Answers improved</span><b>+19</b><em>42% → 61% on retry</em>
+            </div>
+          </div>
+          <p className="hm-app-h">Your plan</p>
+          <ul className="hm-app-plan">
+            {PREVIEW_PLAN.map((p) => (
+              <li key={p.task} className={p.done ? "done" : ""}>
+                <span className="hm-app-check">{p.done ? <Icon name="check" size={13} /> : null}</span>
+                <span className="hm-app-day">{p.day}</span>{p.task}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </figure>
+  );
+}
+
 /* ---------- page ---------- */
 
 export default function HomePage() {
@@ -491,23 +555,26 @@ export default function HomePage() {
             <Link className="btn btn-lg" to="/pricing">See pricing</Link>
           </div>
         </div>
-        <div className="hm-plan-table">
-          <table>
-            <caption className="hm-sr">Free and the 90-day pass compared</caption>
-            <thead>
-              <tr><th scope="col">Feature</th><th scope="col">Free</th><th scope="col" className="hm-pro-col">90-day pass ({PASSES.pass90.price} once)</th></tr>
-            </thead>
-            <tbody>
-              {PLAN_MATRIX.map((row) => (
-                <tr key={row.feature}>
-                  <th scope="row">{row.label}</th>
-                  <td>{row.free === "—" ? <span className="hm-dash" aria-label="Not included">{"—"}</span> : row.free}</td>
-                  <td className="hm-pro-col">{row.pro}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="hm-tiers" aria-label="Plans">
+          <li className="hm-tier">
+            <span className="hm-tier-name">Free</span>
+            <span className="hm-tier-price">$0</span>
+            <span className="hm-tier-fit">One job, the full prep loop to try it</span>
+          </li>
+          {PASS_ORDER.map((k) => {
+            const p = PASSES[k];
+            const pick = k === POPULAR;
+            return (
+              <li key={k} className={"hm-tier" + (pick ? " hm-tier-pick" : "")}>
+                {pick ? <span className="hm-tier-tag">Recommended</span> : null}
+                <span className="hm-tier-name">{p.name}</span>
+                <span className="hm-tier-price">{p.price}<small> once</small></span>
+                <span className="hm-tier-fit">{p.fit}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="hm-tier-more"><Link className="hm-link" to="/pricing">Compare every limit on the pricing page<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 7. study library */}
@@ -549,6 +616,7 @@ export default function HomePage() {
           <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
           <Link className="btn btn-lg btn-on-dark" to="/example">See a sample walkthrough</Link>
         </div>
+        <AppPreview />
       </section>
     </div>
   );
