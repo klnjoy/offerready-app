@@ -21,17 +21,52 @@ export interface TailorSuggestion {
 
 const BULLET_MARK = /^\s*(?:[-*•▪●–—>]|\d+[.)])\s+/;
 
-/** Lines that read like resume bullets: bullet-marked lines first, else
- * sentence-length lines (≥ 30 chars, not ALL CAPS headings). */
+/** Bullet symbols as they come out of PDFs and Word: •, ▪, ●, ◦, ‣, and the
+ * private-use Symbol/Wingdings glyphs (,  …) that often arrive mid-line. */
+const GLYPHS = /\s*[•▪●◦‣⁃∙►➢❖]\s*/g;
+/** Contact details and links: never treat these as bullets (and never send them). */
+const CONTACT = /@[A-Za-z0-9-]+\.|\(\d{3}\)\s*\d{3}|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b|linkedin\.com|github\.com|https?:\/\/|www\./i;
+/** Job header lines: "Senior Engineer  Jun 2016 – Jul 2019" and similar. */
+const DATE_RANGE = /\b(?:19|20)\d{2}\s*[–—-]\s*(?:(?:19|20)\d{2}|present|current|now)\b/i;
+const LABEL_LINE = /^(?:technologies|tools|skills|environment|tech stack|project)\s*:/i;
+
+function isHeading(l: string): boolean {
+  const letters = l.replace(/[^A-Za-z]/g, "");
+  if (letters.length >= 4 && letters === letters.toUpperCase() && l.length < 80) return true;
+  return /:$/.test(l) && l.length < 60;
+}
+
+/** True when a line can't be a resume bullet (contact info, headings, dates). */
+export function notABullet(l: string): boolean {
+  return CONTACT.test(l) || DATE_RANGE.test(l) || LABEL_LINE.test(l) || isHeading(l);
+}
+
+/** Long run-on text (a PDF paragraph) → sentence-sized pieces. */
+function pieces(l: string): string[] {
+  if (l.length <= MAX_BULLET_CHARS) return [l];
+  return l.split(/(?<=[.!?;])\s+(?=[A-Z])/).map((x) => x.trim()).filter(Boolean)
+    .flatMap((x) => (x.length > MAX_BULLET_CHARS ? [x.slice(0, MAX_BULLET_CHARS).replace(/\s+\S*$/, "")] : [x]));
+}
+
+/** Resume text → the lines most likely to be achievement bullets.
+ * Bullet-marked lines (including symbols mid-line) win; otherwise
+ * sentence-length lines. Contact details, headings and job/date headers are
+ * always skipped. */
 export function extractBullets(text: string, max = MAX_BULLETS): string[] {
-  const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n").map((l) => l.trim()).filter(Boolean);
-  const marked = lines.filter((l) => BULLET_MARK.test(l)).map((l) => l.replace(BULLET_MARK, "").trim());
-  const pool = marked.length >= 2 ? marked : lines.filter((l) => l.length >= 30 && l !== l.toUpperCase());
+  const norm = String(text || "").replace(/\r\n?/g, "\n").replace(GLYPHS, "\n\u0007");
+  const lines = norm.split("\n").map((l) => l.trim()).filter(Boolean);
+  const marked = lines.filter((l) => l.startsWith("\u0007") || BULLET_MARK.test(l))
+    .map((l) => l.replace(/^\u0007/, "").replace(BULLET_MARK, "").trim());
+  const usable = (arr: string[]) => arr.flatMap(pieces).filter((l) => l.length >= 30 && !notABullet(l));
+  // "AI • Snowflake • AWS" in a header also uses bullet symbols, so marked
+  // lines only win when at least two of them survive the filters.
+  const fromMarked = usable(marked);
+  const base = fromMarked.length >= 2 ? fromMarked : usable(lines.map((l) => l.replace(/^\u0007/, "")));
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const l of pool) {
+  for (const l of base) {
     const v = l.replace(/\s+/g, " ").slice(0, MAX_BULLET_CHARS);
-    if (v.length < 12 || seen.has(v.toLowerCase())) continue;
+    if (seen.has(v.toLowerCase())) continue;
     seen.add(v.toLowerCase());
     out.push(v);
     if (out.length >= max) break;
@@ -39,11 +74,12 @@ export function extractBullets(text: string, max = MAX_BULLETS): string[] {
   return out;
 }
 
-/** The pasted textarea → bullets (one per line, markers stripped). */
+/** The pasted textarea → bullets (one per line, markers stripped). Lines with
+ * contact details are dropped so they're never sent. */
 export function splitBullets(text: string, max = MAX_BULLETS): string[] {
-  return String(text || "").replace(/\r\n?/g, "\n").split("\n")
+  return String(text || "").replace(/\r\n?/g, "\n").replace(GLYPHS, "\n").split("\n")
     .map((l) => l.replace(BULLET_MARK, "").replace(/\s+/g, " ").trim())
-    .filter((l) => l.length >= 3)
+    .filter((l) => l.length >= 3 && !CONTACT.test(l))
     .slice(0, max)
     .map((l) => l.slice(0, MAX_BULLET_CHARS));
 }
