@@ -5,6 +5,7 @@ import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
+import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
 import { track } from "./lib/track";
@@ -169,6 +170,7 @@ export default function App() {
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
+      {pathname === "/" ? <MarketingHeader /> : (
       <header className="topbar">
         <div className="topbar-inner">
           <Link className="brand" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
@@ -193,6 +195,7 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
       <main id="main" className={"main" + (pathname === "/" ? " main-home" : "")}>
         {match?.route.subtitle ? (
