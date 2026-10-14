@@ -3375,3 +3375,7 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 }
 @media (max-width: 370px) { .mh-brand span { display: none; } }
 .hm-plans-cta { margin-top: 4px; }
+.dto-sug.is-open { border-left-color: var(--amber); }
+.dto-sug-state { font-size: 0.78rem; font-weight: 700; color: var(--text-2); margin-left: auto; margin-right: 8px; }
+.dto-sug-state.ok { color: var(--signal-600); }
+.dto-sug-state.todo { color: var(--amber); }

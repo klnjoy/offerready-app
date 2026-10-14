@@ -155,8 +155,11 @@ export default function TailorPage() {
 
   const done = run.kind === "done" ? run : null;
   const sugs = done ? done.suggestions.map((x) => (edits[x.index] != null ? { ...x, rewritten: edits[x.index] } : x)) : [];
-  const final = done ? finalBullets(done.originals, sugs, accepted) : [];
-  const acceptedSugs = sugs.filter((x) => accepted[x.index] !== false);
+  const isOn = (i: number) => accepted[i] === true;
+  const decidedMap: Record<number, boolean> = done ? Object.fromEntries(done.suggestions.map((x) => [x.index, isOn(x.index)])) : {};
+  const final = done ? finalBullets(done.originals, sugs, decidedMap) : [];
+  const acceptedSugs = sugs.filter((x) => isOn(x.index));
+  const reviewed = done ? done.suggestions.filter((x) => accepted[x.index] != null).length : 0;
   const unfilled = acceptedSugs.filter((x) => hasPlaceholder(x.rewritten)).length;
   const putInResume = () => {
     if (!saved?.text || !done) return;
@@ -165,7 +168,16 @@ export default function TailorPage() {
     setApplied({ replaced: r.replaced, missed: r.missed.length });
   };
   const after = done ? keywordCoverage(keywords, final) : null;
-  const acceptedCount = done ? done.suggestions.filter((s) => accepted[s.index] !== false).length : 0;
+  const acceptedCount = acceptedSugs.length;
+  const decide = (i: number, on: boolean) => {
+    setAccepted((a) => ({ ...a, [i]: on }));
+    setApplied(null);
+    // Move on to the next bullet still to review.
+    window.setTimeout(() => {
+      const next = document.querySelector<HTMLElement>(".dto-sug.is-open");
+      next?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+  };
   const facts = unfilled;
 
   return (
@@ -217,7 +229,7 @@ export default function TailorPage() {
             <div className="td-sec-head">
               <div>
                 <h2 id="tl-sum-h">{done.suggestions.length} {done.suggestions.length === 1 ? "suggestion" : "suggestions"}</h2>
-                <p className="muted small">{acceptedCount} accepted{facts ? " · " + facts + (facts === 1 ? " needs a number from you" : " need a number from you") : ""}</p>
+                <p className="muted small">{reviewed} of {done.suggestions.length} reviewed · {acceptedCount} accepted{facts ? " · " + facts + (facts === 1 ? " needs a number from you" : " need a number from you") : ""}</p>
               </div>
             </div>
             <ol className="tl-steps">
@@ -239,15 +251,17 @@ export default function TailorPage() {
 
           <ol className="dto-sugs">
             {done.suggestions.map((s) => {
-              const on = accepted[s.index] !== false;
+              const on = accepted[s.index] === true;
+              const off = accepted[s.index] === false;
               const cur = edits[s.index] ?? s.rewritten;
               return (
-                <li key={s.index} className={"card dto-sug" + (on ? " is-on" : " is-off")}>
+                <li key={s.index} className={"card dto-sug" + (on ? " is-on" : off ? " is-off" : " is-open")}>
                   <div className="dto-sug-head">
                     <span className="dto-sug-n">Bullet {s.index + 1}</span>
+                    {on ? <span className="dto-sug-state ok">✓ Accepted</span> : off ? <span className="dto-sug-state">Keeping original</span> : <span className="dto-sug-state todo">To review</span>}
                     <div className="dto-seg dto-seg-sm" role="group" aria-label={"Bullet " + (s.index + 1)}>
-                      <button type="button" className={"dto-seg-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => setAccepted((a) => ({ ...a, [s.index]: true }))}>Accept</button>
-                      <button type="button" className={"dto-seg-btn" + (!on ? " on" : "")} aria-pressed={!on} onClick={() => setAccepted((a) => ({ ...a, [s.index]: false }))}>Keep original</button>
+                      <button type="button" className={"dto-seg-btn" + (on ? " on" : "")} aria-pressed={on} onClick={() => decide(s.index, true)}>Accept</button>
+                      <button type="button" className={"dto-seg-btn" + (off ? " on" : "")} aria-pressed={off} onClick={() => decide(s.index, false)}>Keep original</button>
                     </div>
                   </div>
                   <p className="dto-orig"><span className="dto-sr">Original: </span>{s.original}</p>
@@ -256,7 +270,7 @@ export default function TailorPage() {
                       <textarea className="input textarea" rows={3} aria-label={"Edit bullet " + (s.index + 1)} autoFocus
                         value={edits[s.index] ?? s.rewritten} onChange={(e) => setEdits((m) => ({ ...m, [s.index]: e.target.value }))} />
                       <div className="row">
-                        <button type="button" className="btn btn-small" onClick={() => { setEditing(null); setAccepted((a) => ({ ...a, [s.index]: true })); }}>Done</button>
+                        <button type="button" className="btn btn-small" onClick={() => { setEditing(null); decide(s.index, true); }}>Done, accept</button>
                         {edits[s.index] != null && <button type="button" className="link-btn small" onClick={() => setEdits((m) => { const n = { ...m }; delete n[s.index]; return n; })}>Undo my edits</button>}
                       </div>
                     </div>
@@ -290,7 +304,8 @@ export default function TailorPage() {
                 <strong>Update the resume saved in OfferReady</strong>
                 <p className="small muted">Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</p>
                 <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>Update my saved resume</button>
-                {!saved?.text && <p className="small muted">No saved resume yet: copy the bullets instead.</p>}
+                {!saved?.text ? <p className="small muted">No saved resume yet: copy the bullets instead.</p>
+                  : !acceptedCount ? <p className="small muted">Accept at least one rewrite above first.</p> : null}
               </div>
               <div className="tl-finish-opt">
                 <strong>Copy into your resume file</strong>
@@ -303,7 +318,12 @@ export default function TailorPage() {
                 {applied.replaced
                   ? <p><strong>Saved resume updated: {applied.replaced} {applied.replaced === 1 ? "bullet" : "bullets"} replaced.</strong>{applied.missed ? " " + applied.missed + " couldn’t be matched to a line in your resume; copy " + (applied.missed === 1 ? "that one" : "those") + " in by hand." : ""}</p>
                   : <p>None of the bullets could be matched to lines in your saved resume. Copy them in by hand instead.</p>}
-                {applied.replaced > 0 && row && <Link className="btn btn-primary" to={"/jobs/" + encodeURIComponent(row.id) + "?tab=resume&recheck=1"}>Re-check my fit now</Link>}
+                {row && (
+                  <div className="row">
+                    {applied.replaced > 0 && <Link className="btn btn-primary" to={"/jobs/" + encodeURIComponent(row.id) + "?tab=resume&recheck=1"}>Next: re-check my fit</Link>}
+                    <Link className="btn" to={"/questions?job=" + encodeURIComponent(row.id)}>Practise this job{"’"}s questions</Link>
+                  </div>
+                )}
               </div>
             )}
           </section>

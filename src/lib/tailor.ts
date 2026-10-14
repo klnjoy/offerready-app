@@ -150,20 +150,27 @@ export function hasPlaceholder(s: string): boolean {
  * indentation. Pure. Returns the new text and how many were (not) found.
  */
 export function applyToResume(resumeText: string, pairs: { original: string; rewritten: string }[]): { text: string; replaced: number; missed: string[] } {
-  const norm = (s: string) => s.replace(BULLET_MARK, "").replace(/\s+/g, " ").trim().toLowerCase();
-  const lines = String(resumeText || "").replace(/\r\n?/g, "\n").split("\n");
-  const used = new Set<number>();
+  // Match on the words only, so bullet glyphs, line wraps from a PDF and extra
+  // spaces between them don't stop a bullet from being found. The match is
+  // replaced in place: any bullet marker before it and the text around it
+  // (another bullet on the same line, a wrapped next line) are kept.
+  let text = String(resumeText || "").replace(/\r\n?/g, "\n");
   let replaced = 0;
   const missed: string[] = [];
   for (const p of pairs) {
-    if (!p.rewritten.trim() || p.rewritten.trim() === p.original.trim()) continue;
-    const want = p.original.replace(/\s+/g, " ").trim().toLowerCase();
-    const i = lines.findIndex((l, k) => !used.has(k) && norm(l) && (norm(l) === want || (want.length >= 40 && norm(l).startsWith(want))));
-    if (i < 0) { missed.push(p.original); continue; }
-    const lead = (/^\s*(?:[-*•▪●–—>]|\d+[.)])\s+/.exec(lines[i]) || /^\s*/.exec(lines[i]) || [""])[0];
-    lines[i] = lead + p.rewritten.replace(/\s+/g, " ").trim();
-    used.add(i);
+    const rewritten = p.rewritten.replace(/\s+/g, " ").trim();
+    if (!rewritten || rewritten === p.original.replace(/\s+/g, " ").trim()) continue;
+    const words = p.original.match(/[\p{L}\p{N}]+/gu) || [];
+    if (words.length < 3) { missed.push(p.original); continue; }
+    const re = new RegExp("(?<![\\p{L}\\p{N}])" + words.map(esc).join("[^\\p{L}\\p{N}]+") + "(?![\\p{L}\\p{N}])", "iu");
+    const m = re.exec(text);
+    if (!m) { missed.push(p.original); continue; }
+    let end = m.index + m[0].length;
+    // Take the original's closing punctuation along, so it isn't doubled.
+    const close = /[.!?;:]$/.exec(p.original.trim());
+    if (close && text[end] === close[0]) end++;
+    text = text.slice(0, m.index) + rewritten + text.slice(end);
     replaced++;
   }
-  return { text: lines.join("\n"), replaced, missed };
+  return { text, replaced, missed };
 }
