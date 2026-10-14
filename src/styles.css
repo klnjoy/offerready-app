@@ -3379,3 +3379,23 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .dto-sug-state { font-size: 0.78rem; font-weight: 700; color: var(--text-2); margin-left: auto; margin-right: 8px; }
 .dto-sug-state.ok { color: var(--signal-600); }
 .dto-sug-state.todo { color: var(--amber); }
+/* Job page: every day first, interview day, set up once (folded when done) */
+.jd-daily h2, .jd-iday h2 { margin: 0; font-size: 1.1rem; }
+.jd-daily-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 900px) { .jd-daily-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.jd-daily-grid li { margin: 0; }
+.jd-daily-grid a { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); color: var(--text); text-decoration: none; }
+.jd-daily-grid a:hover { border-color: var(--signal); }
+.jd-daily-grid strong { font-size: 0.95rem; }
+.jd-iday p { margin: 0; }
+.jd-setup { gap: 0; }
+.jd-setup summary { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; cursor: pointer; list-style: none; }
+.jd-setup summary::-webkit-details-marker { display: none; }
+.jd-setup summary::after { content: "▾"; color: var(--text-2); margin-left: 6px; }
+.jd-setup[open] summary::after { content: "▴"; }
+.jd-setup-h { font-weight: 700; font-size: 1.05rem; }
+.jd-setup-list { list-style: none; margin: 12px 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.jd-setup-list li { margin: 0; display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg); font-size: 0.92rem; }
+.jd-setup-dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 0.72rem; font-weight: 800; border: 1.5px solid var(--border-strong); color: var(--text-2); flex: none; }
+.jd-setup-list li.done .jd-setup-dot { background: var(--signal); border-color: var(--signal); color: #fff; }
+.jd-setup-list li.done { color: var(--text-2); }

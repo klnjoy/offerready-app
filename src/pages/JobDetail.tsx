@@ -206,45 +206,54 @@ export function nextBestAction(s: {
   return { label: "Raise your readiness", why: "Today’s plan is done. One more practice round moves the score.", to: "/practice" + jobQ, cta: "Practise" };
 }
 
-/** The whole journey for one job in three stages, so "when am I done?" always has an answer. */
-function PathToReady({ jobId, hasFit, questionCount, practised, hasDefend, mockDone, readiness }: {
-  jobId: string; hasFit: boolean; questionCount: number; practised: number; hasDefend: boolean; mockDone: boolean; readiness: number | null;
-}) {
+/** What you come back to every day for this job: the practice tools, already
+ * pointed at this job. */
+function EveryDay({ jobId, practised, mockDone }: { jobId: string; practised: number; mockDone: boolean }) {
   const jq = "?job=" + enc(jobId);
-  const qDone = Math.min(practised, 5);
-  const practiceDone = practised >= 5 && hasDefend;
-  const steps = [
-    {
-      label: "Know the job", done: true, to: jobPath(jobId, "resume"),
-      detail: hasFit ? "Job and resume match done" : "Job added. Add your resume to see your gaps (optional)",
-    },
-    {
-      label: "Practise", done: practiceDone, to: practised < 5 ? "/questions" + jq : "/defend" + jq,
-      detail: practiceDone ? "Done" : (questionCount ? qDone + " of 5 questions" : "5 questions") + (hasDefend ? " · drill done" : " · then 1 trade-off drill"),
-    },
-    {
-      label: "Mock interview", done: mockDone, to: "/interview/voice",
-      detail: mockDone ? "Done this week" + (readiness != null ? " · readiness " + readiness : "") : "Voice or text. Open any time",
-    },
+  const items: { to: string; title: string; detail: string }[] = [
+    { to: "/questions" + jq, title: "Practise questions", detail: practised ? practised + " answered so far" : "Written from this job" },
+    { to: "/defend" + jq, title: "Trade-off drill", detail: "Hold a call under push-back" },
+    { to: "/coach", title: "AI Interview Coach", detail: "Shape an answer from your stories" },
+    { to: "/interview/voice", title: "Mock interview", detail: mockDone ? "Done this week" : "Voice, with follow-ups" },
   ];
-  const current = steps.findIndex((x) => !x.done);
   return (
-    <section className="card ptr" aria-labelledby="ptr-h">
-      <div className="ptr-head">
-        <h2 id="ptr-h">Your 3 steps</h2>
-        <span className="small muted">{current < 0 ? (readiness != null && readiness >= 80 ? "You’re ready. Keep it warm with light review." : "All 3 done. Repeat weak spots to reach 80+.") : "You can jump to any step and stop any time; progress is saved."}</span>
-      </div>
-      <ol className="ptr-steps ptr-3">
-        {steps.map((x, i) => (
-          <li key={x.label} className={x.done ? "done" : i === current ? "now" : ""}>
-            <Link to={x.to}>
-              <span className="ptr-dot" aria-hidden="true">{x.done ? "✓" : i + 1}</span>
-              <span className="ptr-text"><strong>{x.label}</strong><span className="small muted">{x.detail}</span></span>
-            </Link>
+    <section className="card jd-daily" aria-labelledby="jd-daily-h">
+      <h2 id="jd-daily-h">Every day</h2>
+      <ul className="jd-daily-grid">
+        {items.map((x) => (
+          <li key={x.title}><Link to={x.to}><strong>{x.title}</strong><span className="small muted">{x.detail}</span></Link></li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** One-time setup for this job. Open until it's done, then folded away. */
+function SetupOnce({ jobId, hasResume, hasFit, hasDate, children }: { jobId: string; hasResume: boolean; hasFit: boolean; hasDate: boolean; children?: ReactNode }) {
+  const steps = [
+    { label: "Job added", done: true, to: jobPath(jobId, "overview") },
+    { label: "Interview date", done: hasDate, to: jobPath(jobId, "overview") },
+    { label: "Resume added", done: hasResume, to: jobPath(jobId, "resume") },
+    { label: "Gaps checked", done: hasFit, to: jobPath(jobId, "resume") },
+  ];
+  const left = steps.filter((x) => !x.done).length;
+  return (
+    <details className="card jd-setup" open={left > 0}>
+      <summary>
+        <span className="jd-setup-h">Set up once</span>
+        <span className="small muted">{left ? left + " of " + steps.length + " to do" : "All done · open to change"}</span>
+      </summary>
+      <ul className="jd-setup-list">
+        {steps.map((x) => (
+          <li key={x.label} className={x.done ? "done" : ""}>
+            <span className="jd-setup-dot" aria-hidden="true">{x.done ? "✓" : ""}</span>
+            {x.done ? <span>{x.label}</span> : <Link to={x.to}>{x.label}</Link>}
           </li>
         ))}
-      </ol>
-    </section>
+        <li className="opt"><span className="jd-setup-dot" aria-hidden="true">+</span><Link to={"/tailor?job=" + enc(jobId)}>Tailor your resume (optional)</Link></li>
+      </ul>
+      {children}
+    </details>
   );
 }
 
@@ -259,6 +268,7 @@ function Overview({ data }: { data: JobDetail }) {
   const [doneDays, setDoneDays] = useState<string[]>(allDoneDays);
   const [showAll, setShowAll] = useState(false);
   const debriefs = useDebriefs();
+  const [resumeSaved] = useSavedResume();
 
   useEffect(() => { setState(ensurePlanState(jobId, date, today)); }, [jobId, date, today]);
   // Account sync brought newer checkmarks: re-read.
@@ -352,23 +362,7 @@ function Overview({ data }: { data: JobDetail }) {
         </section>
       </div>
 
-      <PathToReady jobId={jobId} hasFit={!!data.gap} questionCount={data.questions.length} practised={derived.practised}
-        hasDefend={derived.hasDefend} mockDone={derived.mockRecent} readiness={derived.readiness} />
-
-      <div className="jw-pair">
-        <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />
-        <FitMini data={data} />
-      </div>
-
-      <RoleGuideCard job={data.job} />
-
-      {dStats.rounds > 0 && (
-        <div className="td-debrief" role="status">
-          <span className="td-debrief-mark" aria-hidden="true">{dStats.rounds}</span>
-          <span className="td-debrief-text">{statsLine(dStats)}{dStats.bad ? " · " + dStats.bad + " to revisit" : ""}</span>
-          <Link className="btn btn-small" to={jobPath(jobId, "after")}>Rounds</Link>
-        </div>
-      )}
+      <EveryDay jobId={jobId} practised={derived.practised} mockDone={derived.mockRecent} />
 
       <section className="card td-tasks" aria-labelledby="td-tasks-h">
         <div className="td-sec-head">
@@ -398,6 +392,24 @@ function Overview({ data }: { data: JobDetail }) {
           </>
         )}
         {tasks.length > 0 && doneToday === tasks.length && <p className="td-alldone">Today{"’"}s plan is done. Nice work.</p>}
+      </section>
+
+      <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />
+
+      <section className="card jd-iday" aria-labelledby="jd-iday-h">
+        <h2 id="jd-iday-h">Interview day</h2>
+        <p className="muted small">Type each question as it{"’"}s asked, then turn your notes into a debrief. Questions that went badly come back in your plan.</p>
+        <div className="row">
+          <Link className="btn" to={"/notes?job=" + enc(jobId)}>Interview notes</Link>
+          <Link className="btn btn-ghost" to={logTo}>Log a round</Link>
+        </div>
+        {dStats.rounds > 0 && (
+          <div className="td-debrief" role="status">
+            <span className="td-debrief-mark" aria-hidden="true">{dStats.rounds}</span>
+            <span className="td-debrief-text">{statsLine(dStats)}{dStats.bad ? " · " + dStats.bad + " to revisit" : ""}</span>
+            <Link className="btn btn-small" to={jobPath(jobId, "after")}>Rounds</Link>
+          </div>
+        )}
       </section>
 
       <section className="card td-plan" aria-labelledby="td-plan-h">
@@ -450,6 +462,12 @@ function Overview({ data }: { data: JobDetail }) {
           </button>
         )}
       </section>
+
+      <RoleGuideCard job={data.job} />
+
+      <SetupOnce jobId={jobId} hasResume={!!resumeSaved?.text} hasFit={!!data.gap} hasDate={!!date}>
+        <FitMini data={data} />
+      </SetupOnce>
 
       <AboutJob data={data} />
     </>
