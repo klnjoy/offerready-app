@@ -223,7 +223,7 @@ function PathToReady({ jobId, hasFit, questionCount, practised, hasDefend, mockD
       detail: practiceDone ? "Done" : (questionCount ? qDone + " of 5 questions" : "5 questions") + (hasDefend ? " · drill done" : " · then 1 trade-off drill"),
     },
     {
-      label: "Mock interview", done: mockDone, to: "/mock",
+      label: "Mock interview", done: mockDone, to: "/interview/voice",
       detail: mockDone ? "Done this week" + (readiness != null ? " · readiness " + readiness : "") : "Voice or text. Open any time",
     },
   ];

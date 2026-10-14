@@ -3309,3 +3309,5 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .demo-coach-video { margin-top: 14px; }
 .demo-coach-video summary { cursor: pointer; font-weight: 650; color: var(--ink-800); }
 .demo-coach-video video { width: 100%; height: auto; border-radius: 12px; margin-top: 10px; background: #000; }
+.hub-job { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.hub-tag { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: middle; }

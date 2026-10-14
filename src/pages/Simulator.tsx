@@ -71,6 +71,7 @@ function Setup({ onStart }: { onStart(r: Run): void }) {
 
   return (
     <div className="stack">
+      <p className="demo-banner"><strong>General practice, not tied to one job.</strong> For questions written from your job, use the <Link to="/interview/voice">voice interview</Link> or <Link to="/questions">Questions for this job</Link>.</p>
       <p>
         Run a <strong>mock loop</strong>: questions jump across areas and levels like a real onsite. For each, answer <strong>out loud and timed (~2&nbsp;min)</strong>, then reveal what{"’"}s tested, the strong vs weak patterns, and the expected depth. Rate yourself honestly, then face the follow-up. Your scores are saved to your account when you’re signed in.
       </p>
