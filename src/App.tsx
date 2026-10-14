@@ -6,6 +6,7 @@ import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
 import { LandOnJob } from "./components/LandOnJob";
+import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
@@ -163,7 +164,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
 }
 
 export default function App() {
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
   let match: { route: Route; params: Record<string, string> } | null = null;
@@ -177,6 +178,20 @@ export default function App() {
     setMenuOpen(false);
     track("page_view");
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // In-page links (/demo#coach, /account#usage): scroll to the section once
+  // the (lazy) page has rendered it.
+  useEffect(() => {
+    if (!hash || hash.length < 2) return;
+    const id = decodeURIComponent(hash.slice(1));
+    let tries = 0;
+    const t = window.setInterval(() => {
+      const el = document.getElementById(id);
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); window.clearInterval(t); }
+      else if (++tries > 40) window.clearInterval(t);
+    }, 75);
+    return () => window.clearInterval(t);
+  }, [pathname, hash]);
 
   const Page = match?.route.component;
   const section = match?.route.section;
@@ -221,6 +236,7 @@ export default function App() {
             <p>{match.route.subtitle}</p>
           </header>
         ) : null}
+        {pathname !== "/" ? <UsageAlert /> : null}
         {match && match.route.back === BACK_PRACTICE ? <PracticeTabs /> : null}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<div className="page"><Loading /></div>}>

@@ -472,7 +472,7 @@ function PlanUsageCard({ billing, refreshBilling, onUpgrade, onPortal }: {
   const days = p.pass ? Math.ceil((Date.parse(p.pass.expiresAt) - Date.now()) / 86400000) : null;
 
   return (
-    <Card className="plan-usage">
+    <Card className="plan-usage" id="usage">
       <div className="plan-usage-head">
         <div>
           <span className="plan-usage-kicker">Current plan</span>
