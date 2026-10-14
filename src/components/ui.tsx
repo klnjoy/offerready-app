@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { band } from "../lib/readiness";
 import { Link } from "../lib/router";
 
-export function Card({ children, className = "", tone }: { children: ReactNode; className?: string; tone?: "ok" | "warn" }) {
-  return <div className={"card" + (tone ? " card-" + tone : "") + (className ? " " + className : "")}>{children}</div>;
+export function Card({ children, className = "", tone, id }: { children: ReactNode; className?: string; tone?: "ok" | "warn"; id?: string }) {
+  return <div id={id} className={"card" + (tone ? " card-" + tone : "") + (className ? " " + className : "")}>{children}</div>;
 }
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
