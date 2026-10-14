@@ -2703,9 +2703,9 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
  * (mint and sky washes on paper); the practice-only band and the closing CTA
  * are the two dark bands, so the page alternates light / dark / light. */
 .main-home { max-width: none; padding-left: 0; padding-right: 0; padding-top: 0; }
-.hm > * { width: 100%; max-width: calc(1080px + 2 * var(--gutter)); margin-left: auto; margin-right: auto; padding-left: var(--gutter); padding-right: var(--gutter); }
-.hm > .hm-band { max-width: none; border-radius: 0; --band-pad: max(var(--gutter), calc((100% - 1080px) / 2)); padding-left: var(--band-pad); padding-right: var(--band-pad); }
-.hm > .hm-continue { max-width: calc(1080px); margin-top: 20px; padding: 16px 20px; position: relative; z-index: 2; margin-bottom: -150px; }
+.hm > * { width: 100%; max-width: calc(var(--mk-w) + 2 * var(--gutter)); margin-left: auto; margin-right: auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+.hm > .hm-band { max-width: none; border-radius: 0; --band-pad: max(var(--gutter), calc((100% - var(--mk-w)) / 2)); padding-left: var(--band-pad); padding-right: var(--band-pad); }
+.hm > .hm-continue { max-width: var(--mk-w); margin-top: 20px; padding: 16px 20px; position: relative; z-index: 2; margin-bottom: -150px; }
 
 .hm-hero.hm-band {
   color: var(--text);
@@ -2804,7 +2804,7 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 
 /* ===== Home header (visitors): light bar with dropdown menus ===== */
 .mh { position: sticky; top: 0; z-index: 60; background: rgba(255, 255, 255, 0.86); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); border-bottom: 1px solid rgba(12, 28, 56, 0.08); color: var(--ink-950); }
-.mh-inner { max-width: calc(1080px + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); min-height: 68px; display: flex; align-items: center; gap: 20px; }
+.mh-inner { max-width: calc(var(--mk-w) + 2 * var(--gutter)); margin: 0 auto; padding: 0 var(--gutter); min-height: 68px; display: flex; align-items: center; gap: 20px; }
 .mh-brand { display: inline-flex; align-items: center; gap: 9px; color: var(--ink-950); text-decoration: none; font-weight: 750; font-size: 1.14rem; letter-spacing: -0.02em; }
 .mh-brand b { color: var(--signal); font-weight: 750; }
 .mh-nav { display: none; margin: 0 auto; }
@@ -3117,7 +3117,7 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 
 /* ===== Getting started (new users) ===== */
 .gs { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--signal); border-radius: var(--r-md); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
-.hm > .gs { max-width: calc(1080px); }
+.hm > .gs { max-width: var(--mk-w); }
 .gs-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 .gs-head h2 { font-size: 1.05rem; margin: 0; }
 .gs-head-actions { display: flex; align-items: center; gap: 14px; }
@@ -3634,3 +3634,23 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .pp-step a { flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 0.76rem; }
   .pp-label { overflow: visible; }
 }
+
+/* Marketing pages: one column width shared by the header and every section.
+ * Wider on large screens so the header's items fit inside it. */
+:root { --mk-w: 1080px; }
+@media (min-width: 1200px) { :root { --mk-w: 1120px; } }
+@media (min-width: 1440px) { :root { --mk-w: 1280px; } }
+@media (min-width: 1700px) { :root { --mk-w: 1360px; } }
+@media (max-width: 1439px) { .mh-inner { gap: 12px; } .mh-actions .mh-help { display: none; } .mh-study .mh-free { display: none; } }
+@media (min-width: 561px) and (max-width: 1439px) { .hm-hero-b .hm-trust { flex-direction: column; gap: 6px; } }
+/* demo player: keep its steady height, but centre a short scene instead of
+ * leaving a block of empty space under it */
+.dt-stage { display: flex; flex-direction: column; justify-content: center; }
+.dt-stage > * { width: 100%; }
+@media (min-width: 900px) { .dt-stage { min-height: 360px; } }
+/* footer lines up with the header and sections */
+.footer-inner, .footer-base { max-width: calc(var(--mk-w) + 2 * var(--gutter)); }
+.footer-top { max-width: calc(var(--mk-w) + 2 * var(--gutter)); }
+/* app top bar matches the 1200px app pages */
+.topbar-inner { max-width: 1200px; }
+.main:not(.main-home) ~ .footer :is(.footer-top, .footer-inner, .footer-base) { max-width: 1200px; }
