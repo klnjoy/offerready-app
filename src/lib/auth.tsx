@@ -10,6 +10,15 @@ import { SUPABASE_ANON_KEY, SUPABASE_URL } from "../config";
 import { flushSync, startSync, stopSync, wantKeepalive } from "./sync";
 import { track } from "./track";
 
+/** Set when the user has just signed in, so the app can take them to their job. */
+export const JUST_SIGNED_IN = "offerready.justSignedIn";
+// Coming back from Google/GitHub or an email link also counts as signing in.
+try {
+  if (typeof window !== "undefined" && (/[?&]code=/.test(window.location.search) || /access_token=/.test(window.location.hash))) {
+    sessionStorage.setItem(JUST_SIGNED_IN, "1");
+  }
+} catch { /* private mode */ }
+
 /** fetch for the Supabase client: a page-hide sync flush goes out with
  * keepalive (when small enough) so it survives the tab closing. */
 const clientFetch: typeof fetch = (input, init) => {
@@ -75,9 +84,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {})
       .finally(() => alive && setReady(true));
+    let hadSession = false;
     const { data } = c.auth.onAuthStateChange((evt, s) => {
       setSession(s ?? null);
-      if (evt === "SIGNED_IN" && s) track("signed_in");
+      if (evt === "SIGNED_IN" && s) {
+        track("signed_in");
+        // A real sign-in (not a session restored on load): land on the job next.
+        if (!hadSession) { try { sessionStorage.setItem(JUST_SIGNED_IN, "1"); } catch { /* private mode */ } }
+      }
+      hadSession = !!s;
     });
     return () => {
       alive = false;
