@@ -21,6 +21,7 @@ import { OFFLINE_SCENARIOS } from "../data/offlineScenarios";
 import { AuthForm } from "../components/AuthForm";
 import { Card, ErrorText } from "../components/ui";
 import { JobPicker } from "../components/JobPicker";
+import { NextStepCard } from "../components/PracticeTabs";
 import { FeedbackView } from "../components/FeedbackView";
 import type { Analysis, AnswerFeedback, JobRow, Scenario, ScenarioNode } from "../types";
 import { track } from "../lib/track";
@@ -1039,19 +1040,10 @@ function Summary({
         </div>
       )}
       {status}
-      {(() => {
-        const jid = boundJobId || workflowJobId || getActiveJob();
-        return (
-          <div className="drill-next">
-            <strong>What{"’"}s next:</strong>{" "}
-            {pct >= 70
-              ? <>a mock interview puts it all together under time pressure. <Link to="/mock">Start a mock interview</Link>{jid ? <> or <Link to={"/jobs/" + encodeURIComponent(jid)}>see your path for this job</Link></> : null}.</>
-              : <>run it again and aim for 70%+, or try the next drill below.{jid ? <> Your progress is on <Link to={"/jobs/" + encodeURIComponent(jid)}>the job page</Link>.</> : null}</>}
-          </div>
-        );
-      })()}
+      <NextStepCard after="drill" />
+      {pct < 70 ? <p className="small muted">Or stay on this step: run it again and aim for 70% or more.</p> : null}
       <div className="row wrap">
-        <button type="button" className="btn btn-primary" onClick={onRetry}>Run it again</button>
+        <button type="button" className="btn" onClick={onRetry}>Run it again</button>
         {nextUp && <button type="button" className="btn" onClick={() => onOpenNext(nextUp)}>Next drill: {nextUp.title}</button>}
         {actions}
         <button type="button" className="btn btn-ghost" onClick={onBack}>All drills</button>

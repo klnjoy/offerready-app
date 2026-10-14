@@ -239,7 +239,7 @@ export default function App() {
           </header>
         ) : null}
         {pathname !== "/" ? <UsageAlert /> : null}
-        {match && match.route.back === BACK_PRACTICE ? <PracticeTabs /> : null}
+        {match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<div className="page"><Loading /></div>}>
             {Page ? <Page {...match!.params} /> : <NotFound />}

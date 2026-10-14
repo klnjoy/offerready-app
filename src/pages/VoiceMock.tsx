@@ -44,6 +44,7 @@ import {
   type MicMeter, type Recognizer,
 } from "../lib/voice";
 import { track } from "../lib/track";
+import { NextStepCard } from "../components/PracticeTabs";
 
 // ---------------------------------------------------------------- constants ---
 
@@ -1384,6 +1385,7 @@ function Summary({ rec, onBack, onSaved, onPracticeAgain }: { rec: SessionRec; o
           {rec.saved && <Link className="btn btn-ghost" to="/dashboard">Readiness →</Link>}
         </div>
         {saveMsg && <p className="hint" role="status">{saveMsg}</p>}
+        <NextStepCard after="mock" />
 
         <div className="vm-share">
           <div className="vm-share-copy">
