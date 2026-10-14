@@ -139,7 +139,7 @@ export default function TailorPage() {
   if (jobs.status === "signedout") return (
     <div className="page">
       <SignInCard title="Sign in to tailor your resume">
-        <Muted>Tailoring rewrites your bullets for a saved job{"’"}s skills and gaps. Your resume is never stored on our servers.</Muted>
+        <Muted>Tailoring rewrites your bullets for a saved job{"’"}s skills and gaps. Tailoring doesn{"’"}t store your resume; it{"’"}s kept on our servers only if you turn on resume sync.</Muted>
       </SignInCard>
     </div>
   );
@@ -192,7 +192,7 @@ export default function TailorPage() {
         <p className="small muted">
           {bullets.length ? bullets.length + (bullets.length === 1 ? " bullet" : " bullets") + " ready" : "No bullets yet"}
           {allLines > MAX_BULLETS ? " · only the first " + MAX_BULLETS + " are used" : ""}
-          {" · "}Sent once to rewrite these bullets, never stored on our servers.
+          {" · "}Sent once to rewrite these bullets; tailoring doesn{"’"}t store it.
         </p>
 
         <Coverage label="Keyword coverage now" cov={before} total={keywords.length} loading={!detail} />

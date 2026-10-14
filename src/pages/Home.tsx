@@ -31,16 +31,16 @@ const PRACTICE_ONLY: { icon: IconName; title: string; text: string }[] = [
   { icon: "target", title: "Practise the questions that catch rehearsed answers",
     text: "Interviewers spot scripted or AI-fed answers by asking why, then why again. That is exactly what the follow-ups train, so the reasoning in the room is yours." },
   { icon: "lock", title: "Your resume stays on your device",
-    text: "It is read in your browser and saved only on this device. Its text goes with an analysis you ask for and is never stored on our servers." },
+    text: "It is read in your browser and saved on this device. Its text is sent only with an analysis you ask for, and it is kept on our servers only if you turn on resume sync." },
 ];
 
 /* Every round you'll face: each card opens the tool that practises it. */
 const FORMATS: { icon: IconName; title: string; text: string; to: string }[] = [
-  { icon: "chat", title: "Behavioral", text: "STAR stories matched to the job, then said out loud.", to: "/stories" },
+  { icon: "chat", title: "Behavioral", text: "STAR stories matched to the job, then practised out loud in a voice mock.", to: "/stories" },
   { icon: "layers", title: "System design", text: "A voice round with a whiteboard to sketch on.", to: "/interview/voice" },
   { icon: "shield", title: "Trade-offs and “why?”", text: "Hold a design call while the interviewer pushes back.", to: "/defend" },
   { icon: "target", title: "Technical deep dive", text: "Questions written from the job’s skills and your gaps.", to: "/questions" },
-  { icon: "mic", title: "Phone and recruiter screen", text: "A short voice mock with delivery feedback.", to: "/interview/voice" },
+  { icon: "mic", title: "Phone screen", text: "A quick 3-question voice mock, scored on content and delivery.", to: "/interview/voice" },
   { icon: "search", title: "Concepts: SQL, Python, cloud", text: "Quick reps, flashcards and timed exams by topic.", to: "/practice/bank" },
 ];
 
@@ -101,19 +101,30 @@ function ContinueBar() {
 
 /* ---------- what only OfferReady does: tabbed showcase ---------- */
 
-/* A static sample: Today (58) → Ready Oct 18 (80) → Interview Oct 22.
+/* A sample: Today (58) → Ready in 10 days (80) → Interview in 14 days.
  * 10 days to ready, then a 4-day buffer, so Ready sits at 10/14 of the track. */
+/** Sample dates stay realistic on any day: interview in 14 days, ready in 10
+ * (58 now, about +2 points a day, so 80 by the ready date). */
+function sampleDates() {
+  const day = (n: number) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+  const md = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const wd = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short" });
+  const ready = day(10), interview = day(14);
+  return { ready: md(ready), interview: md(interview), interviewFull: wd(interview) + ", " + md(interview) };
+}
+
 function ForecastSample() {
+  const d = sampleDates();
   return (
     <figure className="hm-fc" aria-labelledby="hm-fc-cap">
-      <figcaption id="hm-fc-cap" className="hm-sr">Sample readiness forecast: ready by Oct 18, 4 days before an interview on Oct 22.</figcaption>
+      <figcaption id="hm-fc-cap" className="hm-sr">{"Sample readiness forecast: ready by " + d.ready + ", 4 days before an interview on " + d.interview + "."}</figcaption>
       <div className="hm-fc-top" aria-hidden="true">
         <span className="hm-fc-kicker"><Icon name="gauge" size={16} /> Readiness forecast</span>
         <span className="hm-fc-sample">Sample</span>
       </div>
       <div aria-hidden="true">
-        <p className="hm-fc-job">Senior AI Engineer · interview Thu, Oct 22</p>
-        <p className="hm-fc-big">Ready by Oct 18</p>
+        <p className="hm-fc-job">Senior AI Engineer · interview {d.interviewFull}</p>
+        <p className="hm-fc-big">Ready by {d.ready}</p>
         <p className="hm-fc-margin"><Icon name="check" size={15} /> 4 days before your interview</p>
       </div>
       <div className="hm-fc-tl" aria-hidden="true">
@@ -127,7 +138,7 @@ function ForecastSample() {
         </div>
         <div className="hm-fc-ends">
           <span><b>Today</b> 58 now</span>
-          <span><b>Interview</b> Oct 22</span>
+          <span><b>Interview</b> {d.interview}</span>
         </div>
       </div>
       <p className="hm-fc-foot" aria-hidden="true">From your last 14 days of practice: about +2 points a day.</p>
