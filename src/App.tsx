@@ -287,6 +287,7 @@ export default function App() {
             <ExternalLink href={DOCS_BASE + "For/data-engineers/index.html"}>Data Engineers</ExternalLink>
             <ExternalLink href={DOCS_BASE + "For/platform-engineers/index.html"}>Platform Engineers</ExternalLink>
             <ExternalLink href={DOCS_BASE + "For/staff-engineers/index.html"}>Staff / Principal</ExternalLink>
+            <ExternalLink href={DOCS_BASE + "For/architects/index.html"}>Architects</ExternalLink>
           </div>
           <div className="footer-col">
             <h2>Resources</h2>

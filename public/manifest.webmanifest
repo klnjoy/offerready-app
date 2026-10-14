@@ -1,7 +1,7 @@
 {
   "name": "OfferReady",
   "short_name": "OfferReady",
-  "description": "Interview prep for AI, data and platform engineers, built around the one job you're trying to land.",
+  "description": "Interview prep for AI, data and platform engineers and architects, built around the one job you're trying to land.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
