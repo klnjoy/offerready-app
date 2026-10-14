@@ -237,10 +237,6 @@ export default function HomePage() {
           <p className="hm-kicker">Plans</p>
           <h2 id="hm-plan-h" className="hm-h2">Start free. Pay once when your interview is real.</h2>
           <p className="hm-sub">The free plan covers a full prep loop for one job. When an interview is booked, a one-time pass covers your search: {PASSES.job.price} for one job, up to {PASSES.pass365.price} for a year. No subscription, nothing to cancel.</p>
-          <div className="hm-cta-row">
-            <Link className="btn btn-primary btn-lg" to="/analyze">Start free</Link>
-            <Link className="btn btn-lg" to="/pricing">See pricing</Link>
-          </div>
         </div>
         <ul className="hm-tiers" aria-label="Plans">
           <li className="hm-tier">
@@ -261,7 +257,10 @@ export default function HomePage() {
             );
           })}
         </ul>
-        <p className="hm-tier-more"><Link className="hm-link" to="/pricing">Compare every limit on the pricing page<Icon name="arrow" size={15} /></Link></p>
+        <div className="hm-cta-row hm-plans-cta">
+          <Link className="btn btn-primary btn-lg" to="/analyze">Start free</Link>
+          <Link className="btn btn-lg" to="/pricing">Compare every limit</Link>
+        </div>
       </section>
 
       {/* 8. FAQ */}

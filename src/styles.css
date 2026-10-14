@@ -3374,3 +3374,4 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .mh-actions .mh-study { width: 36px; height: 36px; }
 }
 @media (max-width: 370px) { .mh-brand span { display: none; } }
+.hm-plans-cta { margin-top: 4px; }
