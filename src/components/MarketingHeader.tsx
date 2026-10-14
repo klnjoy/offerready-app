@@ -168,6 +168,11 @@ export function MarketingHeader() {
       </div>
 
       <div id="mh-mobile" className="mh-mobile" hidden={!mobile}>
+        <div className="mh-mquick">
+          <Link className="mh-mq mh-mq-app" to="/app" onClick={close}>Get the app</Link>
+          <ExternalLink className="mh-mq" href={STUDY_URL} onClick={close}>Study notes</ExternalLink>
+          <ExternalLink className="mh-mq" href={D + "Help/index.html"} onClick={close}>Help</ExternalLink>
+        </div>
         {GROUPS.map((g) => (
           <section key={g.id} className="mh-mgroup" aria-label={g.label}>
             <h2 className="mh-mlabel">{g.label}</h2>
