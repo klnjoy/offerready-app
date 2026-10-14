@@ -25,6 +25,7 @@ import { track } from "../lib/track";
 import { useJobs } from "../lib/useJobs";
 import { AnswerCoach } from "../components/AnswerCoach";
 import { SignInCard } from "../components/AuthForm";
+import { CoachTour } from "../components/CoachTour";
 import { JobPicker } from "../components/JobPicker";
 import { UpgradeCard } from "../components/PlanGate";
 import { CopyButton } from "../components/StreamDraft";
@@ -122,10 +123,21 @@ export default function CopilotPage() {
 
   if (jobs.status === "loading") return <div className="page"><Loading /></div>;
   if (jobs.status === "signedout") return (
-    <div className="page">
+    <div className="page cp-intro">
+      <section aria-labelledby="cp-how-h">
+        <h2 id="cp-how-h" className="cp-intro-h">How the AI Interview Coach works</h2>
+        <p className="muted">Seven short steps on a sample job and resume. Turn on Sound to hear each one.</p>
+        <CoachTour />
+      </section>
+      <ul className="cp-intro-points">
+        <li><strong>Built from you.</strong> It reads the job, your resume and your stories, and labels where every point came from.</li>
+        <li><strong>No invented numbers.</strong> Any figure not in your material is flagged before you say it.</li>
+        <li><strong>Practice, not live help.</strong> Use it before the interview until the answer is yours. It never runs during the real one.</li>
+      </ul>
       <SignInCard title="Sign in to use the AI Interview Coach">
-        <Muted>The AI Interview Coach builds answers from your saved jobs, resume and stories, so it needs your account.</Muted>
+        <Muted>The coach builds answers from your saved jobs, resume and stories, so it needs your account. Free to start, no card needed.</Muted>
       </SignInCard>
+      <p className="small"><Link to="/try">Try a sample question first, no sign-up</Link></p>
     </div>
   );
 
@@ -163,7 +175,7 @@ export default function CopilotPage() {
               <li className={stories.length ? "ok" : ""}>{stories.length ? stories.length + (stories.length === 1 ? " story" : " stories") + " available" : <>No STAR stories yet. <Link to="/stories">Add one</Link> for behavioral answers.</>}</li>
               {gaps.length > 0 && <li>Gaps to cover: {gaps.slice(0, 3).join(", ")}</li>}
             </ul>
-            <p className="small muted">Practice tool. It only uses your own material and never invents experience.</p>
+            <p className="small muted">Practice tool. It only uses your own material and never invents experience. <Link to="/demo#coach">See how it works</Link></p>
           </aside>
 
           <section className="cp-main">

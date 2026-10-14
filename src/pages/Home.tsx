@@ -178,7 +178,7 @@ export default function HomePage() {
           <p className="hm-sub">Prepare, practise, interview: every feature in one minute, with where to find it. Choose any chapter to jump to it.</p>
         </header>
         <DemoTour />
-        <p className="hm-demo-more"><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
+        <p className="hm-demo-more"><Link className="hm-link" to="/demo#coach">The AI Interview Coach, step by step<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 3b. every round */}

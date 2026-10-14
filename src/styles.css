@@ -3294,3 +3294,18 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .sr .card { text-align: left; }
 .sr-head, .sr-cta { align-items: center; }
 .sr-head, .sr-cta { flex-direction: row; }
+/* AI Interview Coach walkthrough */
+.ct-quote { color: var(--text-2); font-style: italic; }
+.ct-mark { background: transparent; color: inherit; border-radius: 4px; padding: 0 2px; transition: background 0.3s ease; }
+.ct-mark.on { background: var(--amber-soft); box-shadow: inset 0 -2px 0 var(--amber); }
+.cp-intro { display: flex; flex-direction: column; gap: 20px; }
+.cp-intro-h { font-size: 1.3rem; margin: 0 0 4px; }
+.cp-intro-points { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cp-intro-points li { margin: 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); line-height: 1.5; }
+@media (max-width: 800px) { .cp-intro-points { grid-template-columns: 1fr; } }
+.demo-coach { margin-top: 36px; }
+.demo-coach h2 { margin: 0 0 6px; }
+.demo-coach > p { margin: 0 0 16px; }
+.demo-coach-video { margin-top: 14px; }
+.demo-coach-video summary { cursor: pointer; font-weight: 650; color: var(--ink-800); }
+.demo-coach-video video { width: 100%; height: auto; border-radius: 12px; margin-top: 10px; background: #000; }
