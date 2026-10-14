@@ -41,6 +41,7 @@ const DemoPage = lazy(() => import("./pages/Demo"));
 const TryPage = lazy(() => import("./pages/Try"));
 const FaqPage = lazy(() => import("./pages/Faq"));
 const SampleReportPage = lazy(() => import("./pages/SampleReport"));
+const GetAppPage = lazy(() => import("./pages/GetApp"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
@@ -90,6 +91,7 @@ const ROUTES: Route[] = [
   { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },
   { path: "/faq", title: "Questions and study notes", subtitle: "Quick answers about OfferReady, and the free study library behind the questions.", component: FaqPage },
   { path: "/sample-report", title: "Sample mock interview report", subtitle: "What you get after a voice mock interview. Sample data, no account needed.", component: SampleReportPage },
+  { path: "/app", title: "Get the app", subtitle: "Install OfferReady on your computer, Android phone or iPhone. Free, no app store needed.", component: GetAppPage },
   { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
 ];
 
@@ -151,6 +153,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
           <Link role="menuitem" className="acct-item" to="/account">Account &amp; plan</Link>
           <Link role="menuitem" className="acct-item" to="/notes">Interview notes</Link>
           <Link role="menuitem" className="acct-item" to="/pricing">Pricing</Link>
+          <Link role="menuitem" className="acct-item" to="/app">Get the app</Link>
           <button type="button" role="menuitem" className="acct-item" onClick={() => { setOpen(false); openFeedback(); }}>Send feedback</button>
         </div>
       )}
@@ -269,6 +272,7 @@ export default function App() {
             <h2>Resources</h2>
             <ExternalLink href={DOCS_BASE + "Help/index.html"}>Help Center</ExternalLink>
             <Link to="/faq">FAQ</Link>
+            <Link to="/app">Get the app</Link>
             <ExternalLink href={STUDY_URL}>Study library</ExternalLink>
             <Link to="/practice/bank">Question bank</Link>
             <ExternalLink href={DOCS_BASE + "Personal-SourceCode/Interview_Guide_Overview.html"}>Interview guide</ExternalLink>
