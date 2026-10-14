@@ -79,12 +79,46 @@ export async function promptInstall(): Promise<"accepted" | "dismissed" | "unava
   }
 }
 
+/* Updates apply on their own, so nobody needs a hard refresh:
+ *  - found just after the app opens or comes back to the screen (and you
+ *    aren't typing): reload into the new version straight away;
+ *  - found later: show "Update available", and apply it the next time the
+ *    app goes to the background, so you come back to the new version.
+ * Never in the middle of a voice or text interview. */
+const QUIET_MS = 15000;
+let quietUntil = Date.now() + QUIET_MS;
+
+function busyRoute(): boolean {
+  return /\/(interview\/voice|simulator)(\/|$)/.test(window.location.pathname);
+}
+
+function typing(): boolean {
+  const el = document.activeElement as HTMLElement | null;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "TEXTAREA" || (tag === "INPUT" && !/^(button|checkbox|radio|submit|reset|range|file)$/i.test((el as HTMLInputElement).type)) || el.isContentEditable;
+}
+
+/** The screen (path) you last typed on: an update never reloads it, so
+ * nothing unsaved is lost. Leaving the screen clears it. */
+let typedOn = "";
+if (typeof document !== "undefined") document.addEventListener("input", () => { typedOn = window.location.pathname; }, true);
+
+function autoApply(): boolean {
+  if (!waiting || busyRoute() || typedOn === window.location.pathname) return false;
+  if (document.visibilityState === "hidden" || (Date.now() < quietUntil && !typing())) {
+    applyUpdate();
+    return true;
+  }
+  return false;
+}
+
 function track(reg: ServiceWorkerRegistration) {
   const markWaiting = (w: ServiceWorker | null) => {
     // Only an update (a page already controlled by an older worker) waits.
     if (w && navigator.serviceWorker.controller) {
       waiting = w;
-      emit();
+      if (!autoApply()) emit();
     }
   };
   if (reg.waiting) markWaiting(reg.waiting);
@@ -127,14 +161,17 @@ export function initPwa(enabled: boolean): void {
         // A long-open tab still learns about new deploys.
         const check = () => { reg.update().catch(() => {}); };
         setInterval(check, 60 * 60 * 1000);
-        document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") { quietUntil = Date.now() + QUIET_MS; check(); }
+          else autoApply(); // going to the background: switch to the new version now
+        });
       })
       .catch(() => {
         /* no offline support this time; the app works the same */
       });
     let reloading = false;
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Only reload when the user asked for the update.
+      // Only reload for an update we applied (by tap or automatically).
       if (reloading || !waiting) return;
       reloading = true;
       window.location.reload();
