@@ -32,6 +32,7 @@ import { FitDetails, gapRowToResult, resultToGapRow, topGaps } from "../componen
 import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import { Card, Chips, Disclaimer, Loading, Muted } from "../components/ui";
 import type { JobDetail, JobRow } from "../types";
+import { stepHref, usePracticePath } from "../lib/practicePath";
 
 type Tab = "overview" | "resume" | "after";
 const TABS: { key: Tab; label: string }[] = [
@@ -209,21 +210,33 @@ export function nextBestAction(s: {
 /** What you come back to every day for this job: the practice tools, already
  * pointed at this job. */
 function EveryDay({ jobId, practised, mockDone }: { jobId: string; practised: number; mockDone: boolean }) {
-  const jq = "?job=" + enc(jobId);
-  const items: { to: string; title: string; detail: string }[] = [
-    { to: "/questions" + jq, title: "Practise questions", detail: practised ? practised + " answered so far" : "Written from this job" },
-    { to: "/defend" + jq, title: "Trade-off drill", detail: "Hold a call under push-back" },
-    { to: "/coach", title: "AI Interview Coach", detail: "Shape an answer from your stories" },
-    { to: "/interview/voice", title: "Mock interview", detail: mockDone ? "Done this week" : "Voice, with follow-ups" },
-  ];
+  const path = usePracticePath(jobId);
+  const next = path.find((x) => !x.done);
+  const detail: Record<string, string> = {
+    questions: practised ? practised + " answered so far" : "Written from this job",
+    drill: "Hold a call under push-back",
+    stories: "STAR stories for the behavioral round",
+    mock: mockDone ? "Done this week" : "Voice, with follow-ups",
+  };
   return (
     <section className="card jd-daily" aria-labelledby="jd-daily-h">
-      <h2 id="jd-daily-h">Every day</h2>
-      <ul className="jd-daily-grid">
-        {items.map((x) => (
-          <li key={x.title}><Link to={x.to}><strong>{x.title}</strong><span className="small muted">{x.detail}</span></Link></li>
+      <div className="jd-daily-head">
+        <h2 id="jd-daily-h">Every day</h2>
+        <span className="small muted">{next ? "Suggested order. Skip any step you don’t need." : "All four done. Repeat the ones you’re weakest at."}</span>
+      </div>
+      <ol className="jd-daily-grid">
+        {path.map((x) => (
+          <li key={x.key} className={(x.done ? "done" : "") + (next && next.key === x.key ? " next" : "")}>
+            <Link to={stepHref(x, jobId)}>
+              <span className="jd-daily-n" aria-hidden="true">{x.done ? "✓" : x.n}</span>
+              <strong>{x.label}{x.done ? <span className="hm-sr"> (done)</span> : null}</strong>
+              <span className="small muted">{detail[x.key]}</span>
+              {next && next.key === x.key ? <span className="jd-daily-tag">Next</span> : null}
+            </Link>
+          </li>
         ))}
-      </ul>
+      </ol>
+      <p className="small muted jd-daily-any">Any time: <Link to="/coach">AI Interview Coach</Link> · <Link to="/practice/bank">Question bank</Link></p>
     </section>
   );
 }

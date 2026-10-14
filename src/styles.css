@@ -3562,3 +3562,75 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hm-float-plan { bottom: 0; }
 @media (max-width: 1099px) { .hm-float-score { right: 12px; } }
 @media (max-width: 560px) { .hm-hero-fc { padding: 44px 0 96px; } .hm-float-score { top: 0; right: 8px; } }
+
+/* ---------- Practice path (components/PracticeTabs.tsx) ----------
+ * Four numbered steps joined by a line, the question bank set apart as an
+ * "any time" tool, and one status line saying what's next and how to skip. */
+.pp { display: flex; flex-direction: column; gap: 10px; margin: 0 0 18px; }
+.pp-steps { display: flex; align-items: center; gap: 10px 16px; flex-wrap: wrap; }
+.pp-steps ol { list-style: none; margin: 0; padding: 4px; display: flex; flex: 1 1 auto; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; min-width: 0; }
+.pp-step { margin: 0; flex: 1 1 0; min-width: 0; position: relative; }
+.pp-step a { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 10px; color: var(--text-2); text-decoration: none; font-size: 0.9rem; font-weight: 600; white-space: nowrap; }
+.pp-step a:hover { background: var(--surface-2); color: var(--text); }
+.pp-num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.78rem; font-weight: 750; border: 1.5px solid var(--border-strong); color: var(--text-2); background: var(--surface); }
+.pp-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pp-short { display: none; }
+.pp-step.done .pp-num { background: var(--signal); border-color: var(--signal); color: #fff; }
+.pp-step.done a { color: var(--text); }
+.pp-step.on a { background: var(--ink-950); color: #fff; }
+.pp-step.on .pp-num { border-color: rgba(255, 255, 255, 0.55); background: transparent; color: #fff; }
+.pp-step.on.done .pp-num { background: var(--signal); border-color: var(--signal); }
+
+.pp-any { flex: none; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px dashed var(--border-strong); color: var(--text); text-decoration: none; font-size: 0.88rem; font-weight: 600; background: transparent; }
+.pp-any:hover { border-style: solid; }
+.pp-any.on { background: var(--ink-950); border: 1px solid var(--ink-950); color: #fff; }
+.pp-any-k { font-size: 0.74rem; font-weight: 650; color: var(--text-3); }
+.pp-any.on .pp-any-k { color: rgba(255, 255, 255, 0.7); }
+
+.pp-status { margin: 0; font-size: 0.9rem; color: var(--text-2); line-height: 1.5; }
+.pp-status strong { color: var(--text); }
+.pp-skip { font-weight: 650; white-space: nowrap; }
+.pp-status-done { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px 10px 14px; border-radius: 12px; background: var(--signal-soft); border: 1px solid rgba(26, 158, 100, 0.35); color: var(--text); }
+.pp-status-ico { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: #fff; }
+.pp-status-text { flex: 1 1 16rem; }
+.pp-status-done .btn { flex: none; }
+
+/* the next-step card at the end of a drill or a mock */
+.pp-next { display: flex; align-items: center; justify-content: space-between; gap: 14px 20px; flex-wrap: wrap; padding: 16px 18px; border-radius: 14px; background: var(--signal-soft); border: 1.5px solid var(--signal); }
+.pp-next-k { font-size: 0.8rem; font-weight: 700; color: var(--signal-600); }
+.pp-next-t { margin: 4px 0 0; font-size: 1rem; color: var(--text); }
+.pp-next .row { gap: 8px; }
+
+@media (max-width: 900px) {
+  .pp-long { display: none; }
+  .pp-short { display: inline; }
+}
+@media (max-width: 560px) {
+  .pp-steps ol { flex-basis: 100%; }
+  .pp-step a { padding: 7px 6px; gap: 6px; justify-content: center; font-size: 0.82rem; }
+  .pp-num { width: 22px; height: 22px; }
+}
+@media (prefers-color-scheme: dark) {
+  .pp-step.on a, .pp-any.on { background: #e8eef8; color: #0c1c38; border-color: #e8eef8; }
+  .pp-step.on .pp-num { border-color: rgba(12, 28, 56, 0.4); color: #0c1c38; }
+  .pp-any.on .pp-any-k { color: rgba(12, 28, 56, 0.65); }
+}
+
+/* job page: "Every day" as the same numbered path */
+.jd-daily-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; }
+.jd-daily-grid a { position: relative; }
+.jd-daily-n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.76rem; font-weight: 750; border: 1.5px solid var(--border-strong); color: var(--text-2); margin-bottom: 4px; }
+.jd-daily-grid li.done .jd-daily-n { background: var(--signal); border-color: var(--signal); color: #fff; }
+.jd-daily-grid li.next a { border-color: var(--signal); box-shadow: 0 0 0 3px var(--signal-soft); }
+.jd-daily-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; font-weight: 750; color: #fff; background: var(--signal); border-radius: 999px; padding: 2px 8px; }
+.jd-daily-any { margin: 10px 0 0; }
+
+/* App pages use the width of a desktop screen. Reading text keeps its own
+ * measure (page-head, paragraphs in cards are short). */
+.main { max-width: 1200px; }
+.main-home { max-width: none; }
+.pp-next { align-self: stretch; width: 100%; box-sizing: border-box; }
+@media (max-width: 560px) {
+  .pp-step a { flex-direction: column; gap: 3px; padding: 6px 2px; font-size: 0.76rem; }
+  .pp-label { overflow: visible; }
+}
