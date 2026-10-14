@@ -1,5 +1,5 @@
 /* DemoTour: a scripted, self-playing tour of everything OfferReady does, in
- * nine short chapters grouped as Prepare → Practise → Interview. Each chapter
+ * nine short chapters grouped as Set up once → Practise every day → Interview day. Each chapter
  * shows the feature with one consistent sample story (a Senior AI Engineer
  * interview at "Northwind" on Oct 22) and says where to find it in the app.
  * Shown on the home page and full screen at /demo (which is also recorded
@@ -14,7 +14,13 @@ import { Icon, type IconName } from "./Icon";
 export const CHAPTER_MS = 7000;
 
 export type SceneProps = { t: number };
-export interface Chapter { phase: string; title: string; line: string; where: string; icon: IconName; url: string; Scene: (p: SceneProps) => ReactNode }
+export interface Chapter {
+  phase: string; title: string; line: string; where: string; icon: IconName; url: string; Scene: (p: SceneProps) => ReactNode;
+  /** Number shown on the step, counted within its phase (default: position in the whole list). */
+  num?: number;
+  /** A short label such as "Optional" or "Any time". */
+  tag?: string;
+}
 
 export const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 /** Progress 0…1 of a sub-animation between two times (ms). */
@@ -246,16 +252,19 @@ function SceneNotes({ t }: SceneProps) {
   );
 }
 
+/* The same three stages the app uses everywhere (job page, practice path,
+ * Help Center): set up once, practise every day (steps 1-4, as on the
+ * practice pages), then the interview day. */
 export const CHAPTERS: Chapter[] = [
-  { phase: "Prepare", title: "Add the job", line: "Paste the job link and your interview date. See what it needs, your resume match, the gaps and a plan.", where: "Top bar → Add a job", icon: "briefcase", url: "Add a job", Scene: SceneJob },
-  { phase: "Prepare", title: "Tailor your resume", line: "Rewrite your bullets for this job’s keywords, without inventing anything.", where: "Your job → Resume tab → Tailor your resume", icon: "fit", url: "Tailor your resume", Scene: SceneTailor },
-  { phase: "Prepare", title: "Study the gaps", line: "Free notes on every topic, linked from the gaps in your resume.", where: "Resources → Study library", icon: "book", url: "Study library", Scene: SceneStudy },
-  { phase: "Practise", title: "Answer this job’s questions", line: "Feedback quotes your own words. Try again and see each criterion improve.", where: "Practice → Questions for this job", icon: "target", url: "Questions for this job", Scene: SceneQuestions },
-  { phase: "Practise", title: "AI Interview Coach", line: "Any question, answered from your resume and stories, with every point labelled.", where: "Top bar → AI Coach", icon: "spark", url: "AI Interview Coach", Scene: SceneCoach },
-  { phase: "Practise", title: "Trade-off drills", line: "Make a design call and hold it while the interviewer pushes back.", where: "Practice → Trade-off drills", icon: "shield", url: "Trade-off drills", Scene: SceneDrill },
-  { phase: "Interview", title: "Voice mock interview", line: "Answer out loud. Follow-ups on what you said, then content and delivery feedback.", where: "Top bar → Mock interview", icon: "mic", url: "Mock interview", Scene: SceneMock },
-  { phase: "Interview", title: "Know when you’re ready", line: "One score per job and the day you’ll be ready, checked against your interview.", where: "Top bar → Readiness", icon: "gauge", url: "Readiness", Scene: SceneReady },
-  { phase: "Interview", title: "Interview notes and debrief", line: "Type questions during the real interview. Afterwards they become your debrief.", where: "Your job → After the interview → Take notes", icon: "list", url: "Interview notes", Scene: SceneNotes },
+  { phase: "Set up once", num: 1, title: "Add the job", line: "Paste the job link and your interview date. See what it needs, your resume match, the gaps and a plan.", where: "Top bar → Add a job", icon: "briefcase", url: "Add a job", Scene: SceneJob },
+  { phase: "Set up once", num: 2, tag: "Optional", title: "Tailor your resume", line: "Rewrite your bullets for this job’s keywords, without inventing anything.", where: "Your job → Resume tab → Tailor your resume", icon: "fit", url: "Tailor your resume", Scene: SceneTailor },
+  { phase: "Set up once", num: 3, tag: "Optional", title: "Study the gaps", line: "Free notes on every topic, linked from the gaps in your resume.", where: "Resources → Study library", icon: "book", url: "Study library", Scene: SceneStudy },
+  { phase: "Practise every day", num: 1, title: "Questions for this job", line: "Feedback quotes your own words. Try again and see each criterion improve.", where: "Practice → step 1, Questions for this job", icon: "target", url: "Questions for this job", Scene: SceneQuestions },
+  { phase: "Practise every day", num: 2, title: "Trade-off drill", line: "Make a design call and hold it while the interviewer pushes back.", where: "Practice → step 2, Trade-off drill", icon: "shield", url: "Trade-off drills", Scene: SceneDrill },
+  { phase: "Practise every day", num: 3, title: "Your stories and AI Coach", line: "Write a few STAR stories. The AI Coach turns them into answers for any question, every point labelled.", where: "Practice → step 3, Your stories · AI Coach any time", icon: "spark", url: "AI Interview Coach", Scene: SceneCoach },
+  { phase: "Practise every day", num: 4, title: "Mock interview", line: "Answer out loud. Follow-ups on what you said, then content and delivery feedback.", where: "Practice → step 4, Mock interview", icon: "mic", url: "Mock interview", Scene: SceneMock },
+  { phase: "Interview day", num: 1, title: "Check you’re ready", line: "One score per job and the day you’ll be ready, checked against your interview date.", where: "Top bar → Readiness", icon: "gauge", url: "Readiness", Scene: SceneReady },
+  { phase: "Interview day", num: 2, title: "Interview notes and debrief", line: "Type questions during the real interview. Afterwards they become your debrief.", where: "Your job → Interview day → Interview notes", icon: "list", url: "Interview notes", Scene: SceneNotes },
 ];
 
 function useReducedMotion(): boolean {
@@ -273,7 +282,10 @@ function useReducedMotion(): boolean {
 /** What the narrator says for a chapter. */
 export function narration(i: number, list: Chapter[] = CHAPTERS): string {
   const c = list[i];
-  return "Step " + (i + 1) + ". " + c.title.replace("’", "'") + ". " + c.line.replace(/’/g, "'") + " You'll find it at: " + c.where.replace(/ → /g, ", then ") + ".";
+  const first = i === 0 || list[i - 1].phase !== c.phase;
+  const head = c.num != null ? (first ? c.phase + ". " : "") + "Step " + c.num + ". " : "Step " + (i + 1) + ". ";
+  const tag = c.tag ? " " + c.tag + "." : "";
+  return head + c.title.replace(/’/g, "'") + "." + tag + " " + c.line.replace(/’/g, "'") + " You'll find it at: " + c.where.replace(/ → /g, ", then ").replace(/ · /g, ". ") + ".";
 }
 
 function canSpeak(): boolean {
@@ -374,17 +386,18 @@ export function DemoTour({ autoStart = false, loop = true, onEnd, chapters, labe
 
   return (
     <div className="dt" ref={root}>
-      <div className="dt-side" style={{ ["--dt-cols" as string]: String(phases.length) }}>
+      <div className="dt-side" style={{ ["--dt-cols" as string]: String(phases.length), ["--dt-fr" as string]: phases.map((ph) => CH.filter((c) => c.phase === ph).length + "fr").join(" ") }}>
         {phases.map((ph) => (
           <div key={ph} className="dt-phase">
-            <p className="dt-phase-h"><span className="dt-ph-word">Step </span>{phases.indexOf(ph) + 1} · {ph}</p>
+            <p className="dt-phase-h">{CH.some((c) => c.num != null) ? ph : <><span className="dt-ph-word">Step </span>{phases.indexOf(ph) + 1} · {ph}</>}</p>
             <ol className="dt-steps">
               {CH.map((c, i) => (c.phase !== ph ? null : (
                 <li key={c.title}>
                   <button type="button" className={"dt-step" + (i === step ? " on" : "") + (i < step ? " done" : "")} aria-current={i === step ? "step" : undefined} onClick={() => go(i)}>
-                    <span className="dt-num" aria-hidden="true">{i + 1}</span>
+                    <span className="dt-num" aria-hidden="true">{c.num ?? i + 1}</span>
                     <span className="dt-step-body">
                       <span className="dt-step-title">{c.title}</span>
+                      {c.tag ? <span className="dt-tag">{c.tag}</span> : null}
                       {i === step ? <span className="dt-step-line">{c.line}</span> : null}
                       {i === step ? <span className="dt-where"><Icon name="arrow" size={13} /> {c.where}</span> : null}
                       {i === step ? <span className="dt-bar" aria-hidden="true"><span style={{ width: Math.round((t / CHAPTER_MS) * 100) + "%" }} /></span> : null}

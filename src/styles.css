@@ -3657,3 +3657,20 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .dto-notes-block { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
 .dto-notes-k { font-size: 0.78rem; font-weight: 700; color: var(--text-2); }
 .dto-tally { gap: 6px; font-weight: 600; font-size: 0.88rem; }
+
+/* Demo tour, one journey: phases sized by how many steps they hold, so every
+ * step tile is the same width; optional steps carry a small tag. */
+.dt-tag { align-self: flex-start; font-size: 0.66rem; font-weight: 700; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; line-height: 1.4; }
+.dt-step.on .dt-tag { color: var(--signal-600); background: var(--signal-soft); border-color: transparent; }
+@media (min-width: 900px) {
+  .dt-side { grid-template-columns: var(--dt-fr, repeat(var(--dt-cols, 3), minmax(0, 1fr))); }
+  .dt-phase-h { text-transform: none; letter-spacing: 0; font-size: 0.8rem; color: var(--text); }
+}
+/* Phones and tablets: one row per phase, steps side by side. */
+@media (max-width: 899px) {
+  .dt-side { display: flex; flex-direction: column; gap: 12px; }
+  .dt-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .dt-step { min-height: 72px; }
+  .dt-phase-h { text-transform: none; letter-spacing: 0; font-size: 0.8rem; color: var(--text); white-space: normal; }
+}
+.gs-stage { display: block; font-size: 0.74rem; font-weight: 700; color: var(--text-2); margin-bottom: 2px; }

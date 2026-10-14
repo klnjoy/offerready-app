@@ -4,6 +4,8 @@
  *   1. Add a job            done when a job is saved
  *   2. Practise             done after any practice (questions, drill, bank, story)
  *   3. Run a mock interview done after a voice or text mock
+ * Labelled with the same stages as everywhere else (Set up once, Practise
+ * every day), not a separate numbering.
  * The next step is highlighted with one button, so a new user always knows
  * where to go. */
 
@@ -40,9 +42,9 @@ export function GettingStarted({ where }: { where: "home" | "jobs" }) {
   const next = done.findIndex((d) => !d);
 
   const steps = [
-    { title: "Add the job", text: "Paste the job link or description, add your resume and the interview date.", to: "/analyze", cta: "Add a job" },
-    { title: "Practise what it will ask", text: "Answer this job’s questions, run a trade-off drill or write a story. Any one counts.", to: "/questions" + jobQ, cta: "Practise a question" },
-    { title: "Run a mock interview", text: "A voice or text mock with follow-ups on what you said.", to: "/mock", cta: "Start a mock" },
+    { stage: "Set up once", title: "Add the job", text: "Paste the job link or description, add your resume and the interview date.", to: "/analyze", cta: "Add a job" },
+    { stage: "Practise every day", title: "Answer your first questions", text: "Step 1 on the Practice page. Then a trade-off drill, your stories and a mock interview. Skip any you don’t need.", to: "/questions" + jobQ, cta: "Practise a question" },
+    { stage: "Practise every day", title: "Run a mock interview", text: "Step 4: a voice or text mock with follow-ups on what you said.", to: "/mock", cta: "Start a mock" },
   ];
 
   return (
@@ -59,7 +61,7 @@ export function GettingStarted({ where }: { where: "home" | "jobs" }) {
           <li key={s.title} className={"gs-step" + (done[i] ? " done" : "") + (i === next ? " next" : "")}>
             <span className="gs-mark" aria-hidden="true">{done[i] ? <Icon name="check" size={15} /> : i + 1}</span>
             <div className="gs-body">
-              <p className="gs-title">Step {i + 1}: {s.title}{done[i] ? <span className="hm-sr"> (done)</span> : null}</p>
+              <p className="gs-title"><span className="gs-stage">{s.stage}</span>{s.title}{done[i] ? <span className="hm-sr"> (done)</span> : null}</p>
               <p className="gs-text">{s.text}</p>
               {i === next ? <Link className="btn btn-primary btn-small gs-cta" to={s.to}>{s.cta} <Icon name="arrow" size={15} /></Link> : null}
             </div>
