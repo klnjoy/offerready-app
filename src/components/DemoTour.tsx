@@ -374,10 +374,10 @@ export function DemoTour({ autoStart = false, loop = true, onEnd, chapters, labe
 
   return (
     <div className="dt" ref={root}>
-      <div className="dt-side">
+      <div className="dt-side" style={{ ["--dt-cols" as string]: String(phases.length) }}>
         {phases.map((ph) => (
           <div key={ph} className="dt-phase">
-            <p className="dt-phase-h">Step {phases.indexOf(ph) + 1} · {ph}</p>
+            <p className="dt-phase-h"><span className="dt-ph-word">Step </span>{phases.indexOf(ph) + 1} · {ph}</p>
             <ol className="dt-steps">
               {CH.map((c, i) => (c.phase !== ph ? null : (
                 <li key={c.title}>
@@ -395,6 +395,11 @@ export function DemoTour({ autoStart = false, loop = true, onEnd, chapters, labe
             </ol>
           </div>
         ))}
+        <div className="dt-detail" aria-hidden="true">
+          <span className="dt-step-line">{ch.line}</span>
+          <span className="dt-where"><Icon name="arrow" size={13} /> {ch.where}</span>
+          <span className="dt-bar"><span style={{ width: Math.round((t / CHAPTER_MS) * 100) + "%" }} /></span>
+        </div>
         <div className="dt-ctl">
           {!reduced ? (
             <button type="button" className="btn btn-small" onClick={toggle} aria-label={playing ? "Pause the demo" : "Play the demo"}>{playing ? "Pause" : "Play"}</button>
