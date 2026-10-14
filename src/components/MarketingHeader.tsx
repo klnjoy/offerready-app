@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { DOCS_BASE, STUDY_URL } from "../config";
 import { useAuth } from "../lib/auth";
 import { ExternalLink, Link } from "../lib/router";
+import { GetAppChip } from "./GetAppChip";
 import { Icon, type IconName } from "./Icon";
 
 type Item = { label: string; text: string; icon: IconName; to: string; ext?: boolean };
@@ -142,6 +143,7 @@ export function MarketingHeader() {
         </nav>
 
         <div className="mh-actions">
+          <GetAppChip pathname="/" className="getapp-light" />
           <ExternalLink className="mh-study" href={STUDY_URL} onClick={close}>
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
             <span className="mh-study-t">Study notes</span><span className="mh-free">Free</span><span className="hm-sr"> (free study notes, opens in a new tab)</span>
