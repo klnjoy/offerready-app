@@ -3354,3 +3354,9 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
   .dt-ph-word { display: none; }
   .dt-step { min-height: 96px; }
 }
+/* Hero: what OfferReady does, in three lines */
+.hm-what { list-style: none; margin: 4px 0 22px; padding: 0; display: flex; flex-direction: column; gap: 10px; max-width: 36rem; }
+.hm-what li { margin: 0; display: flex; gap: 10px; align-items: flex-start; font-size: 1.02rem; line-height: 1.45; color: var(--text-2); }
+.hm-what b { color: var(--ink-950); font-weight: 650; }
+.hm-what .hm-ico { flex: none; margin-top: 2px; color: var(--signal); }
+@media (prefers-color-scheme: dark) { .hm-what b { color: #fff; } .hm-what .hm-ico { color: #5fd9a0; } }

@@ -146,9 +146,12 @@ export default function HomePage() {
       <section className="hm-hero hm-band hm-hero-b" aria-labelledby="hm-hero-h">
         <div className="hm-hero-copy">
           <h1 id="hm-hero-h" className="hm-h1">One job. One date. <span className="hm-h1-2">Ready on time.</span></h1>
-          <p className="hm-lede">
-            <strong>OfferReady is an AI interview coach for AI, data and platform engineers.</strong> Add the job you{"’"}re interviewing for and its date: it practises you on what that interview will ask and forecasts the day you{"’"}ll be ready.
-          </p>
+          <p className="hm-lede"><strong>Interview prep built around the one job you’re interviewing for.</strong> For AI, data and platform engineers.</p>
+          <ul className="hm-what">
+            <li><Icon name="target" size={18} /><span><b>See what the job asks</b> and where your resume falls short</span></li>
+            <li><Icon name="mic" size={18} /><span><b>Practise its questions</b>, with follow-ups and a voice mock interview</span></li>
+            <li><Icon name="calendar" size={18} /><span><b>Know the day you’ll be ready</b>, checked against your interview date</span></li>
+          </ul>
           <div className="hm-cta-row">
             <Link className="btn btn-lg hm-btn-signal" to="/analyze">Add a job, free <Icon name="arrow" size={18} /></Link>
             <Link className="btn btn-lg hm-btn-ghost" to="/try">Try a sample question</Link>
