@@ -342,7 +342,14 @@ function ScenarioList({
   const inFamily = list.filter((s) => activeCat === "all" || s.category === activeCat);
   // No scenarios for this job's family yet: show every role instead of an empty page.
   const familyEmpty = activeCat !== "all" && !inFamily.length && list.length > 0;
-  const shown = familyEmpty ? list : inFamily;
+  const inRole = familyEmpty ? list : inFamily;
+  const [status, setStatus] = useState<"all" | "new" | "improve" | "done">("all");
+  const isStatus = (s: Scenario) => status === "all" ? true
+    : status === "new" ? best[s.slug] == null
+    : status === "improve" ? best[s.slug] != null && best[s.slug] < 70
+    : best[s.slug] != null && best[s.slug] >= 70;
+  const shown = inRole.filter(isStatus);
+  const statusCount = (k: typeof status) => inRole.filter((s) => k === "all" ? true : k === "new" ? best[s.slug] == null : k === "improve" ? best[s.slug] != null && best[s.slug] < 70 : best[s.slug] != null && best[s.slug] >= 70).length;
   const cats = ["all", ...uniqueCats(list)];
 
   return (
@@ -441,8 +448,16 @@ function ScenarioList({
               </button>
             ))}
           </div>
+          <div className="scn-filter scn-status" role="group" aria-label="Filter by progress">
+            {([["all", "All"], ["new", "Not started"], ["improve", "Below 70%"], ["done", "Done"]] as const).map(([k, label]) => (
+              <button key={k} type="button" className={"scn-chip" + (status === k ? " on" : "")} aria-pressed={status === k} onClick={() => setStatus(k)}>
+                {label} <span className="scn-chip-n">{statusCount(k)}</span>
+              </button>
+            ))}
+          </div>
           {familyEmpty && <p className="hint">There are no {familyLabel(activeCat)} scenarios in the library yet, so here are all of them. The design calls carry over across roles.{canGenerate ? " Or write one for this job above." : ""}</p>}
-          {!shown.length && <p className="hint">No scenarios in this role yet.</p>}
+          {!shown.length && <p className="hint">{status === "all" ? "No scenarios in this role yet." : "No drills match this filter."}</p>}
+          <div className="scn-grid">
           {shown.map((s) => (
             <div className="scn-card" key={s.slug}>
               <div className="scn-card-top">
@@ -450,8 +465,8 @@ function ScenarioList({
                 {best[s.slug] != null && <span className={"qw-status " + (best[s.slug] >= 80 ? "good" : best[s.slug] >= 55 ? "mid" : "low")}>Done · best {best[s.slug]}%</span>}
               </div>
               <h3>{s.title}</h3>
-              {s.teaser?.setup && <p>{s.teaser.setup}</p>}
-              {(s.teaser?.you_will_practice || []).length > 0 && <ul>{s.teaser!.you_will_practice!.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+              {s.teaser?.setup && <p className="scn-setup">{s.teaser.setup}</p>}
+              {(s.teaser?.you_will_practice || []).length > 0 && <div className="scn-skills">{s.teaser!.you_will_practice!.slice(0, 4).map((x, i) => <span key={i} className="scn-skill">{x}</span>)}</div>}
               <div className="row">
                 <button type="button" className="btn btn-primary" onClick={() => onOpen(s)}>
                   {best[s.slug] != null ? "Practise again" : offline || s.entitled ? "Start drill" : "Preview drill"}
@@ -460,6 +475,7 @@ function ScenarioList({
               </div>
             </div>
           ))}
+          </div>
           {offline && (
             <p className="hint">These bundled scenarios run free, right here. A pass adds the full multi-role library, with progress saved to your account.</p>
           )}
