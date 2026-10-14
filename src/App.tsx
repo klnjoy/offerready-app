@@ -6,6 +6,7 @@ import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
 import { LandOnJob } from "./components/LandOnJob";
+import { AppBanner } from "./components/AppBanner";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
@@ -200,6 +201,7 @@ export default function App() {
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
+      <AppBanner pathname={pathname} />
       {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
       {pathname === "/" ? <MarketingHeader /> : (
       <header className="topbar">
