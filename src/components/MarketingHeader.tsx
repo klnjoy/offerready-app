@@ -44,6 +44,7 @@ const GROUPS: Group[] = [
   { id: "resources", label: "Resources", items: [
     { label: "Help Center", text: "How to use OfferReady, step by step", icon: "chat", to: D + "Help/index.html", ext: true },
     { label: "Sample report", text: "What you get after a mock interview, no sign-up", icon: "fit", to: "/sample-report" },
+    { label: "Get the app", text: "Install on your computer or phone", icon: "plus", to: "/app" },
     { label: "FAQ", text: "Quick answers about plans, privacy and how it works", icon: "list", to: "/faq" },
     { label: "Study library", text: "Free notes on GenAI, data and cloud topics", icon: "book", to: STUDY_URL, ext: true },
     { label: "Interview guide", text: "How senior technical loops work, round by round", icon: "list", to: D + "Personal-SourceCode/Interview_Guide_Overview.html", ext: true },
