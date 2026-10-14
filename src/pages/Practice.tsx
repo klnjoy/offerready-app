@@ -199,56 +199,104 @@ function Setup({ bank, onStart }: { bank: BankItem[]; onStart(s: Session): void 
   const pool = useMemo(() => (track === "all" ? bank : bank.filter((q) => (q.tracks || []).includes(track))), [bank, track]);
   const topics = useMemo(() => ["All", ...Array.from(new Set(pool.map((q) => q.topic))).sort()], [pool]);
   const scores = weakTopicScores();
-  const weakest = Object.keys(scores).sort((a, b) => scores[a] - scores[b]).slice(0, 3);
   const history = getHistory();
 
-  const startSession = () => {
-    let p = topic !== "All" ? pool.filter((q) => q.topic === topic) : pool.slice();
-    if (mode === "weak" && Object.keys(scores).length) {
+  const build = (m: Mode, tp: string, n: number): BankItem[] => {
+    let p = tp !== "All" ? pool.filter((q) => q.topic === tp) : pool.slice();
+    if (m === "weak" && Object.keys(scores).length) {
       // Topics below 70% first (weakest first), then backfill.
       const weight = (q: BankItem) => (q.topic in scores ? scores[q.topic] : 65);
       const weak = p.filter((q) => weight(q) < 70).sort((a, b) => weight(a) - weight(b));
       const rest = p.filter((q) => weight(q) >= 70);
-      p = shuffle(weak).concat(shuffle(rest)).slice(0, count);
+      p = shuffle(weak).concat(shuffle(rest)).slice(0, n);
     } else {
-      if (mode === "weak") setNotice("Weak-areas mode gets smarter after you finish a few sessions. For now, here's a normal mixed set — your ratings will train it.");
-      p = shuffle(p).slice(0, count);
+      p = shuffle(p).slice(0, n);
     }
-    if (!p.length) return;
-    onStart({ items: p, i: 0, ratings: [], answers: [], mode: mode === "weak" ? "practice" : mode, track: TRACKS[track].label, topic, reviewing: false });
+    return p;
   };
+  const launch = (m: Mode, tp: string, n: number) => {
+    if (m === "weak" && !Object.keys(scores).length) setNotice("Weak-areas mode gets smarter after you finish a few sessions. For now, here's a normal mixed set — your ratings will train it.");
+    const items = build(m, tp, n);
+    if (!items.length) return;
+    onStart({ items, i: 0, ratings: [], answers: [], mode: m === "weak" ? "practice" : m, track: TRACKS[track].label, topic: tp, reviewing: false });
+  };
+  const startSession = () => launch(mode, topic, count);
+  const hasScores = Object.keys(scores).length > 0;
+  const quickMode: Mode = hasScores ? "weak" : "practice";
+
+  // Topics in the current track, with how many questions and your score so far.
+  const topicStats = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const q of pool) m.set(q.topic, (m.get(q.topic) || 0) + 1);
+    return Array.from(m.entries()).map(([name, n]) => ({ name, n, score: name in scores ? scores[name] : null }))
+      .sort((a, b) => (a.score == null ? 1 : 0) - (b.score == null ? 1 : 0) || (a.score ?? 0) - (b.score ?? 0) || a.name.localeCompare(b.name));
+  }, [pool]); // eslint-disable-line react-hooks/exhaustive-deps
+  const started = topicStats.filter((t) => t.score != null).length;
 
   return (
-    <div className="stack">
-      <p><strong>{bank.length}</strong> questions across {new Set(bank.map((q) => q.topic)).size} topics. Pick how to practise and what to cover, then start. {signedIn ? "Your scores are saved to your account." : "Your scores are saved in this browser; sign in to keep them on every device."}</p>
-      {fromJob && <p className="hint">Set for your current job, <strong>{fromJob}</strong>: the {TRACKS[track].label} track. Change it below.</p>}
-      {weakest.length > 0 && (
-        <div className="weak-hint">
-          Your weakest topics so far: <strong>{weakest.map((k) => k + " (" + scores[k] + "%)").join(", ")}</strong>. Try <em>Weak areas</em> mode to drill them.
-        </div>
-      )}
+    <div className="stack qb">
       {notice && <p className="hint">{notice}</p>}
-      <div className="progress-label">Mode</div>
-      <div className="option-grid">
-        {(Object.keys(MODES) as Mode[]).map((k) => (
-          <button key={k} type="button" className={"option" + (k === mode ? " selected" : "")} aria-pressed={k === mode} onClick={() => setMode(k)}>
-            <h3>{MODES[k].label}</h3><p>{MODES[k].desc}</p>
-          </button>
-        ))}
-      </div>
-      <div className="progress-label">Track</div>
-      <div className="option-grid">
-        {(Object.keys(TRACKS) as Track[]).map((k) => (
-          <button key={k} type="button" className={"option" + (k === track ? " selected" : "")} aria-pressed={k === track} onClick={() => { setTrack(k); setTrackTouched(true); setTopic("All"); }}>
-            <h3>{TRACKS[k].label}</h3><p>{TRACKS[k].desc}</p>
-          </button>
-        ))}
-      </div>
-      <div className="row wrap">
-        <label>Topic: <select className="input input-inline" value={topic} onChange={(e) => setTopic(e.target.value)}>{topics.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
-        <label>Count: <select className="input input-inline" value={count} onChange={(e) => setCount(parseInt(e.target.value, 10))}>{[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} questions</option>)}</select></label>
-        <button type="button" className="btn btn-primary" onClick={startSession}>Start session</button>
-      </div>
+
+      <section className="card qb-quick" aria-labelledby="qb-quick-h">
+        <div className="qb-quick-main">
+          <span className="qb-kicker">Your next session</span>
+          <h2 id="qb-quick-h">10 {TRACKS[track].label === "All topics" ? "mixed" : TRACKS[track].label} questions{hasScores ? ", weakest topics first" : ""}</h2>
+          <p className="muted small">
+            Answer each one, get AI feedback or see the model answer, then rate yourself.
+            {fromJob ? <> Set from your job, <strong>{fromJob}</strong>.</> : null}
+            {" "}{signedIn ? "Scores are saved to your account." : "Scores are saved in this browser; sign in to keep them everywhere."}
+          </p>
+        </div>
+        <button type="button" className="btn btn-primary btn-lg" onClick={() => launch(quickMode, "All", 10)}>Start</button>
+      </section>
+
+      <section className="qb-topics" aria-labelledby="qb-topics-h">
+        <div className="qb-head">
+          <h2 id="qb-topics-h">Topics in {TRACKS[track].label === "All topics" ? "the bank" : "the " + TRACKS[track].label + " track"}</h2>
+          <span className="small muted">{started} of {topicStats.length} practised · weakest first · tap one to practise it</span>
+        </div>
+        <ul className="qb-topic-grid">
+          {topicStats.map((t) => (
+            <li key={t.name}>
+              <button type="button" className="qb-topic" onClick={() => launch("practice", t.name, Math.min(10, t.n))}>
+                <span className="qb-topic-name">{t.name}</span>
+                <span className="qb-topic-meta">{t.n} {t.n === 1 ? "question" : "questions"} · {t.score == null ? "not started" : t.score + "%"}</span>
+                <span className={"qb-topic-bar" + (t.score == null ? " none" : t.score >= 75 ? " good" : t.score >= 55 ? " mid" : " low")} aria-hidden="true"><span style={{ width: (t.score ?? 0) + "%" }} /></span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <details className="card qb-custom">
+        <summary>Custom session: mode, track, topic and length</summary>
+        <div className="qb-custom-body">
+          <div className="qb-field">
+            <span className="field-label">Mode</span>
+            <div className="qb-seg" role="group" aria-label="Mode">
+              {(Object.keys(MODES) as Mode[]).map((k) => (
+                <button key={k} type="button" className={"qb-seg-btn" + (k === mode ? " on" : "")} aria-pressed={k === mode} title={MODES[k].desc} onClick={() => setMode(k)}>{MODES[k].label}</button>
+              ))}
+            </div>
+            <p className="small muted">{MODES[mode].desc}</p>
+          </div>
+          <div className="qb-field">
+            <span className="field-label">Track</span>
+            <div className="qb-seg" role="group" aria-label="Track">
+              {(Object.keys(TRACKS) as Track[]).map((k) => (
+                <button key={k} type="button" className={"qb-seg-btn" + (k === track ? " on" : "")} aria-pressed={k === track} title={TRACKS[k].desc} onClick={() => { setTrack(k); setTrackTouched(true); setTopic("All"); }}>{TRACKS[k].label}</button>
+              ))}
+            </div>
+            <p className="small muted">{TRACKS[track].desc}</p>
+          </div>
+          <div className="row wrap">
+            <label>Topic: <select className="input input-inline" value={topic} onChange={(e) => setTopic(e.target.value)}>{topics.map((t) => <option key={t} value={t}>{t}</option>)}</select></label>
+            <label>Count: <select className="input input-inline" value={count} onChange={(e) => setCount(parseInt(e.target.value, 10))}>{[5, 10, 15, 20].map((n) => <option key={n} value={n}>{n} questions</option>)}</select></label>
+            <button type="button" className="btn btn-primary" onClick={startSession}>Start session</button>
+          </div>
+        </div>
+      </details>
+
       {history.length > 0 && (
         <div>
           <h2>Your recent sessions</h2>
@@ -265,6 +313,7 @@ function Setup({ bank, onStart }: { bank: BankItem[]; onStart(s: Session): void 
           <Muted small>Your score for each job is in <Link to="/dashboard">Readiness</Link>.</Muted>
         </div>
       )}
+      <p className="small muted">{bank.length} questions across {new Set(bank.map((q) => q.topic)).size} topics.</p>
     </div>
   );
 }
