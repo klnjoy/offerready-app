@@ -3232,7 +3232,10 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .mh-trigger, .mh-signin, .mh-help { white-space: nowrap; }
 @media (max-width: 1399px) { .mh-study .mh-free { display: none; } }
 @media (max-width: 1239px) { .mh-actions .mh-help { display: none; } }
-@media (max-width: 1099px) { .mh-actions .mh-study { display: none; } }
+@media (max-width: 1099px) {
+  .mh-actions .mh-study { padding: 0; width: 38px; height: 38px; justify-content: center; border-radius: 50%; }
+  .mh-actions .mh-study .mh-study-t, .mh-actions .mh-study .mh-free { display: none; }
+}
 /* /faq */
 .faqp { display: flex; flex-direction: column; gap: 28px; }
 .faqp-study { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; text-align: left; gap: 24px; padding: 24px 28px; background: linear-gradient(135deg, #eaf7f0 0%, var(--surface) 60%); }
@@ -3360,3 +3363,14 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hm-what b { color: var(--ink-950); font-weight: 650; }
 .hm-what .hm-ico { flex: none; margin-top: 2px; color: var(--signal); }
 @media (prefers-color-scheme: dark) { .hm-what b { color: #fff; } .hm-what .hm-ico { color: #5fd9a0; } }
+/* Phone header: logo, study notes, sign in, start free, menu, all on one row */
+.mh-menu-btn { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 480px) {
+  .mh-actions { gap: 6px; }
+  .mh-signin { display: inline-flex; padding: 8px 4px; font-size: 0.9rem; }
+  .mh-start { padding: 8px 12px; font-size: 0.9rem; }
+  .mh-menu-btn { padding: 8px 9px; }
+  .mh-menu-t { display: none; }
+  .mh-actions .mh-study { width: 36px; height: 36px; }
+}
+@media (max-width: 370px) { .mh-brand span { display: none; } }
