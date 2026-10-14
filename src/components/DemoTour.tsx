@@ -13,13 +13,13 @@ import { Icon, type IconName } from "./Icon";
 
 export const CHAPTER_MS = 7000;
 
-type SceneProps = { t: number };
-interface Chapter { phase: string; title: string; line: string; where: string; icon: IconName; url: string; Scene: (p: SceneProps) => ReactNode }
+export type SceneProps = { t: number };
+export interface Chapter { phase: string; title: string; line: string; where: string; icon: IconName; url: string; Scene: (p: SceneProps) => ReactNode }
 
-const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+export const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 /** Progress 0…1 of a sub-animation between two times (ms). */
-const seg = (t: number, from: number, to: number) => clamp((t - from) / (to - from));
-const typed = (s: string, t: number, from: number, to: number) => s.slice(0, Math.round(seg(t, from, to) * s.length));
+export const seg = (t: number, from: number, to: number) => clamp((t - from) / (to - from));
+export const typed = (s: string, t: number, from: number, to: number) => s.slice(0, Math.round(seg(t, from, to) * s.length));
 
 /* ---------- 1. Add the job ---------- */
 const JOB_URL = "jobs.lever.co/northwind/senior-ai-engineer";
@@ -271,8 +271,8 @@ function useReducedMotion(): boolean {
 }
 
 /** What the narrator says for a chapter. */
-export function narration(i: number): string {
-  const c = CHAPTERS[i];
+export function narration(i: number, list: Chapter[] = CHAPTERS): string {
+  const c = list[i];
   return "Step " + (i + 1) + ". " + c.title.replace("’", "'") + ". " + c.line.replace(/’/g, "'") + " You'll find it at: " + c.where.replace(/ → /g, ", then ") + ".";
 }
 
@@ -288,7 +288,8 @@ function pickVoice(): SpeechSynthesisVoice | null {
   return vs.find((v) => /en-us/i.test(v.lang)) || vs[0] || null;
 }
 
-export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?: boolean; loop?: boolean; onEnd?: () => void }) {
+export function DemoTour({ autoStart = false, loop = true, onEnd, chapters, label = "Demo" }: { autoStart?: boolean; loop?: boolean; onEnd?: () => void; chapters?: Chapter[]; label?: string }) {
+  const CH = chapters || CHAPTERS;
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
   const [t, setT] = useState(0);
@@ -325,7 +326,7 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
       let ns = stepRef.current;
       if (nt >= CHAPTER_MS && speaking.current) nt = CHAPTER_MS - 1;
       if (nt >= CHAPTER_MS) {
-        if (ns < CHAPTERS.length - 1) { ns += 1; nt = 0; }
+        if (ns < CH.length - 1) { ns += 1; nt = 0; }
         else if (loop) { ns = 0; nt = 0; onEnd?.(); }
         else { nt = CHAPTER_MS; tRef.current = nt; setT(nt); setPlaying(false); onEnd?.(); return; }
       }
@@ -346,7 +347,7 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
     synth.cancel();
     speaking.current = false;
     if (!sound || (!playing && !reduced)) return;
-    const u = new SpeechSynthesisUtterance(narration(step));
+    const u = new SpeechSynthesisUtterance(narration(step, CH));
     const v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-US";
     u.rate = 1;
@@ -367,9 +368,9 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
 
   const go = (i: number) => { const nt = reduced ? CHAPTER_MS : 0; stepRef.current = i; tRef.current = nt; setStep(i); setT(nt); };
   const toggle = () => { setUserPaused(playing); setPlaying(!playing); };
-  const ch = CHAPTERS[step];
+  const ch = CH[step];
   const Scene = ch.Scene;
-  const phases = Array.from(new Set(CHAPTERS.map((c) => c.phase)));
+  const phases = Array.from(new Set(CH.map((c) => c.phase)));
 
   return (
     <div className="dt" ref={root}>
@@ -378,7 +379,7 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
           <div key={ph} className="dt-phase">
             <p className="dt-phase-h">Step {phases.indexOf(ph) + 1} · {ph}</p>
             <ol className="dt-steps">
-              {CHAPTERS.map((c, i) => (c.phase !== ph ? null : (
+              {CH.map((c, i) => (c.phase !== ph ? null : (
                 <li key={c.title}>
                   <button type="button" className={"dt-step" + (i === step ? " on" : "") + (i < step ? " done" : "")} aria-current={i === step ? "step" : undefined} onClick={() => go(i)}>
                     <span className="dt-num" aria-hidden="true">{i + 1}</span>
@@ -408,14 +409,14 @@ export function DemoTour({ autoStart = false, loop = true, onEnd }: { autoStart?
         </div>
       </div>
 
-      <figure className="dt-screen" aria-label={"Demo, chapter " + (step + 1) + " of " + CHAPTERS.length + ": " + ch.title}>
+      <figure className="dt-screen" aria-label={label + ", chapter " + (step + 1) + " of " + CH.length + ": " + ch.title}>
         <div className="hm-app-bar" aria-hidden="true">
           <span className="hm-app-dots"><i /><i /><i /></span>
           <span className="hm-app-url">offerready · {ch.url}</span>
           <span className="hm-app-sample">Sample</span>
         </div>
         <div className="dt-cap" aria-hidden="true">
-          <span className="dt-cap-n">{step + 1}/{CHAPTERS.length}</span>
+          <span className="dt-cap-n">{step + 1}/{CH.length}</span>
           <span className="dt-cap-t">{ch.title}</span>
           <span className="dt-cap-w">{ch.where}</span>
         </div>
