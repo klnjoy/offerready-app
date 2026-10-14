@@ -144,7 +144,7 @@ export function MarketingHeader() {
         <div className="mh-actions">
           <ExternalLink className="mh-study" href={STUDY_URL} onClick={close}>
             <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" fill="none" stroke="currentColor" strokeWidth="1.8" /><path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5" fill="none" stroke="currentColor" strokeWidth="1.8" /></svg>
-            Study notes<span className="mh-free">Free</span><span className="hm-sr"> (opens in a new tab)</span>
+            <span className="mh-study-t">Study notes</span><span className="mh-free">Free</span><span className="hm-sr"> (free study notes, opens in a new tab)</span>
           </ExternalLink>
           <ExternalLink className="mh-help" href={D + "Help/index.html"} onClick={close}>
             <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="8" fill="none" stroke="currentColor" strokeWidth="1.6" /><path d="M7.8 7.6a2.3 2.3 0 0 1 4.4.9c0 1.5-2.2 1.9-2.2 3.1" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /><circle cx="10" cy="14.4" r="1" fill="currentColor" /></svg>
@@ -161,8 +161,9 @@ export function MarketingHeader() {
               <Link className="btn mh-start" to="/analyze">Start free</Link>
             </>
           )}
-          <button type="button" className="mh-menu-btn" aria-expanded={mobile} aria-controls="mh-mobile" onClick={() => setMobile((m) => !m)}>
-            {mobile ? "Close" : "Menu"}
+          <button type="button" className="mh-menu-btn" aria-expanded={mobile} aria-controls="mh-mobile" aria-label={mobile ? "Close menu" : "Open menu"} onClick={() => setMobile((m) => !m)}>
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">{mobile ? <path d="M5 5l10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /> : <path d="M3 6h14M3 10h14M3 14h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />}</svg>
+            <span className="mh-menu-t">{mobile ? "Close" : "Menu"}</span>
           </button>
         </div>
       </div>
