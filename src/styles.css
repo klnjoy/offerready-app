@@ -3654,3 +3654,6 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 /* app top bar matches the 1200px app pages */
 .topbar-inner { max-width: 1200px; }
 .main:not(.main-home) ~ .footer :is(.footer-top, .footer-inner, .footer-base) { max-width: 1200px; }
+.dto-notes-block { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); }
+.dto-notes-k { font-size: 0.78rem; font-weight: 700; color: var(--text-2); }
+.dto-tally { gap: 6px; font-weight: 600; font-size: 0.88rem; }
