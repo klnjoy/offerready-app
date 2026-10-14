@@ -3491,3 +3491,74 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .scn-skills { display: flex; flex-wrap: wrap; gap: 6px; }
 .scn-skill { font-size: 0.78rem; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); }
 @media (prefers-color-scheme: dark) { .qb-seg-btn.on { background: var(--signal); border-color: var(--signal); color: #0b1322; } }
+
+/* ---------- Home polish (Oct 2026): the hero reads as a product shot, the
+ * sections get clearer depth, and every link sits next to what it explains. */
+
+/* hero: forecast card with two smaller sample cards around it */
+.hm-hero-fc { position: relative; padding: 34px 0 64px; }
+.hm-hero-fc .hm-fc { z-index: 1; }
+.hm-float { position: absolute; z-index: 2; background: var(--surface); color: var(--text); border-radius: 14px; box-shadow: 0 24px 48px -24px rgba(12, 28, 56, 0.45), 0 0 0 1px rgba(12, 28, 56, 0.07); font-size: 0.84rem; line-height: 1.35; }
+.hm-float-k { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 650; color: var(--text-2); }
+.hm-float-score { top: -6px; right: -18px; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px; transform: rotate(2deg); }
+.hm-float-score b { display: inline-flex; align-items: center; gap: 5px; font-size: 1.02rem; font-weight: 780; letter-spacing: -0.02em; color: var(--signal-600); font-variant-numeric: tabular-nums; }
+.hm-float-score b .hm-ico { color: var(--text-3); }
+.hm-float-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--signal-soft); color: var(--signal-600); }
+.hm-float-plan { left: -36px; bottom: 0; width: min(290px, 78%); padding: 12px 14px; transform: rotate(-1deg); }
+.hm-float-plan ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hm-float-plan li { margin: 0; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.hm-float-plan li.done { color: var(--text-3); text-decoration: line-through; text-decoration-color: rgba(12, 28, 56, 0.25); }
+.hm-float-plan li.done .hm-ico { flex: none; width: 16px; height: 16px; padding: 1.5px; border-radius: 5px; background: var(--signal); color: #fff; }
+.hm-float-box { flex: none; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-strong); }
+@media (max-width: 1099px) { .hm-float-score { right: 0; } .hm-float-plan { left: 0; } }
+@media (max-width: 560px) {
+  .hm-hero-fc { padding: 26px 0 74px; }
+  .hm-float-score { top: -4px; right: 4px; padding: 7px 10px 7px 7px; }
+  .hm-float-ico { width: 28px; height: 28px; }
+  .hm-float-plan { left: 6px; width: 86%; }
+}
+@media (prefers-color-scheme: dark) {
+  .hm-float { box-shadow: 0 24px 48px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px var(--border-strong); }
+  .hm-float-plan li.done { text-decoration-color: rgba(255, 255, 255, 0.3); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hm-float { animation: hm-up 0.7s 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .hm-float-plan { animation-delay: 0.5s; }
+}
+
+/* trust line: one calm row */
+.hm-hero-b .hm-trust { display: flex; flex-direction: row; flex-wrap: wrap; gap: 8px 20px; }
+
+/* roles: quiet chips, not underlined links */
+.hm-roles li { padding: 0; }
+.hm-roles li a { display: block; padding: 6px 14px; color: var(--text); text-decoration: none; border-radius: 999px; transition: color 0.15s ease; }
+.hm-roles li:hover { border-color: var(--signal); }
+.hm-roles li a:hover { color: var(--signal-600); }
+
+/* every round: green icon tiles so the grid reads as one set */
+.hm-fmt-card { padding: 18px 20px; border-radius: 16px; }
+.hm-fmt-card > .hm-feature-ico { background: var(--signal-soft); border-color: rgba(26, 158, 100, 0.25); color: var(--signal-600); }
+
+/* practice band: links under the intro, not stranded at the bottom */
+.hm-po-head .hm-po-more { margin-top: 10px; flex-direction: column; gap: 10px; }
+
+/* plans: the recommended pass stands out */
+.hm-tier-pick { background: linear-gradient(180deg, var(--signal-soft), var(--surface) 70%); box-shadow: 0 22px 44px -26px rgba(26, 158, 100, 0.55); }
+@media (min-width: 900px) { .hm-tier-pick { transform: translateY(-8px); } }
+.hm-plans-cta { justify-content: center; }
+
+/* FAQ: heading column carries the "all questions" link and stays in view */
+.hm-faq-wrap .hm-head .hm-faq-more { margin: 6px 0 0; }
+@media (min-width: 900px) { .hm-faq-wrap .hm-head { position: sticky; top: 96px; } }
+
+/* closing call to action: readable secondary button, room above the footer */
+.hm-final.hm-band { padding-bottom: 96px; }
+.hm-final.hm-band .btn-on-dark { background: #fff; border-color: #fff; color: var(--ink-950); }
+.hm-final.hm-band .btn-on-dark:hover { background: rgba(255, 255, 255, 0.85); border-color: rgba(255, 255, 255, 0.85); }
+@media (max-width: 560px) { .hm-final.hm-band { padding-bottom: 64px; } }
+/* keep the small cards clear of the forecast's own text */
+.hm-hero-fc { padding: 46px 0 92px; }
+.hm-float-score { top: 0; right: 28px; }
+.hm-float-plan { bottom: 0; }
+@media (max-width: 1099px) { .hm-float-score { right: 12px; } }
+@media (max-width: 560px) { .hm-hero-fc { padding: 44px 0 96px; } .hm-float-score { top: 0; right: 8px; } }

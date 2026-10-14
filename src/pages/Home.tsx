@@ -174,7 +174,20 @@ export default function HomePage() {
             <li><Icon name="lock" size={16} /> Resume stays on your device</li>
           </ul>
         </div>
-        <div className="hm-visual hm-hero-fc"><ForecastSample /></div>
+        <div className="hm-visual hm-hero-fc">
+          <ForecastSample />
+          <div className="hm-float hm-float-score" aria-hidden="true">
+            <span className="hm-float-ico"><Icon name="mic" size={16} /></span>
+            <span><span className="hm-float-k">Voice mock, 2nd try</span><b>42% <Icon name="arrow" size={13} /> 61%</b></span>
+          </div>
+          <div className="hm-float hm-float-plan" aria-hidden="true">
+            <span className="hm-float-k"><Icon name="calendar" size={14} /> Today’s plan · 25 min</span>
+            <ul>
+              <li className="done"><Icon name="check" size={13} /> Trade-off drill: RAG vs fine-tuning</li>
+              <li><span className="hm-float-box" /> Re-answer “PII in prompts” out loud</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
       {/* roles strip */}
@@ -224,6 +237,10 @@ export default function HomePage() {
           <p className="hm-kicker">Practice-only, by design</p>
           <h2 id="hm-po-h" className="hm-h2">Ready on your own, in any interview room</h2>
           <p className="hm-sub">More interviewers now watch for AI-fed answers, and some companies have brought back in-person rounds. OfferReady prepares you for exactly that.</p>
+          <p className="hm-po-more">
+            <ExternalLink className="hm-link" href={DOCS_BASE + "Security/index.html"}>Security and your data<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
+            <ExternalLink className="hm-link" href={DOCS_BASE + "Compare/index.html"}>Compare with live interview assistants<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
+          </p>
         </header>
         <ul className="hm-po-list">
           {PRACTICE_ONLY.map((p) => (
@@ -236,10 +253,6 @@ export default function HomePage() {
             </li>
           ))}
         </ul>
-        <p className="hm-po-more">
-          <ExternalLink className="hm-link" href={DOCS_BASE + "Security/index.html"}>Security and your data<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
-          <ExternalLink className="hm-link" href={DOCS_BASE + "Compare/index.html"}>Compare with live interview assistants<Icon name="ext" size={15} /><span className="hm-sr"> (opens in a new tab)</span></ExternalLink>
-        </p>
       </section>
 
       {/* 6. free vs pro */}
@@ -279,6 +292,8 @@ export default function HomePage() {
         <header className="hm-head">
           <p className="hm-kicker">FAQ</p>
           <h2 id="hm-faq-h" className="hm-h2">Questions, answered</h2>
+          <p className="hm-sub">The ones people ask before they sign up.</p>
+          <p className="hm-faq-more"><Link className="hm-link" to="/faq">All questions, plus the free study notes<Icon name="arrow" size={15} /></Link></p>
         </header>
         <div className="hm-faq">
           {HOME_FAQ.map((f) => (
@@ -288,7 +303,6 @@ export default function HomePage() {
             </details>
           ))}
         </div>
-        <p className="hm-faq-more"><Link className="hm-link" to="/faq">All questions, plus the free study notes<Icon name="arrow" size={15} /></Link></p>
       </section>
 
       {/* 9. final CTA */}
