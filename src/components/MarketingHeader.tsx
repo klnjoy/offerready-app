@@ -38,9 +38,10 @@ const GROUPS: Group[] = [
   { id: "roles", label: "For your role", items: [
     { label: "AI / GenAI Engineers", text: "RAG, agents, evaluation and LLM system design", icon: "spark", to: D + "For/ai-engineers/index.html", ext: true },
     { label: "Forward Deployed Engineers", text: "Discovery, customer scenarios, practical coding and demos", icon: "briefcase", to: D + "For/forward-deployed-engineers/index.html", ext: true },
-    { label: "Data Engineers", text: "SQL, pipelines, warehouses and governance", icon: "layers", to: D + "For/data-engineers/index.html", ext: true },
+    { label: "Data Engineers", text: "SQL, pipelines, Snowflake and Databricks", icon: "list", to: D + "For/data-engineers/index.html", ext: true },
     { label: "Platform / DevOps Engineers", text: "Reliability, Kubernetes and AI platforms", icon: "shield", to: D + "For/platform-engineers/index.html", ext: true },
     { label: "Staff / Principal Engineers", text: "Scope, influence and trade-offs at the next level", icon: "target", to: D + "For/staff-engineers/index.html", ext: true },
+    { label: "Architects", text: "Solutions, AI, data and cloud architecture rounds", icon: "layers", to: D + "For/architects/index.html", ext: true },
   ] },
   { id: "resources", label: "Resources", items: [
     { label: "Help Center", text: "How to use OfferReady, step by step", icon: "chat", to: D + "Help/index.html", ext: true },

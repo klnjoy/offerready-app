@@ -50,6 +50,7 @@ const ROLE_PAGES: { label: string; path: string }[] = [
   { label: "Data Engineers", path: "For/data-engineers/index.html" },
   { label: "Platform / DevOps Engineers", path: "For/platform-engineers/index.html" },
   { label: "Staff / Principal Engineers", path: "For/staff-engineers/index.html" },
+  { label: "Architects", path: "For/architects/index.html" },
 ];
 
 
@@ -157,7 +158,7 @@ export default function HomePage() {
       <section className="hm-hero hm-band hm-hero-b" aria-labelledby="hm-hero-h">
         <div className="hm-hero-copy">
           <h1 id="hm-hero-h" className="hm-h1">One job. One date. <span className="hm-h1-2">Ready on time.</span></h1>
-          <p className="hm-lede"><strong>Interview prep built around the one job you’re interviewing for.</strong> For AI, data and platform engineers.</p>
+          <p className="hm-lede"><strong>Interview prep built around the one job you’re interviewing for.</strong> For AI, data and platform engineers and architects.</p>
           <ul className="hm-what">
             <li><Icon name="target" size={18} /><span><b>See what the job asks</b> and where your resume falls short</span></li>
             <li><Icon name="mic" size={18} /><span><b>Practise its questions</b>, with follow-ups and a voice mock interview</span></li>
