@@ -6,7 +6,7 @@ import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
 import { LandOnJob } from "./components/LandOnJob";
-import { AppBanner } from "./components/AppBanner";
+import { GetAppChip } from "./components/GetAppChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
@@ -201,7 +201,6 @@ export default function App() {
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
-      <AppBanner pathname={pathname} />
       {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
       {pathname === "/" ? <MarketingHeader /> : (
       <header className="topbar">
@@ -216,6 +215,7 @@ export default function App() {
             })}
           </nav>
           <div className="topbar-actions">
+            <GetAppChip pathname={pathname} className="getapp-dark" />
             <Link className="btn add-job-btn" to="/analyze" aria-label="Add a job">
               <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
               <span className="add-job-long">Add a job</span><span className="add-job-short" aria-hidden="true">Add</span>
