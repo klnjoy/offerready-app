@@ -29,6 +29,7 @@ export type TrackEvent =
   | "copilot_used"
   | "notes_started"
   | "notes_to_debrief"
+  | "landed"
   | "answer_retried"
   | "answer_saved";
 

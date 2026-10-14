@@ -5,6 +5,7 @@ import { getActiveJob } from "./lib/readiness";
 import { ExternalLink, Link, matchPath, useLocation } from "./lib/router";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
+import { LandOnJob } from "./components/LandOnJob";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
@@ -184,6 +185,7 @@ export default function App() {
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
+      {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
       {pathname === "/" ? <MarketingHeader /> : (
       <header className="topbar">
         <div className="topbar-inner">
