@@ -202,8 +202,8 @@ export default function HomePage() {
       {/* 3. how it works: the three-step demo */}
       <section className="hm-section" aria-labelledby="hm-demo-h">
         <header className="hm-head">
-          <h2 id="hm-demo-h" className="hm-h2">How it works, in three steps</h2>
-          <p className="hm-sub">Prepare, practise, interview: every feature in one minute, with where to find it. Choose any chapter to jump to it.</p>
+          <h2 id="hm-demo-h" className="hm-h2">How it works</h2>
+          <p className="hm-sub">Set up once, practise every day, then the interview day. Every feature in one minute, with where to find it. Steps marked Optional you can skip.</p>
         </header>
         <DemoTour />
         <p className="hm-demo-more"><Link className="hm-link" to="/demo#coach">The AI Interview Coach, step by step<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
