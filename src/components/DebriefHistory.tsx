@@ -41,13 +41,18 @@ export function DebriefCard({ d, job, onEdit, onDelete, compact }: {
 
       <div className="dto-hist-meta">
         {d.feeling > 0 && <span className="dto-feel" data-f={d.feeling}>Felt {FEELINGS[d.feeling - 1].toLowerCase()}</span>}
-        {d.questions.length > 0 && (
-          <span className="dto-tally" aria-label={counts.good + " good, " + counts.ok + " okay, " + counts.bad + " bad"}>
-            <i className="dto-dot dto-good" aria-hidden="true" />{counts.good}
-            <i className="dto-dot dto-ok" aria-hidden="true" />{counts.ok}
-            <i className="dto-dot dto-bad" aria-hidden="true" />{counts.bad}
+        {d.questions.length > 0 && (counts.good + counts.ok + counts.bad > 0 ? (
+          <span className="dto-tally">
+            <i className="dto-dot dto-good" aria-hidden="true" />{counts.good} good
+            <i className="dto-dot dto-ok" aria-hidden="true" />{counts.ok} OK
+            <i className="dto-dot dto-bad" aria-hidden="true" />{counts.bad} bad
           </span>
-        )}
+        ) : (
+          <span className="small muted">
+            {d.questions.length} {d.questions.length === 1 ? "question" : "questions"}, not rated yet.
+            {onEdit ? <> <button type="button" className="link-btn small" onClick={() => onEdit(d)}>Rate how each went</button></> : null}
+          </span>
+        ))}
         {d.outcome === "next" && d.nextDate && (
           <span className="iv-chip">Next{d.nextRound ? ": " + ROUND_LABELS[d.nextRound].toLowerCase() : " round"} {formatDay(d.nextDate)}</span>
         )}
@@ -68,7 +73,7 @@ export function DebriefCard({ d, job, onEdit, onDelete, compact }: {
           {compact && d.questions.length > shown.length && <li className="small muted dto-more">+{d.questions.length - shown.length} more</li>}
         </ul>
       )}
-      {!compact && d.notes && <p className="dto-notes">{d.notes}</p>}
+      {!compact && d.notes && <div className="dto-notes-block"><span className="dto-notes-k">Your notes</span><p className="dto-notes">{d.notes}</p></div>}
 
       {drafting ? (
         <StreamDraft title="Thank-you email" prompt={() => thankYouPrompt(d, job)} page={{ title: "Interview debrief", path: "/debrief" }} onClose={() => setDrafting(false)} />
@@ -76,7 +81,7 @@ export function DebriefCard({ d, job, onEdit, onDelete, compact }: {
 
       <div className="dto-actions">
         {!drafting && <button type="button" className="btn btn-small dto-ty-btn" onClick={() => setDrafting(true)}>Draft a thank-you email</button>}
-        {onEdit && <button type="button" className="btn btn-ghost btn-small" onClick={() => onEdit(d)}>Edit</button>}
+        {onEdit && <button type="button" className="btn btn-ghost btn-small" onClick={() => onEdit(d)}>Edit questions and notes</button>}
         {compact && <Link className="btn btn-ghost btn-small" to={"/debrief?job=" + encodeURIComponent(d.jobId)}>Open debrief</Link>}
         {onDelete && (confirm ? (
           <span className="dto-confirm">Delete this round?
