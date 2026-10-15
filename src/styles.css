@@ -4026,3 +4026,7 @@ html, body { overflow-x: clip; }
   .sb-lib-body { padding-left: 14px; }
 }
 .jn-prog { margin-left: auto; padding-left: 6px; font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--muted, #6b7280); }
+.inn-bar { align-items: center; }
+.inn-round { flex-direction: row; align-items: center; gap: 10px; }
+.inn-round .input { width: auto; min-width: 180px; }
+.inn-bar .inn-status { padding-bottom: 0; }
