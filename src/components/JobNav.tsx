@@ -41,10 +41,12 @@ interface Group { id: string; title: string; to?: string; flat?: boolean; items:
 const enc = encodeURIComponent;
 
 /** Which item the page belongs to, plus a deeper page under it if any. */
-function locate(pathname: string, search: string): { key: Key | null; sub?: string; hub?: boolean } {
+function locate(pathname: string, search: string): { key: Key | null; sub?: string; hub?: string } {
   const q = new URLSearchParams(search);
   if (pathname.startsWith("/jobs/")) {
     const t = q.get("tab");
+    // The After tab is the "Interview day and after" folder's own page.
+    if (t === "after") return { key: null, hub: "day" };
     return { key: t === "resume" || t === "after" || t === "settings" ? t : "overview" };
   }
   if (pathname === "/tailor") return { key: "resume", sub: "Tailor your resume" };
@@ -56,7 +58,7 @@ function locate(pathname: string, search: string): { key: Key | null; sub?: stri
   if (pathname === "/simulator") return { key: "mock", sub: "Text interview" };
   if (pathname === "/coach") return { key: "coach" };
   if (pathname === "/practice/bank") return { key: "bank" };
-  if (pathname === "/practice") return { key: null, hub: true };
+  if (pathname === "/practice") return { key: null, hub: "practice" };
   if (pathname === "/dashboard") return { key: "readiness" };
   if (pathname === "/notes") return { key: "notes" };
   if (pathname === "/debrief") return { key: "debrief" };
@@ -90,8 +92,8 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
     ] },
     { id: "day", title: "Interview day and after", to: jp + "?tab=after", items: [
       { key: "notes", label: "Interview notes", to: wj("/notes") },
-      { key: "debrief", label: "Log a round", to: wj("/debrief") },
-      { key: "after", label: "Debriefs and outcome", to: jp + "?tab=after" },
+      // One place for rounds: log a new one, see the ones you've logged.
+      { key: "debrief", label: "Debriefs", to: wj("/debrief") },
       { key: "asked", label: "Questions you were asked", to: wj("/asked") },
       { key: "offers", label: "Compare offers", to: "/offers" },
     ] },
@@ -121,7 +123,7 @@ export interface JobNavModel {
   groups: Group[];
   key: Key | null;
   sub?: string;
-  hub?: boolean;
+  hub?: string;
 }
 
 /** Everything the trail, sidebar, footer and phone menu need, or null when
@@ -169,7 +171,7 @@ export function JobTrail({ nav }: { nav: JobNavModel }) {
     { label: "Jobs", to: "/jobs" },
     { label: nav.title, to: jobTo },
   ];
-  if (nav.hub) crumbs.push({ label: "Practise every day" });
+  if (nav.hub) crumbs.push({ label: nav.groups.find((g) => g.id === nav.hub)?.title || "" });
   else if (found) {
     if (!found.group.flat) crumbs.push({ label: found.group.title, to: found.group.to });
     if (!(found.group.id === "job" && found.item.key === "overview")) {
@@ -222,7 +224,7 @@ function buildTree(nav: JobNavModel, jobs: JobRow[]): Node[] {
 
 /** Ids from the top down to the page you're on (the last one is the page). */
 function pathTo(nodes: Node[], nav: JobNavModel): string[] {
-  const want = nav.hub ? "j:" + nav.jobId + ":practice" : nav.key ? "j:" + nav.jobId + ":" + nav.key : "";
+  const want = nav.hub ? "j:" + nav.jobId + ":" + nav.hub : nav.key ? "j:" + nav.jobId + ":" + nav.key : "";
   const walk = (list: Node[], trail: string[]): string[] | null => {
     for (const n of list) {
       const t = [...trail, n.id];
