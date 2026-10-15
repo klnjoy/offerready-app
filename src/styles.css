@@ -3992,3 +3992,10 @@ html, body { overflow-x: clip; }
 .sb-draft-bullets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .sb-draft-bullets .sb-tagbtn { max-width: 100%; text-align: left; white-space: normal; }
 .sb-fill { margin: 0 0 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); border: 1px solid var(--amber-border); font-size: 0.9rem; }
+
+/* Stories: draft several at once; drafts waiting to be checked */
+.sb-batch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 14px; margin: 10px 0; border: 1px dashed var(--signal); border-radius: var(--r-md); background: var(--signal-soft); }
+.sb-batch > div { flex: 1 1 280px; min-width: 0; }
+.sb-batch p { margin: 2px 0 0; }
+.sb-batch-msg { margin: 0 0 10px; }
+.sb-draft-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 0.72rem; font-weight: 750; padding: 2px 8px; border-radius: 999px; background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-border); }

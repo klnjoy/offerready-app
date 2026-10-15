@@ -8,11 +8,10 @@ import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import {
   COMPETENCIES, coachPrompt, competencyKey, coverage, isCompetency, loadStories, neededCompetencies, normalizeStory,
-  practicePrompt, saveStories, starCheck, storiesToMarkdown, tagLabel, type Story,
+  practicePrompt, saveStories, starCheck, storiesToMarkdown, storySeedLines, tagLabel, type Story,
 } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
 import { useSavedResume } from "../lib/savedResume";
-import { extractBullets } from "../lib/tailor";
 import { KEYS, onDataChanged, readJSON, writeJSON } from "../lib/storage";
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { invalidatePlan } from "../lib/plans";
@@ -80,7 +79,8 @@ export default function StoriesPage() {
 
   const save = (s: Story) => {
     const now = new Date().toISOString();
-    const rec = { ...s, title: s.title.trim() || "Untitled story", updatedAt: now };
+    const { draft: _checked, ...rest } = s; void _checked; // saving from the editor = checked
+    const rec = { ...rest, title: s.title.trim() || "Untitled story", updatedAt: now };
     const exists = stories.some((x) => x.id === s.id);
     persist(exists ? stories.map((x) => (x.id === s.id ? rec : x)) : [rec, ...stories]);
     setEditing(null);
@@ -88,6 +88,28 @@ export default function StoriesPage() {
   };
 
   const remove = (id: string) => persist(stories.filter((s) => s.id !== id));
+
+  // Draft stories for every competency with none, from the saved resume.
+  const [resume] = useSavedResume();
+  const [batchBusy, setBatchBusy] = useState(false);
+  const [batchMsg, setBatchMsg] = useState<ReactNode>("");
+  const draftAll = async (keys: string[]) => {
+    if (!resume) return;
+    const tok = auth.session ? await auth.getAccessToken() : null;
+    if (!tok) { setBatchMsg(<>Please <Link to="/account">sign in</Link> to draft stories with AI.</>); return; }
+    setBatchBusy(true); setBatchMsg("");
+    const res = await api.draftStories(tok, resume.text, keys, activeJob ? { title: displayJobTitle(activeJob) } : undefined);
+    setBatchBusy(false);
+    if (res.status === 200 && res.body?.stories?.length) {
+      invalidatePlan();
+      const made = res.body.stories.map((d) => normalizeStory({ ...d, draft: true, jobIds: activeJob ? [activeJob.id] : [] }));
+      persist([...made, ...stories]);
+      setBatchMsg("Drafted " + made.length + " " + (made.length === 1 ? "story" : "stories") + " from your resume, marked Draft. Open each one, check it, fill in anything in [brackets] and save.");
+      return;
+    }
+    if (res.status === 403) { invalidatePlan(); setBatchMsg(<>You{"’"}ve used this month{"’"}s story AI. <Link to="/pricing">See passes</Link>, or add stories yourself.</>); return; }
+    setBatchMsg(res.status === 0 ? "Couldn’t reach the server. Check your connection and try again." : res.body?.error || "Couldn’t draft stories. Please try again.");
+  };
 
   const jobTitle = activeJob ? displayJobTitle(activeJob) : "";
   const needed = useMemo(() => neededCompetencies(analysis, activeJob?.title || ""), [analysis, activeJob?.title]);
@@ -138,7 +160,19 @@ export default function StoriesPage() {
           </div>
         </div>
         {missing.length > 0 ? (
-          <p className="sb-gapline" role="note"><strong>No story for:</strong> {missing.map((m) => m.label.toLowerCase()).join(", ")}</p>
+          <>
+            <p className="sb-gapline" role="note"><strong>No story for:</strong> {missing.map((m) => m.label.toLowerCase()).join(", ")}</p>
+            <div className="sb-batch">
+              <div>
+                <strong>Too many to write? Let AI start them.</strong>
+                <p className="small muted">{resume
+                  ? <>Drafts up to 4 stories for these from your resume, in one go. One story can cover two of them. Each is marked <strong>Draft</strong> until you check it; anything your resume doesn{"’"}t say stays in [brackets]. Uses 1 story AI credit.</>
+                  : <>Add your resume on the job{"’"}s Resume match tab, and AI can draft these stories from it in one go.</>}</p>
+              </div>
+              {resume ? <button type="button" className="btn btn-primary btn-small" disabled={batchBusy} onClick={() => draftAll(missing.map((m) => m.key))}>{batchBusy ? "Drafting… (about 20 seconds)" : "Draft stories from my resume"}</button> : null}
+            </div>
+            {batchMsg ? <p className="small sb-batch-msg" role="status">{batchMsg}</p> : null}
+          </>
         ) : (
           <p className="sb-okline">Every competency this job needs has at least one story.</p>
         )}
@@ -220,7 +254,7 @@ function StoryCard({ s, jobTitles, onEdit, onDelete }: { s: Story; jobTitles: Re
   return (
     <article className="card sb-card">
       <div className="sb-card-head">
-        <h3>{s.title || "Untitled story"}</h3>
+        <h3>{s.title || "Untitled story"}{s.draft ? <span className="sb-draft-badge">Draft · check it</span> : null}</h3>
         <button type="button" className="btn btn-ghost btn-small" onClick={onEdit}>Edit</button>
       </div>
       {s.tags.length > 0 && (
@@ -493,7 +527,7 @@ function StoryEditor({ initial, mode, jobs, jobCtx, onMode, onCancel, onSave }: 
 function DraftBox({ jobCtx, onDraft }: { jobCtx?: { title?: string; skills?: string[] }; onDraft(d: api.StoryDraft): void }) {
   const auth = useAuth();
   const [resume] = useSavedResume();
-  const bullets = useMemo(() => (resume ? extractBullets(resume.text, 6) : []), [resume?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const bullets = useMemo(() => (resume ? storySeedLines(resume.text, 6) : []), [resume?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<ReactNode>("");

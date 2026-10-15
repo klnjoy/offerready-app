@@ -82,7 +82,7 @@ export default function QuestionsPage() {
     setRole(r);
     setJd(d);
     if (d.length < 30) { setView({ kind: "form", note: "Please paste a fuller job description first (or pick a saved job)." }); return; }
-    const msg = mode === "more" ? "Writing more questions that don’t repeat your current ones… (about 30 seconds)" : "Writing about 30 questions for this job… (about 30 seconds)";
+    const msg = mode === "more" ? "Writing more questions that don’t repeat your current ones… (about 15 seconds)" : "Writing about 16 questions for this job… (about 15 seconds)";
     setView({ kind: "loading", msg });
     const tok = await auth.getAccessToken();
     let res = await api.generateQuestions(tok, { jobId: jobId || null, role: r, jobDescription: d, mode });
@@ -160,7 +160,7 @@ function QuestionForm({
       {note && <ErrorText>{note}</ErrorText>}
       {ready ? (
         <>
-          <p>We{"’"}ll write about 30 likely questions for <strong>{activeTitle}</strong> from its job description and the gaps in your resume, and save them to the job.</p>
+          <p>We{"’"}ll write about 16 likely questions for <strong>{activeTitle}</strong> from its job description and the gaps in your resume, and save them to the job.</p>
           <div className="row">
             <button type="button" className="btn btn-primary" onClick={() => onSubmit(r.trim(), d.trim())}>Write my questions</button>
           </div>
