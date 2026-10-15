@@ -34,6 +34,8 @@ import { Card, Chips, Disclaimer, Loading, Muted } from "../components/ui";
 import type { JobDetail, JobRow } from "../types";
 import { stepHref, usePracticePath } from "../lib/practicePath";
 import { jobsChanged } from "../components/JobNav";
+import { deleteTailoredResume, downloadText, useTailoredResume } from "../lib/tailoredResume";
+import { CopyButton } from "../components/StreamDraft";
 import { SettingsTab } from "./JobSettings";
 
 type Tab = "overview" | "resume" | "after" | "settings";
@@ -730,6 +732,8 @@ function DateCard({ date, days, onSet, logTo }: { date: string; days: number | n
 function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]): void }) {
   const auth = useAuth();
   const [resume] = useSavedResume();
+  const tailored = useTailoredResume(data.job.id);
+  const [dropping, setDropping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: ReactNode; err?: boolean } | null>(null);
   const r = gapRowToResult(data.gap);
@@ -745,14 +749,15 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
     setBusy(true);
     setMsg({ text: "Comparing your resume with this job…" });
     const tok = await auth.getAccessToken();
-    const res = await api.runGapAnalysis(tok, { jobId, role: displayJobTitle(data.job), jobDescription: jd, resumeText: resume.text });
+    // This job's tailored copy when there is one, else the main resume.
+    const res = await api.runGapAnalysis(tok, { jobId, role: displayJobTitle(data.job), jobDescription: jd, resumeText: tailored?.text || resume.text });
     setBusy(false);
     if (res.status === 200 && res.body?.result) {
       invalidatePlan();
       const before = r ? r.matchScore || 0 : null;
       const after = res.body.result.matchScore || 0;
       onGap(resultToGapRow(res.body.result));
-      setMsg({ text: (before != null ? "Your match is now " + after + "% (was " + before + "%). " : "Your match is " + after + "%. ") + (res.body.saved ? "Saved to this job." : "") });
+      setMsg({ text: (tailored ? "Checked with your tailored copy. " : "") + (before != null ? "Your match is now " + after + "% (was " + before + "%). " : "Your match is " + after + "%. ") + (res.body.saved ? "Saved to this job." : "") });
     } else if (res.status === 401) setMsg({ text: "Your session expired. Sign in again and retry.", err: true });
     else if (res.status === 503) setMsg({ text: "The fit check isn’t enabled on this deployment yet.", err: true });
     else if (res.status === 0) setMsg({ text: "Couldn’t reach the server. Check your connection and try again.", err: true });
@@ -778,7 +783,7 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
       <section className="card jw-resume" aria-labelledby="jw-res-h">
         <div className="td-sec-head">
           <div>
-            <h2 id="jw-res-h">Your resume</h2>
+            <h2 id="jw-res-h">Your main resume</h2>
             <p className="muted small">Added once and reused for every job, for tailoring and for mock interviews.</p>
           </div>
         </div>
@@ -793,6 +798,36 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
         <p className="small muted">{RESUME_PRIVACY}</p>
       </section>
 
+      {tailored ? (
+        <section className="card jw-tailored" aria-labelledby="jw-tc-h">
+          <div className="td-sec-head">
+            <div>
+              <h2 id="jw-tc-h">Tailored for this job</h2>
+              <p className="muted small">
+                A copy of your resume with {tailored.replaced} {tailored.replaced === 1 ? "bullet" : "bullets"} rewritten for this job
+                {tailored.updatedAt ? ", saved " + new Date(tailored.updatedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : ""}.
+                {" "}This job{"’"}s fit check uses it. Your main resume above is unchanged and used for your other jobs.
+              </p>
+            </div>
+          </div>
+          <details className="jw-tc-text"><summary>Show the tailored resume</summary><pre>{tailored.text}</pre></details>
+          {dropping ? (
+            <div className="row wrap" role="group" aria-label="Delete the tailored copy">
+              <span className="small">Delete the tailored copy? This job goes back to your main resume.</span>
+              <button type="button" className="btn btn-danger btn-small" onClick={() => { deleteTailoredResume(jobId); setDropping(false); }}>Delete copy</button>
+              <button type="button" className="btn btn-ghost btn-small" onClick={() => setDropping(false)}>Keep it</button>
+            </div>
+          ) : (
+            <div className="row wrap">
+              <CopyButton text={tailored.text} label="Copy the text" className="btn btn-small" />
+              <button type="button" className="btn btn-small" onClick={() => downloadText("resume-" + (displayJobTitle(data.job) || "job").toLowerCase().replace(/[^a-z0-9]+/g, "-") + ".txt", tailored.text)}>Download .txt</button>
+              <Link className="btn btn-ghost btn-small" to={"/tailor?job=" + enc(jobId)}>Tailor again</Link>
+              <button type="button" className="link-btn small" onClick={() => setDropping(true)}>Use my main resume instead</button>
+            </div>
+          )}
+        </section>
+      ) : null}
+
       {r ? <FitDetails result={r} /> : (
         <Card><Muted>No fit check yet. Add your resume and press {"“"}Check my fit{"”"} to see your match score, what{"’"}s found and what{"’"}s missing.</Muted></Card>
       )}
@@ -801,7 +836,7 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
         <div className="jw-tailor-row">
           <div className="stack-sm">
             <h2 id="jw-tl-h">Tailor my resume for this job</h2>
-            <Muted small>Rewrites your resume bullets to cover {r && (r.missingKeywords || []).length ? "the missing keywords above" : "this job’s skills"}, without inventing anything. You review each one, then update your saved resume and re-check your fit here.</Muted>
+            <Muted small>Rewrites your resume bullets to cover {r && (r.missingKeywords || []).length ? "the missing keywords above" : "this job’s skills"}, without inventing anything. You review each one, then save a tailored copy for this job and re-check your fit here. Your main resume doesn{"’"}t change.</Muted>
           </div>
           <Link className="btn btn-primary" to={"/tailor?job=" + enc(jobId)}>Tailor my resume</Link>
         </div>

@@ -16,9 +16,10 @@ import type { CopilotMode, CopilotResult, CopilotSource } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { deleteAnswer, saveAnswer, storyText, useAnswers } from "../lib/answerLibrary";
 import { invalidatePlan } from "../lib/plans";
-import { setActiveJob } from "../lib/readiness";
+import { getActiveJob, setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
-import { Link } from "../lib/router";
+import { Link, useSearchParams } from "../lib/router";
+import { KEYS, onStorageWrite } from "../lib/storage";
 import { useSavedResume } from "../lib/savedResume";
 import { loadStories } from "../lib/stories";
 import { track } from "../lib/track";
@@ -64,15 +65,25 @@ export default function CopilotPage() {
   const [tab, setTab] = useState<"copilot" | "library">("copilot");
   const [jobId, setJobId] = useState("");
   const [detail, setDetail] = useState<{ analysis: Analysis | null; gap: GapRow | null; questions: GeneratedQuestion[] } | null>(null);
-  const [question, setQuestion] = useState("");
+  const params = useSearchParams();
+  // ?q= prefills a question (from "Questions you were asked").
+  const [question, setQuestion] = useState(() => (params.get("q") || "").slice(0, 600));
   const [run, setRun] = useState<Run>({ kind: "idle" });
   const [practise, setPractise] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
 
+  const wantJob = params.get("job") || "";
   useEffect(() => {
-    if (jobs.status !== "ready" || jobId) return;
+    if (jobs.status !== "ready") return;
+    if (wantJob && jobs.jobs.some((j) => j.id === wantJob)) { if (wantJob !== jobId) setJobId(wantJob); return; }
+    if (jobId) return;
     setJobId(jobs.activeId || jobs.jobs[0]?.id || "");
-  }, [jobs.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [jobs.status, wantJob]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Switching job from the menu follows here too.
+  useEffect(() => onStorageWrite((k) => {
+    if (k !== KEYS.activeJob) return;
+    setTimeout(() => { const a = getActiveJob(); if (a) { setJobId((cur) => (cur === a ? cur : a)); setRun({ kind: "idle" }); } }, 0);
+  }), []);
 
   useEffect(() => {
     if (!jobId) return;
