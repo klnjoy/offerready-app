@@ -197,7 +197,13 @@ export default function App() {
 
   const Page = match?.route.component;
   const section = match?.route.section;
-  const back = match?.route.back;
+  // Top-level sections (Practice, AI Coach, Mock interview, Readiness) have no
+  // parent page, but in the installed app there's no browser back button, so
+  // they get a way back to the job you're working on.
+  const TOP = ["practice", "copilot", "mock", "readiness"];
+  const back = match?.route.back || (match && match.route.section && TOP.includes(match.route.section)
+    ? { to: "@job", label: getActiveJob() ? "Your job" : "All jobs" }
+    : undefined);
 
   return (
     <div className="app">
