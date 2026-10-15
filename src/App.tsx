@@ -65,10 +65,6 @@ interface Route {
   component: ComponentType<Record<string, string>>;
 }
 
-/** Pages a signed-out visitor reaches from the home page: they keep the home
- * page's header, so signing in doesn't look like a different site. */
-const PUBLIC_PAGES = ["/account", "/pricing", "/demo", "/try", "/faq", "/sample-report", "/app", "/example"];
-
 /** Pages that spend AI allowance: only these show the usage warning. */
 const AI_PAGES = ["/analyze", "/tailor", "/coach", "/questions", "/defend", "/stories", "/practice/bank", "/mock", "/interview/voice", "/simulator", "/account"];
 
@@ -175,7 +171,11 @@ function AccountMenu({ pathname }: { pathname: string }) {
 }
 
 export default function App() {
-  const signedIn = !!useAuth().session;
+  const authState = useAuth();
+  const signedIn = !!authState.session;
+  // Known to be signed out (not just "still checking"), so signed-in users
+  // never see the marketing header flash on load.
+  const signedOut = authState.ready && !authState.session;
   const { pathname, search, hash } = useLocation();
   const jobs = useJobs();
   const jobNav = useJobNav(jobs);
@@ -218,7 +218,8 @@ export default function App() {
   // parent page, but in the installed app there's no browser back button, so
   // they get a way back to the job you're working on.
   const TOP = ["practice", "copilot", "mock", "readiness"];
-  const back = match?.route.back || (match && match.route.section && TOP.includes(match.route.section)
+  const routeBack = match?.route.back && !(signedOut && match.route.back.to.startsWith("@job")) ? match.route.back : undefined;
+  const back = routeBack || (!signedOut && match && match.route.section && TOP.includes(match.route.section)
     ? { to: "@job", label: getActiveJob() ? "Your job" : "All jobs" }
     : undefined);
 
@@ -232,7 +233,8 @@ export default function App() {
           </header>
         ) : null}
         {AI_PAGES.some((x) => pathname === x || pathname.startsWith(x + "/")) ? <UsageAlert /> : null}
-        {match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
+        {/* The step path is about a job: only once there is one. */}
+        {jobNav && match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<div className="page"><Loading /></div>}>
             {Page ? <Page {...match!.params} /> : <NotFound />}
@@ -245,7 +247,8 @@ export default function App() {
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
       {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
-      {pathname === "/" || (!signedIn && PUBLIC_PAGES.includes(pathname)) ? <MarketingHeader /> : (
+      {/* Signed out, every page keeps the home page's header. */}
+      {pathname === "/" || signedOut ? <MarketingHeader /> : (
       <header className="topbar">
         <div className="topbar-inner">
           <Link className="brand" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
@@ -277,7 +280,7 @@ export default function App() {
       </header>
       )}
 
-      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (!signedIn && pathname === "/account" ? " main-auth" : "") + (nav ? " main-jn" : "")}>
+      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (signedOut && pathname === "/account" ? " main-auth" : "") + (nav ? " main-jn" : "")}>
         {nav ? <JobTrail nav={nav} /> : null}
         {nav ? (
           <div className="jn-layout">
