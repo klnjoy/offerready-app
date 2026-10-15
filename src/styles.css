@@ -3729,3 +3729,12 @@ button.acct-item { background: none; border: 0; text-align: left; font: inherit;
 .hm-tier-lim { list-style: none; margin: 8px 0 0; padding: 8px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; font-size: 0.8rem; color: var(--text-2); }
 .hm-tier-lim li { margin: 0; }
 .hm-tier-lim li:first-child { font-weight: 650; color: var(--text); }
+
+/* Date fields on iPhone: Safari gives them a fixed intrinsic width (so they
+ * overflow narrow cards) and shows nothing when empty. Make them fill the
+ * field like other inputs, keep a normal height and left-align the value. */
+input[type="date"].input { -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; min-height: 44px; text-align: left; }
+input[type="date"].input::-webkit-date-and-time-value { text-align: left; min-height: 1.4em; }
+input[type="date"].input::-webkit-calendar-picker-indicator { opacity: 0.7; cursor: pointer; }
+@media (prefers-color-scheme: dark) { input[type="date"].input { color-scheme: dark; } }
+.td-date-label { font-size: 0.82rem; font-weight: 650; color: var(--text-2); }
