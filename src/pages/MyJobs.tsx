@@ -1,5 +1,6 @@
 /* Jobs — the job-centered list (was content/assets/jobs.js, #jobs-app). */
 
+import { jobsChanged } from "../components/JobNav";
 import { GettingStarted } from "../components/GettingStarted";
 import { useMemo, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
@@ -92,7 +93,7 @@ export default function MyJobsPage() {
   return (
     <Page>
       <GettingStarted where="jobs" />
-      <JobList jobs={list} activeId={jobs.activeId} onRemoved={(id) => setGone((g) => [...g, id])} />
+      <JobList jobs={list} activeId={jobs.activeId} onRemoved={(id) => { setGone((g) => [...g, id]); jobsChanged(); }} />
     </Page>
   );
 }
