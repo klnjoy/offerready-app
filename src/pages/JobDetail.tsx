@@ -280,6 +280,7 @@ function Overview({ data }: { data: JobDetail }) {
   const [state, setState] = useState<JobPlanState>(() => ensurePlanState(jobId, date, today));
   const [doneDays, setDoneDays] = useState<string[]>(allDoneDays);
   const [showAll, setShowAll] = useState(false);
+  const narrow = useNarrow();
   const debriefs = useDebriefs();
   const [resumeSaved] = useSavedResume();
 
@@ -363,20 +364,17 @@ function Overview({ data }: { data: JobDetail }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
-  return (
-    <>
-      <div className="td-top">
-        <DateCard date={date} days={days} onSet={setDate} logTo={unlogged || (days != null && days <= 0) ? logTo : ""} />
+  const dateCard = <DateCard date={date} days={days} onSet={setDate} logTo={unlogged || (days != null && days <= 0) ? logTo : ""} />;
+  const nextCard = (
         <section className={"td-next" + (next.tone === "done" ? " td-next-done" : "")} aria-labelledby="td-next-h">
           <span className="td-eyebrow">Do this next</span>
           <h2 id="td-next-h">{next.label}</h2>
           <p>{next.why}</p>
           <div className="row"><Link className="btn btn-primary" to={next.to}>{next.cta} {"→"}</Link></div>
         </section>
-      </div>
-
-      <EveryDay jobId={jobId} practised={derived.practised} mockDone={derived.mockRecent} />
-
+  );
+  const everyDay = <EveryDay jobId={jobId} practised={derived.practised} mockDone={derived.mockRecent} />;
+  const todayCard = (
       <section className="card td-tasks" aria-labelledby="td-tasks-h">
         <div className="td-sec-head">
           <div>
@@ -406,9 +404,9 @@ function Overview({ data }: { data: JobDetail }) {
         )}
         {tasks.length > 0 && doneToday === tasks.length && <p className="td-alldone">Today{"’"}s plan is done. Nice work.</p>}
       </section>
-
-      <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />
-
+  );
+  const readinessCard = <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />;
+  const interviewDay = (
       <section className="card jd-iday" aria-labelledby="jd-iday-h">
         <h2 id="jd-iday-h">Interview day</h2>
         <p className="muted small">Type each question as it{"’"}s asked, then turn your notes into a debrief. Questions that went badly come back in your plan.</p>
@@ -424,7 +422,8 @@ function Overview({ data }: { data: JobDetail }) {
           </div>
         )}
       </section>
-
+  );
+  const planCard = (
       <section className="card td-plan" aria-labelledby="td-plan-h">
         <div className="td-sec-head">
           <div>
@@ -475,16 +474,75 @@ function Overview({ data }: { data: JobDetail }) {
           </button>
         )}
       </section>
-
-      <RoleGuideCard job={data.job} />
-
+  );
+  const roleGuide = <RoleGuideCard job={data.job} />;
+  const setupCard = (
       <SetupOnce jobId={jobId} hasResume={!!resumeSaved?.text || !!data.gap} hasFit={!!data.gap} hasDate={!!date}>
         <FitMini data={data} />
       </SetupOnce>
+  );
+  const aboutCard = <AboutJob data={data} />;
 
-      <AboutJob data={data} />
+  if (narrow) {
+    // Phone: only what to do now; the rest is one tap away.
+    const r = derived.readiness;
+    return (
+      <>
+        <p className="jd-status">
+          <Link to="/dashboard" className="jd-status-item"><b>{r != null ? r + "%" : "—"}</b> ready</Link>
+          {date && !passed ? <span className="jd-status-item">{days != null && days > 0 ? <>Interview in <b>{days}</b> {days === 1 ? "day" : "days"}</> : <b>Interview today</b>}</span> : null}
+        </p>
+        {!date || passed ? dateCard : null}
+        {nextCard}
+        {todayCard}
+        {everyDay}
+        <details className="card jd-more">
+          <summary><span>More for this job</span><span className="small muted">Full plan, readiness, interview day, set-up</span></summary>
+          <div className="jd-more-body">
+            {date && !passed ? dateCard : null}
+            {readinessCard}
+            {interviewDay}
+            {planCard}
+            {roleGuide}
+            {setupCard}
+            {aboutCard}
+          </div>
+        </details>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="td-top">
+        {dateCard}
+        {nextCard}
+      </div>
+      {everyDay}
+      {todayCard}
+      {readinessCard}
+      {interviewDay}
+      {planCard}
+      {roleGuide}
+      {setupCard}
+      {aboutCard}
     </>
   );
+}
+
+
+/** True on phone-width screens. The job page shows less there: what to do
+ * now first, everything else folded under "More for this job". */
+function useNarrow(q = "(max-width: 640px)"): boolean {
+  const [m, setM] = useState(() => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(q).matches);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const mq = window.matchMedia(q);
+    const on = () => setM(mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, [q]);
+  return m;
 }
 
 function ReadinessMini({ readiness, streak, week }: { readiness: number | null; streak: number; week: number }) {
