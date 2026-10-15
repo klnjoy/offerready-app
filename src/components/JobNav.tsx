@@ -35,7 +35,8 @@ type Key =
   | "notes" | "debrief" | "offers";
 
 interface Item { key: Key; label: string; to: string; n?: number; done?: boolean }
-interface Group { id: string; title: string; to?: string; items: Item[] }
+/** `flat` groups list their pages straight under the job, without a folder. */
+interface Group { id: string; title: string; to?: string; flat?: boolean; items: Item[] }
 
 const enc = encodeURIComponent;
 
@@ -71,11 +72,10 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
   const jp = "/jobs/" + enc(jobId);
   const wj = (to: string) => to + "?job=" + enc(jobId);
   return [
-    { id: "job", title: "This job", items: [
+    // In the order you prepare: set up, practise, the interview, then settings.
+    { id: "job", title: "This job", flat: true, items: [
       { key: "overview", label: "Overview", to: jp },
-      { key: "resume", label: "Resume", to: jp + "?tab=resume" },
-      { key: "after", label: "After the interview", to: jp + "?tab=after" },
-      { key: "settings", label: "Job settings", to: jp + "?tab=settings" },
+      { key: "resume", label: "Resume match", to: jp + "?tab=resume" },
     ] },
     { id: "practice", title: "Practise every day", to: "/practice", items: path.map((s) => ({
       key: s.key, label: s.label, to: stepHref(s, jobId), n: s.n, done: s.done,
@@ -85,10 +85,14 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
       { key: "bank", label: "Question bank", to: "/practice/bank" },
       { key: "readiness", label: "Readiness", to: wj("/dashboard") },
     ] },
-    { id: "day", title: "Interview day", to: jp + "?tab=after", items: [
+    { id: "day", title: "Interview day and after", to: jp + "?tab=after", items: [
       { key: "notes", label: "Interview notes", to: wj("/notes") },
       { key: "debrief", label: "Log a round", to: wj("/debrief") },
+      { key: "after", label: "Debriefs and outcome", to: jp + "?tab=after" },
       { key: "offers", label: "Compare offers", to: "/offers" },
+    ] },
+    { id: "end", title: "Settings", flat: true, items: [
+      { key: "settings", label: "Job settings", to: jp + "?tab=settings" },
     ] },
   ];
 }
@@ -163,7 +167,7 @@ export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
   ];
   if (nav.hub) crumbs.push({ label: "Practise every day" });
   else if (found) {
-    if (found.group.id !== "job") crumbs.push({ label: found.group.title, to: found.group.to });
+    if (!found.group.flat) crumbs.push({ label: found.group.title, to: found.group.to });
     if (!(found.group.id === "job" && found.item.key === "overview")) {
       crumbs.push({ label: (found.item.n ? found.item.n + " · " : "") + found.item.label, to: nav.sub ? found.item.to : undefined });
     } else crumbs[1] = { label: nav.title };
@@ -209,7 +213,7 @@ function buildTree(nav: JobNavModel, jobs: JobRow[]): Node[] {
     const kids: Node[] = [];
     for (const g of groups) {
       const items = g.items.map((it): Node => ({ id: id + ":" + it.key, label: it.label, to: it.to, n: it.n, done: it.done, key: it.key, jobId: j.id }));
-      if (g.id === "job") kids.push(...items);
+      if (g.flat) kids.push(...items);
       else kids.push({ id: id + ":" + g.id, label: g.title, kids: items });
     }
     return { id, label: j.id === nav.jobId ? nav.title : displayJobTitle(j), kids };

@@ -1,6 +1,6 @@
 /* The job's Settings tab: a plain form with Save changes / Cancel for the
- * job's title, company and interview date, the saved resume (saved only when
- * you choose Save resume), and deleting the job. Nothing here changes until
+ * job's title, company and interview date, and deleting the job. The resume
+ * lives on the Resume match tab. Nothing here changes until
  * you press a button. */
 
 import { useEffect, useState } from "react";
@@ -9,7 +9,6 @@ import { useAuth } from "../lib/auth";
 import { formatDay, localDay, useInterviewDate } from "../lib/interviewDates";
 import { displayJobTitle } from "../lib/roles";
 import { Link } from "../lib/router";
-import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import type { JobDetail } from "../types";
 
 export function SettingsTab({ data, onSaved, onDeleted }: {
@@ -112,10 +111,9 @@ export function SettingsTab({ data, onSaved, onDeleted }: {
       <section className="card js-card" aria-labelledby="js-res-h">
         <div>
           <h2 id="js-res-h">Your resume</h2>
-          <p className="muted small">One resume for every job. A new file or pasted text is saved only when you choose <strong>Save resume</strong>. To see how it matches this job, open the <Link to={"/jobs/" + encodeURIComponent(jobId) + "?tab=resume"}>Resume</Link> tab.</p>
+          <p className="muted small">Your resume is on the <strong>Resume match</strong> tab, with how it matches this job. It{"’"}s saved only when you choose <strong>Save resume</strong>.</p>
         </div>
-        <ResumeField compact confirm />
-        <p className="small muted">{RESUME_PRIVACY}</p>
+        <div className="js-actions"><Link className="btn" to={"/jobs/" + encodeURIComponent(jobId) + "?tab=resume"}>Open Resume match</Link></div>
       </section>
 
       <DeleteJob jobId={jobId} title={displayJobTitle(data.job)} onDeleted={onDeleted} />
