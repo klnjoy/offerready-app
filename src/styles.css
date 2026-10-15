@@ -3933,3 +3933,9 @@ html, body { overflow-x: clip; }
 
 .jn-sub { display: block; font-size: 0.78rem; font-weight: 500; color: var(--text-2); margin-top: 1px; }
 .jn-dr-title .jn-sub { font-size: 0.84rem; }
+
+/* Plan full: swap a saved job for this one, right under Save */
+.aj-save-msg { margin-top: 10px; }
+.aj-swap { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.aj-swap li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); }
+.aj-swap-t { min-width: 0; overflow-wrap: anywhere; }
