@@ -198,7 +198,7 @@ export function JobTrail({ nav }: { nav: JobNavModel }) {
 // ---------------------------------------------------------------------------
 // The folder tree: Your jobs › a job › Practise every day › a step
 
-interface Node { id: string; label: string; to?: string; n?: number; done?: boolean; key?: Key; jobId?: string; kids?: Node[] }
+interface Node { id: string; label: string; sub?: string; to?: string; n?: number; done?: boolean; key?: Key; jobId?: string; kids?: Node[] }
 
 const MAX_JOBS = 6;
 
@@ -215,7 +215,8 @@ function buildTree(nav: JobNavModel, jobs: JobRow[]): Node[] {
       if (g.flat) kids.push(...items);
       else kids.push({ id: id + ":" + g.id, label: g.title, kids: items });
     }
-    return { id, label: j.id === nav.jobId ? nav.title : displayJobTitle(j), kids };
+    // The company tells apart jobs with the same title.
+    return { id, label: j.id === nav.jobId ? nav.title : displayJobTitle(j), sub: j.company || undefined, kids };
   });
 }
 
@@ -266,6 +267,13 @@ export function JobTree({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
   const trailKey = trail.join("|");
   useEffect(() => setToggled({}), [trailKey]);
   const isOpen = (id: string) => (id in toggled ? toggled[id] : trail.includes(id));
+  // Jobs open one at a time, like the study notes: opening a job closes the others.
+  const toggle = (id: string, depth: number) => setToggled((t) => {
+    const open = !(id in t ? t[id] : trail.includes(id));
+    const next = { ...t, [id]: open };
+    if (depth === 0 && open) for (const n of nodes) if (n.id !== id) next[n.id] = false;
+    return next;
+  });
 
   const render = (list: Node[], depth: number) => (
     <ul className={"jn-ul jn-d" + depth}>
@@ -274,8 +282,8 @@ export function JobTree({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
           {n.kids ? (
             <>
               <button type="button" className={"jn-folder" + (trail.includes(n.id) ? " in" : "") + (curId === n.id ? " on" : "")}
-                aria-expanded={isOpen(n.id)} onClick={() => setToggled((t) => ({ ...t, [n.id]: !isOpen(n.id) }))}>
-                <span className="jn-tx">{n.label}</span><Chevron />
+                aria-expanded={isOpen(n.id)} onClick={() => toggle(n.id, depth)}>
+                <span className="jn-tx">{n.label}{n.sub ? <small className="jn-sub">{n.sub}</small> : null}</span><Chevron />
               </button>
               {isOpen(n.id) ? render(n.kids, depth + 1) : null}
             </>
@@ -330,13 +338,13 @@ export function JobMenu({ nav, jobs, onClose }: { nav: JobNavModel; jobs: JobsSt
           ) : <span />}
           <button type="button" className="jn-dr-close" onClick={onClose}>Close</button>
         </div>
-        <p className="jn-dr-title">{here ? here.label : "Your jobs"}</p>
+        <p className="jn-dr-title">{here ? here.label : "Your jobs"}{here?.sub ? <small className="jn-sub">{here.sub}</small> : null}</p>
         <ul className="jn-dr-list">
           {list.map((n) => (
             <li key={n.id}>
               {n.kids ? (
                 <button type="button" className={"jn-dr-row jn-dr-folder" + (trail.includes(n.id) ? " in" : "")} onClick={() => setStack((s) => [...s, n.id])}>
-                  <span className="jn-tx">{n.label}</span><Chevron />
+                  <span className="jn-tx">{n.label}{n.sub ? <small className="jn-sub">{n.sub}</small> : null}</span><Chevron />
                 </button>
               ) : <NodeLink node={n} on={curId === n.id} className="jn-dr-row" onPick={onClose} />}
             </li>

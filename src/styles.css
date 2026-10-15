@@ -3930,3 +3930,6 @@ html, body { overflow-x: clip; }
 @media (min-width: 820px) { .main-auth .auth-pitch { justify-content: center; } .main-auth .auth-card { padding: 32px; } }
 .auth-more { margin: 4px 0 0; text-align: center; color: var(--text-2); font-size: 0.92rem; }
 .auth-more a { color: var(--link); }
+
+.jn-sub { display: block; font-size: 0.78rem; font-weight: 500; color: var(--text-2); margin-top: 1px; }
+.jn-dr-title .jn-sub { font-size: 0.84rem; }
