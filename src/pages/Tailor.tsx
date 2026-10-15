@@ -14,6 +14,7 @@ import { setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useSearchParams } from "../lib/router";
 import { useSavedResume } from "../lib/savedResume";
+import { saveTailoredResume } from "../lib/tailoredResume";
 import { SESSION_KEYS } from "../lib/storage";
 import {
   MAX_BULLETS, MAX_RESUME_CHARS, applyToResume, bulletsToText, extractBullets, finalBullets, hasPlaceholder, jobKeywords, keywordCoverage, mentions, splitBullets,
@@ -164,7 +165,9 @@ export default function TailorPage() {
   const putInResume = () => {
     if (!saved?.text || !done) return;
     const r = applyToResume(saved.text, acceptedSugs.map((x) => ({ original: done.originals[x.index] ?? x.original, rewritten: x.rewritten })));
-    if (r.replaced) saveResumeText(r.text, saved.fileName || "");
+    // With a job: save a tailored copy for that job; the main resume stays as it is.
+    if (r.replaced && row) saveTailoredResume(row.id, r.text, saved.fileName || "", r.replaced);
+    else if (r.replaced) saveResumeText(r.text, saved.fileName || "");
     setApplied({ replaced: r.replaced, missed: r.missed.length });
   };
   const after = done ? keywordCoverage(keywords, final) : null;
@@ -301,9 +304,11 @@ export default function TailorPage() {
             {unfilled > 0 && <p className="dto-fact"><strong>{unfilled} accepted {unfilled === 1 ? "bullet still has" : "bullets still have"} a [placeholder].</strong> <span>Edit {unfilled === 1 ? "it" : "them"} with the real number first, or choose Keep original.</span></p>}
             <div className="tl-finish-opts">
               <div className="tl-finish-opt">
-                <strong>Update the resume saved in OfferReady</strong>
-                <p className="small muted">Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</p>
-                <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>Update my saved resume</button>
+                <strong>{row ? "Save a tailored copy for this job" : "Update the resume saved in OfferReady"}</strong>
+                <p className="small muted">{row
+                  ? <>Makes a copy of your resume with the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"}, saved with <strong>{displayJobTitle(row)}</strong>. Your main resume stays as it is, for your other jobs. Find the copy on this job{"’"}s Resume match tab.</>
+                  : <>Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</>}</p>
+                <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>{row ? "Save tailored copy" : "Update my saved resume"}</button>
                 {!saved?.text ? <p className="small muted">No saved resume yet: copy the bullets instead.</p>
                   : !acceptedCount ? <p className="small muted">Accept at least one rewrite above first.</p> : null}
               </div>
@@ -316,7 +321,7 @@ export default function TailorPage() {
             {applied && (
               <div className="tl-applied" role="status">
                 {applied.replaced
-                  ? <p><strong>Saved resume updated: {applied.replaced} {applied.replaced === 1 ? "bullet" : "bullets"} replaced.</strong>{applied.missed ? " " + applied.missed + " couldn’t be matched to a line in your resume; copy " + (applied.missed === 1 ? "that one" : "those") + " in by hand." : ""}</p>
+                  ? <p><strong>{row ? "Tailored copy saved for this job" : "Saved resume updated"}: {applied.replaced} {applied.replaced === 1 ? "bullet" : "bullets"} replaced.</strong>{row ? " Your main resume didn’t change." : ""}{applied.missed ? " " + applied.missed + " couldn’t be matched to a line in your resume; copy " + (applied.missed === 1 ? "that one" : "those") + " in by hand." : ""}</p>
                   : <p>None of the bullets could be matched to lines in your saved resume. Copy them in by hand instead.</p>}
                 {row && (
                   <div className="row">

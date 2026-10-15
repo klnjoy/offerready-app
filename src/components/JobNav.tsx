@@ -18,7 +18,7 @@ import type { JobsState } from "../lib/useJobs";
 import type { JobRow } from "../types";
 import { Icon } from "./Icon";
 
-const SCOPED = ["/questions", "/defend", "/stories", "/practice", "/mock", "/interview/voice", "/simulator", "/coach", "/dashboard", "/notes", "/debrief", "/offers", "/tailor"];
+const SCOPED = ["/asked", "/questions", "/defend", "/stories", "/practice", "/mock", "/interview/voice", "/simulator", "/coach", "/dashboard", "/notes", "/debrief", "/offers", "/tailor"];
 
 export function isJobScoped(pathname: string): boolean {
   if (/^\/jobs\/[^/]+$/.test(pathname)) return true;
@@ -32,7 +32,7 @@ type Key =
   | "overview" | "resume" | "after" | "settings"
   | "questions" | "drill" | "stories" | "mock"
   | "coach" | "bank" | "readiness"
-  | "notes" | "debrief" | "offers";
+  | "notes" | "debrief" | "asked" | "offers";
 
 interface Item { key: Key; label: string; to: string; n?: number; done?: boolean }
 /** `flat` groups list their pages straight under the job, without a folder. */
@@ -61,6 +61,7 @@ function locate(pathname: string, search: string): { key: Key | null; sub?: stri
   if (pathname === "/notes") return { key: "notes" };
   if (pathname === "/debrief") return { key: "debrief" };
   if (pathname === "/offers") return { key: "offers" };
+  if (pathname === "/asked") return { key: "asked" };
   return { key: null };
 }
 
@@ -81,7 +82,7 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
       key: s.key, label: s.label, to: stepHref(s, jobId), n: s.n, done: s.done,
     })) },
     { id: "coach", title: "AI Interview Coach", flat: true, items: [
-      { key: "coach", label: "AI Interview Coach", to: "/coach" },
+      { key: "coach", label: "AI Interview Coach", to: wj("/coach") },
     ] },
     { id: "any", title: "Any time", items: [
       { key: "bank", label: "Question bank", to: "/practice/bank" },
@@ -91,6 +92,7 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
       { key: "notes", label: "Interview notes", to: wj("/notes") },
       { key: "debrief", label: "Log a round", to: wj("/debrief") },
       { key: "after", label: "Debriefs and outcome", to: jp + "?tab=after" },
+      { key: "asked", label: "Questions you were asked", to: wj("/asked") },
       { key: "offers", label: "Compare offers", to: "/offers" },
     ] },
     { id: "end", title: "Settings", flat: true, items: [

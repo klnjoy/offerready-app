@@ -3900,3 +3900,26 @@ html, body { overflow-x: clip; }
   .ua-bar { display: none; }
   .ua-actions .btn { padding: 5px 10px; font-size: 0.84rem; }
 }
+
+/* Questions you were asked */
+.aq-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.aq-search { flex: 1 1 220px; min-width: 0; }
+.aq-filter { flex: 0 0 auto; width: auto; }
+.aq-count { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.aq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.aq-item { display: flex; flex-direction: column; gap: 8px; }
+.aq-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.aq-q { margin: 0; font-weight: 700; font-size: 1.02rem; line-height: 1.4; }
+.aq-r { flex: none; font-size: 0.76rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); border: 1px solid var(--border); white-space: nowrap; }
+.aq-r-bad { background: var(--red-soft); color: var(--red); border-color: var(--red-border); }
+.aq-r-good { background: var(--signal-soft); color: var(--signal-600); border-color: transparent; }
+.aq-r-ok { background: var(--amber-soft); color: var(--amber); border-color: var(--amber-border); }
+.aq-times { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.aq-note { margin: 2px 0 0; font-size: 0.92rem; color: var(--text); white-space: pre-wrap; }
+.aq-again { margin: 0; color: var(--amber); font-weight: 650; }
+.aq-empty-h { margin: 0 0 6px; font-size: 1.1rem; }
+.aq-notes { padding: 10px 14px; border-radius: var(--r-md); background: var(--amber-soft); border: 1px solid var(--amber-border); font-size: 0.92rem; }
+/* Tailored copy for a job */
+.jw-tailored { display: flex; flex-direction: column; gap: 10px; border-color: var(--signal); }
+.jw-tc-text summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; color: var(--link); }
+.jw-tc-text pre { white-space: pre-wrap; font-family: inherit; font-size: 0.88rem; max-height: 320px; overflow: auto; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; margin: 8px 0 0; }
