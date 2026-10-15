@@ -11,8 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 import { getActiveJob, setActiveJob } from "../lib/readiness";
 import { KEYS, onStorageWrite } from "../lib/storage";
-import { Link, useLocation, useNavigate } from "../lib/router";
-import { stepHref, usePracticePath } from "../lib/practicePath";
+import { Link, useLocation } from "../lib/router";
+import { practicePath, stepHref, usePracticePath, type PathStep } from "../lib/practicePath";
 import { displayJobTitle } from "../lib/roles";
 import type { JobsState } from "../lib/useJobs";
 import type { JobRow } from "../types";
@@ -64,7 +64,10 @@ function locate(pathname: string, search: string): { key: Key | null; sub?: stri
 }
 
 function useGroups(jobId: string): Group[] {
-  const path = usePracticePath(jobId);
+  return groupsFor(jobId, usePracticePath(jobId));
+}
+
+function groupsFor(jobId: string, path: PathStep[]): Group[] {
   const jp = "/jobs/" + enc(jobId);
   const wj = (to: string) => to + "?job=" + enc(jobId);
   return [
@@ -169,6 +172,10 @@ export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
   const last = crumbs.length - 1;
   return (
     <div className="jn-trail-row">
+      <button type="button" className="jn-open" aria-expanded={open} aria-controls="jn-drawer" aria-label="Open the list of your jobs and steps" onClick={() => setOpen(true)}>
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+        <span>Steps</span>
+      </button>
       <nav className="jn-trail" aria-label="You are here">
         <ol>
           {crumbs.map((c, i) => (
@@ -180,108 +187,210 @@ export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
           ))}
         </ol>
       </nav>
-      <button type="button" className="jn-open" aria-expanded={open} aria-controls="jn-drawer" onClick={() => setOpen(true)}>
-        <Icon name="list" size={16} /> This job
-      </button>
       {open && <Drawer nav={nav} jobs={jobs} onClose={() => setOpen(false)} />}
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// The folder tree: Your jobs › a job › Practise every day › a step
+
+interface Node { id: string; label: string; to?: string; n?: number; done?: boolean; key?: Key; jobId?: string; kids?: Node[] }
+
+const MAX_JOBS = 6;
+
+function buildTree(nav: JobNavModel, jobs: JobRow[]): Node[] {
+  // The job you're on, then the most recent others.
+  const cur = jobs.find((j) => j.id === nav.jobId);
+  const shown = [...(cur ? [cur] : []), ...jobs.filter((j) => j.id !== nav.jobId)].slice(0, MAX_JOBS);
+  return shown.map((j) => {
+    const groups = j.id === nav.jobId ? nav.groups : groupsFor(j.id, practicePath(j.id));
+    const id = "j:" + j.id;
+    const kids: Node[] = [];
+    for (const g of groups) {
+      const items = g.items.map((it): Node => ({ id: id + ":" + it.key, label: it.label, to: it.to, n: it.n, done: it.done, key: it.key, jobId: j.id }));
+      if (g.id === "job") kids.push(...items);
+      else kids.push({ id: id + ":" + g.id, label: g.title, kids: items });
+    }
+    return { id, label: j.id === nav.jobId ? nav.title : displayJobTitle(j), kids };
+  });
+}
+
+/** Ids from the top down to the page you're on (the last one is the page). */
+function pathTo(nodes: Node[], nav: JobNavModel): string[] {
+  const want = nav.hub ? "j:" + nav.jobId + ":practice" : nav.key ? "j:" + nav.jobId + ":" + nav.key : "";
+  const walk = (list: Node[], trail: string[]): string[] | null => {
+    for (const n of list) {
+      const t = [...trail, n.id];
+      if (n.id === want) return t;
+      if (n.kids) { const r = walk(n.kids, t); if (r) return r; }
+    }
+    return null;
+  };
+  return walk(nodes, []) || ["j:" + nav.jobId];
+}
+
+function findNode(nodes: Node[], id: string): Node | null {
+  for (const n of nodes) {
+    if (n.id === id) return n;
+    if (n.kids) { const r = findNode(n.kids, id); if (r) return r; }
+  }
+  return null;
+}
+
+function NodeLink({ node, on, className, onPick }: { node: Node; on: boolean; className: string; onPick?(): void }) {
+  return (
+    <Link to={node.to!} className={className + (on ? " on" : "") + (node.done ? " done" : "")} aria-current={on ? "page" : undefined}
+      onClick={() => { if (node.jobId && node.jobId !== getActiveJob()) setActiveJob(node.jobId); onPick?.(); }}>
+      {node.n ? <span className="jn-n" aria-hidden="true">{node.done ? <Icon name="check" size={11} /> : node.n}</span> : null}
+      <span className="jn-tx">{node.label}</span>
+      {node.done ? <span className="hm-sr"> (done)</span> : null}
+    </Link>
+  );
+}
+
+const Chevron = () => (
+  <svg className="jn-chev" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+);
+
+/** Wide screens: the study-notes sidebar. Folders open and close; the one
+ * you're in is open. */
+export function JobTree({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
+  const nodes = buildTree(nav, jobs.jobs);
+  const trail = pathTo(nodes, nav);
+  const curId = trail[trail.length - 1];
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const trailKey = trail.join("|");
+  useEffect(() => setToggled({}), [trailKey]);
+  const isOpen = (id: string) => (id in toggled ? toggled[id] : trail.includes(id));
+
+  const render = (list: Node[], depth: number) => (
+    <ul className={"jn-ul jn-d" + depth}>
+      {list.map((n) => (
+        <li key={n.id}>
+          {n.kids ? (
+            <>
+              <button type="button" className={"jn-folder" + (trail.includes(n.id) ? " in" : "") + (curId === n.id ? " on" : "")}
+                aria-expanded={isOpen(n.id)} onClick={() => setToggled((t) => ({ ...t, [n.id]: !isOpen(n.id) }))}>
+                <span className="jn-tx">{n.label}</span><Chevron />
+              </button>
+              {isOpen(n.id) ? render(n.kids, depth + 1) : null}
+            </>
+          ) : <NodeLink node={n} on={curId === n.id} className="jn-page" />}
+        </li>
+      ))}
+    </ul>
+  );
+
+  return (
+    <nav className="jn-tree" aria-label="Your jobs and steps">
+      <p className="jn-title">Your jobs</p>
+      {render(nodes, 0)}
+      <div className="jn-foot">
+        <Link to="/jobs">All jobs{jobs.jobs.length > MAX_JOBS ? " (" + jobs.jobs.length + ")" : ""}</Link>
+        <Link to="/analyze"><Icon name="plus" size={13} /> Add a job</Link>
+      </div>
+    </nav>
+  );
+}
+
+/** Phones and tablets: the study-notes menu. Slides in from the left, opens
+ * at the folder you're in; go into a folder, or back up with the arrow. */
 function Drawer({ nav, jobs, onClose }: { nav: JobNavModel; jobs: JobsState; onClose(): void }) {
+  const nodes = buildTree(nav, jobs.jobs);
+  const trail = pathTo(nodes, nav);
+  const curId = trail[trail.length - 1];
+  // Start inside the folder that holds the current page.
+  const [stack, setStack] = useState<string[]>(() => trail.slice(0, -1).filter((id) => findNode(nodes, id)?.kids));
   const ref = useRef<HTMLDivElement | null>(null);
+  const here = stack.length ? findNode(nodes, stack[stack.length - 1]) : null;
+  const list = here?.kids || nodes;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    ref.current?.querySelector<HTMLElement>("button, a, select")?.focus();
     return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
   }, [onClose]);
+  useEffect(() => { ref.current?.querySelector<HTMLElement>(".jn-dr-back, .jn-dr-close")?.focus(); }, [stack.length]);
+
   return (
     <div className="jn-drawer-wrap" onClick={onClose}>
-      <div className="jn-drawer" id="jn-drawer" role="dialog" aria-modal="true" aria-label="This job" ref={ref} onClick={(e) => e.stopPropagation()}>
-        <div className="jn-drawer-head">
-          <strong>This job</strong>
-          <button type="button" className="btn btn-ghost btn-small" onClick={onClose}>Close</button>
+      <div className="jn-drawer" id="jn-drawer" role="dialog" aria-modal="true" aria-label="Your jobs and steps" ref={ref} onClick={(e) => e.stopPropagation()}>
+        <div className="jn-dr-top">
+          {here ? (
+            <button type="button" className="jn-dr-back" aria-label={"Back to " + (stack.length > 1 ? findNode(nodes, stack[stack.length - 2])?.label : "Your jobs")} onClick={() => setStack((s) => s.slice(0, -1))}>
+              <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M20 12H5m6-7-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          ) : <span />}
+          <button type="button" className="jn-dr-close" onClick={onClose}>Close</button>
         </div>
-        <JobTree nav={nav} jobs={jobs} />
+        <p className="jn-dr-title">{here ? here.label : "Your jobs"}</p>
+        <ul className="jn-dr-list">
+          {list.map((n) => (
+            <li key={n.id}>
+              {n.kids ? (
+                <button type="button" className={"jn-dr-row jn-dr-folder" + (trail.includes(n.id) ? " in" : "")} onClick={() => setStack((s) => [...s, n.id])}>
+                  <span className="jn-tx">{n.label}</span><Chevron />
+                </button>
+              ) : <NodeLink node={n} on={curId === n.id} className="jn-dr-row" onPick={onClose} />}
+            </li>
+          ))}
+        </ul>
+        {!here ? (
+          <div className="jn-foot jn-dr-foot">
+            <Link to="/jobs" onClick={onClose}>All jobs{jobs.jobs.length > MAX_JOBS ? " (" + jobs.jobs.length + ")" : ""}</Link>
+            <Link to="/analyze" onClick={onClose}><Icon name="plus" size={13} /> Add a job</Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Sidebar / drawer tree
+// On this page: the page's sections, like the study notes' table of contents
 
-export function JobTree({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
-  const navigate = useNavigate();
+export function PageToc() {
   const { pathname, search } = useLocation();
-  const found = findItem(nav);
-  const curGroup = nav.hub ? "practice" : found?.group.id;
-  // Groups open like the library: the one you're in is open; you can open
-  // and close the others.
-  const [shut, setShut] = useState<Record<string, boolean>>({});
-  useEffect(() => setShut({}), [curGroup]);
-
-  const switchTo = (id: string) => {
-    setActiveJob(id);
-    if (pathname.startsWith("/jobs/")) {
-      const t = new URLSearchParams(search).get("tab");
-      navigate("/jobs/" + enc(id) + (t ? "?tab=" + t : ""));
-    } else if (new URLSearchParams(search).get("job")) {
-      const q = new URLSearchParams(search);
-      q.set("job", id);
-      navigate(pathname + "?" + q.toString());
-    }
-  };
-
+  const [items, setItems] = useState<{ id: string; text: string }[]>([]);
+  const [active, setActive] = useState("");
+  useEffect(() => {
+    let obs: IntersectionObserver | null = null;
+    const scan = () => {
+      const hs = Array.from(document.querySelectorAll<HTMLElement>(".jn-body h2")).filter((h) => h.offsetParent !== null && (h.textContent || "").trim());
+      hs.forEach((h, i) => { if (!h.id) h.id = "sec-" + i + "-" + (h.textContent || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40); });
+      const next = hs.map((h) => ({ id: h.id, text: (h.textContent || "").trim() }));
+      setItems((prev) => (prev.map((x) => x.id).join() === next.map((x) => x.id).join() ? prev : next));
+      obs?.disconnect();
+      obs = new IntersectionObserver((es) => {
+        const vis = es.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (vis) setActive(vis.target.id);
+      }, { rootMargin: "-80px 0px -60% 0px" });
+      hs.forEach((h) => obs!.observe(h));
+    };
+    const t = window.setTimeout(scan, 300);
+    // Pages load their parts after a moment; look again when the page changes.
+    const body = document.querySelector(".jn-body");
+    let pend = 0;
+    const mo = body ? new MutationObserver(() => { window.clearTimeout(pend); pend = window.setTimeout(scan, 250); }) : null;
+    if (body && mo) mo.observe(body, { childList: true, subtree: true });
+    return () => { window.clearTimeout(t); window.clearTimeout(pend); mo?.disconnect(); obs?.disconnect(); };
+  }, [pathname, search]);
+  if (items.length < 2) return null;
   return (
-    <div className="jn-tree">
-      <div className="jn-job">
-        <label className="jn-k" htmlFor="jn-job-select">Job</label>
-        {jobs.jobs.length > 1 ? (
-          <select id="jn-job-select" className="input jn-select" value={nav.jobId} onChange={(e) => switchTo(e.target.value)}>
-            {jobs.jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
-          </select>
-        ) : <p className="jn-job-one" id="jn-job-select">{nav.title}</p>}
-        <div className="jn-job-links">
-          <Link to="/jobs">All jobs</Link>
-          <Link to="/analyze"><Icon name="plus" size={13} /> Add a job</Link>
-        </div>
-      </div>
-      {nav.groups.map((g) => {
-        const isOpen = g.id === "job" || !shut[g.id] && (g.id === curGroup || shut[g.id] === false);
-        const gid = "jn-g-" + g.id;
-        return (
-          <div key={g.id} className={"jn-group" + (g.id === curGroup ? " cur" : "")}>
-            {g.id === "job" ? <p className="jn-gt">{g.title}</p> : (
-              <button type="button" className="jn-gt jn-gt-btn" aria-expanded={isOpen} aria-controls={gid}
-                onClick={() => setShut((s) => ({ ...s, [g.id]: isOpen }))}>
-                <span>{g.title}</span>
-                <svg className="jn-chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </button>
-            )}
-            {isOpen && (
-              <ul id={gid}>
-                {g.items.map((it) => {
-                  const on = it.key === nav.key;
-                  return (
-                    <li key={it.key}>
-                      <Link to={it.to} className={"jn-item" + (on ? " on" : "") + (it.done ? " done" : "")} aria-current={on ? "page" : undefined}>
-                        {it.n ? <span className="jn-n" aria-hidden="true">{it.done ? <Icon name="check" size={11} /> : it.n}</span> : null}
-                        <span>{it.label}</span>
-                        {it.done ? <span className="hm-sr"> (done)</span> : null}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        );
-      })}
-    </div>
+    <nav className="jn-toc" aria-label="On this page">
+      <p className="jn-toc-k">On this page</p>
+      <ul>
+        {items.map((x) => (
+          <li key={x.id}>
+            <a href={"#" + x.id} className={active === x.id ? "on" : ""}
+              onClick={(e) => { e.preventDefault(); document.getElementById(x.id)?.scrollIntoView({ behavior: "smooth", block: "start" }); setActive(x.id); }}>{x.text}</a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
