@@ -11,14 +11,11 @@ import { newId } from "../lib/debriefStore";
 import {
   addQuestion, clearNotes, emptyNotes, hasContent, minutesIn, putNotes, useInterviewNotes, type InterviewNotes,
 } from "../lib/interviewNotes";
-import { setActiveJob } from "../lib/readiness";
-import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { track } from "../lib/track";
 import { SignInCard } from "../components/AuthForm";
 import { Card, Loading, Muted } from "../components/ui";
-import type { JobRow } from "../types";
 
 export default function InterviewNotesPage() {
   const jobs = useJobs();
@@ -42,19 +39,18 @@ export default function InterviewNotesPage() {
   );
   const want = params.get("job") || "";
   const initial = jobs.jobs.some((j) => j.id === want) ? want : jobs.activeId || jobs.jobs[0].id;
-  return <NotesPad jobs={jobs.jobs} initialJob={initial} />;
+  return <NotesPad key={initial} initialJob={initial} />;
 }
 
-function NotesPad({ jobs, initialJob }: { jobs: JobRow[]; initialJob: string }) {
+function NotesPad({ initialJob }: { initialJob: string }) {
   const navigate = useNavigate();
-  const [jobId, setJobId] = useState(initialJob);
+  const jobId = initialJob;
   const stored = useInterviewNotes(jobId);
   const n: InterviewNotes = stored || emptyNotes(jobId);
   const [draft, setDraft] = useState("");
   const [, tick] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listEnd = useRef<HTMLLIElement | null>(null);
-  const job = jobs.find((j) => j.id === jobId) || jobs[0];
 
   // Keep the "N min in" clock moving.
   useEffect(() => {
@@ -77,11 +73,6 @@ function NotesPad({ jobs, initialJob }: { jobs: JobRow[]; initialJob: string }) 
     inputRef.current?.focus();
   };
 
-  const switchJob = (id: string) => {
-    setJobId(id);
-    setActiveJob(id);
-    navigate("/notes?job=" + encodeURIComponent(id), { replace: true });
-  };
 
   const finish = () => {
     track("notes_to_debrief", { questions: n.questions.length });
@@ -94,17 +85,8 @@ function NotesPad({ jobs, initialJob }: { jobs: JobRow[]; initialJob: string }) 
   return (
     <div className="page inn">
       <div className="inn-bar">
-        {jobs.length > 1 ? (
-          <label className="inn-field">
-            <span className="td-job-label">Job</span>
-            <select className="input" value={jobId} onChange={(e) => switchJob(e.target.value)} aria-label="Job you're interviewing for">
-              {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
-            </select>
-          </label>
-        ) : (
-          <div className="inn-field"><span className="td-job-label">Job</span><Link className="td-job-title" to={"/jobs/" + encodeURIComponent(jobId)}>{displayJobTitle(job)}</Link></div>
-        )}
-        <label className="inn-field">
+        {/* The job is in the trail and the left panel; only the round is set here. */}
+        <label className="inn-field inn-round">
           <span className="td-job-label">Round</span>
           <select className="input" value={n.round} onChange={(e) => update({ ...n, round: e.target.value as RoundType })} aria-label="Interview round">
             {(Object.keys(ROUND_LABELS) as RoundType[]).map((r) => <option key={r} value={r}>{ROUND_LABELS[r]}</option>)}
