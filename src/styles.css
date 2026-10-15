@@ -3985,3 +3985,10 @@ html, body { overflow-x: clip; }
   .topbar .nav.tnav.open { position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); padding: 6px var(--gutter) 14px; border-bottom: 1px solid var(--border); box-shadow: var(--raise); }
 }
 @media (max-width: 360px) { .topbar .brand span { display: none; } }
+
+/* Stories: Draft it for me */
+.sb-draft { display: flex; flex-direction: column; gap: 10px; padding: 14px; border: 1px dashed var(--signal); border-radius: var(--r-md); background: var(--signal-soft); margin-bottom: 14px; }
+.sb-draft p { margin: 2px 0 0; }
+.sb-draft-bullets { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sb-draft-bullets .sb-tagbtn { max-width: 100%; text-align: left; white-space: normal; }
+.sb-fill { margin: 0 0 12px; padding: 8px 12px; border-radius: var(--r-sm); background: var(--amber-soft); border: 1px solid var(--amber-border); font-size: 0.9rem; }

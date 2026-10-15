@@ -11,6 +11,8 @@ import {
   practicePrompt, saveStories, starCheck, storiesToMarkdown, tagLabel, type Story,
 } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
+import { useSavedResume } from "../lib/savedResume";
+import { extractBullets } from "../lib/tailor";
 import { KEYS, onDataChanged, readJSON, writeJSON } from "../lib/storage";
 import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { invalidatePlan } from "../lib/plans";
@@ -117,7 +119,8 @@ export default function StoriesPage() {
 
       {editing && (
         <div ref={editorRef} className="sb-editor-wrap">
-          <StoryEditor key={editing.story.id + editing.mode} initial={editing.story} mode={editing.mode} jobs={jobs.jobs || []}
+          <StoryEditor key={editing.story.id} initial={editing.story} mode={editing.mode} jobs={jobs.jobs || []}
+            jobCtx={activeJob ? { title: jobTitle, skills: (analysis?.coreSkills || []).map((k) => (typeof k === "string" ? k : (k as { name?: string })?.name || "")).filter(Boolean).slice(0, 12) } : undefined}
             onMode={(m) => setEditing({ ...editing, mode: m })} onCancel={() => { writeJSON(KEYS.storyDraft, null); setEditing(null); }} onSave={(st) => { writeJSON(KEYS.storyDraft, null); save(st); }} />
         </div>
       )}
@@ -365,8 +368,8 @@ function CoachMd({ text }: { text: string }) {
 
 // ---------------------------------------------------------------------------
 
-function StoryEditor({ initial, mode, jobs, onMode, onCancel, onSave }: {
-  initial: Story; mode: "quick" | "full"; jobs: JobRow[];
+function StoryEditor({ initial, mode, jobs, jobCtx, onMode, onCancel, onSave }: {
+  initial: Story; mode: "quick" | "full"; jobs: JobRow[]; jobCtx?: { title?: string; skills?: string[] };
   onMode(m: "quick" | "full"): void; onCancel(): void; onSave(s: Story): void;
 }) {
   const [s, setS] = useState<Story>(initial);
@@ -403,6 +406,15 @@ function StoryEditor({ initial, mode, jobs, onMode, onCancel, onSave }: {
           <button type="button" className={mode === "full" ? "on" : ""} aria-pressed={mode === "full"} onClick={() => onMode("full")}>Full STAR</button>
         </div>
       </div>
+      {isNew ? (
+        <DraftBox jobCtx={jobCtx} onDraft={(d) => {
+          setS((x) => ({ ...x, title: d.title || x.title, situation: d.situation || x.situation, task: d.task || x.task, action: d.action || x.action, result: d.result || x.result, metrics: d.metrics || x.metrics, tags: Array.from(new Set([...x.tags, ...d.tags])) }));
+          if (mode !== "full") onMode("full");
+        }} />
+      ) : null}
+      {/\[[^\]]+\]/.test([s.situation, s.task, s.action, s.result, s.metrics].join(" ")) ? (
+        <p className="sb-fill" role="status">Fill in the parts in <strong>[brackets]</strong> with your real details, or delete them. They{"’"}re facts the draft couldn{"’"}t know.</p>
+      ) : null}
       <form className="sb-form" onSubmit={(e) => { e.preventDefault(); if (canSave) onSave(s); }}>
         <label className="sb-field">
           <span className="field-label">Title</span>
@@ -472,5 +484,57 @@ function StoryEditor({ initial, mode, jobs, onMode, onCancel, onSave }: {
         </div>
       </form>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// "Draft it for me": a few words or a resume line -> a STAR draft to edit.
+
+function DraftBox({ jobCtx, onDraft }: { jobCtx?: { title?: string; skills?: string[] }; onDraft(d: api.StoryDraft): void }) {
+  const auth = useAuth();
+  const [resume] = useSavedResume();
+  const bullets = useMemo(() => (resume ? extractBullets(resume.text, 6) : []), [resume?.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<ReactNode>("");
+  const [over, setOver] = useState(false);
+
+  const draft = async () => {
+    if (notes.trim().length < 8) { setMsg("Write a few words about what you did first."); return; }
+    const tok = auth.session ? await auth.getAccessToken() : null;
+    if (!tok) { setMsg(<>Please <Link to="/account">sign in</Link> to draft stories with AI. It{"’"}s free.</>); return; }
+    setBusy(true); setMsg("");
+    const res = await api.draftStory(tok, notes.trim(), jobCtx);
+    setBusy(false);
+    if (res.status === 200 && res.body?.draft) { invalidatePlan(); onDraft(res.body.draft); setMsg("Drafted. Check every part and make it yours."); return; }
+    if (res.status === 403) { invalidatePlan(); setOver(true); return; }
+    if (res.status === 401) { setMsg(<>Your session ended. Please <Link to="/account">sign in</Link> again.</>); return; }
+    setMsg(res.status === 0 ? "Couldn’t reach the server. Check your connection and try again." : res.status === 429 ? "Too many requests right now. Try again in a minute." : res.body?.error || "Couldn’t draft the story. Please try again.");
+  };
+
+  if (over) return <UpgradeCard feature="story_ai" title="You’ve used this month’s story AI" message="A pass gives you far more AI help with your stories. You can still write this one yourself below." />;
+
+  return (
+    <div className="sb-draft">
+      <div>
+        <strong>Draft it for me</strong>
+        <p className="small muted">Write a few words about something you did, or pick a line from your resume. The AI fills in the story below for you to check. Anything it doesn{"’"}t know stays in [brackets]: it never makes up facts.</p>
+      </div>
+      <textarea className="input sb-textarea" rows={2} maxLength={1200} value={notes} aria-label="What you did, in a few words"
+        placeholder="e.g. moved the nightly ETL to dbt incremental models, much faster, fewer failures" onChange={(e) => setNotes(e.target.value)} />
+      {bullets.length ? (
+        <div className="sb-draft-bullets">
+          <span className="small muted">From your resume:</span>
+          {bullets.map((b) => (
+            <button key={b} type="button" className={"sb-tagbtn" + (notes === b ? " on" : "")} onClick={() => setNotes(b)} title={b}>{b.length > 70 ? b.slice(0, 68) + "…" : b}</button>
+          ))}
+        </div>
+      ) : null}
+      <div className="row wrap">
+        <button type="button" className="btn btn-primary btn-small" disabled={busy || notes.trim().length < 8} onClick={draft}>{busy ? "Drafting…" : "Draft my story"}</button>
+        <span className="small muted">Uses 1 story AI credit. Or skip this and write it yourself.</span>
+      </div>
+      {msg ? <p className="small" role="status">{msg}</p> : null}
+    </div>
   );
 }
