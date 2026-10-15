@@ -12,6 +12,8 @@ import { displayJobTitle } from "../lib/roles";
 import { Link, useSearchParams } from "../lib/router";
 import { downloadText } from "../lib/tailoredResume";
 import { useJobs } from "../lib/useJobs";
+import { useAuth } from "../lib/auth";
+import { SignInCard } from "../components/AuthForm";
 import { Card } from "../components/ui";
 
 interface Asked {
@@ -28,6 +30,7 @@ const fmt = (d: string) => (d ? new Date(d + "T12:00:00").toLocaleDateString(und
 export default function AskedQuestionsPage() {
   const debriefs = useDebriefs();
   const jobs = useJobs();
+  const auth = useAuth();
   const params = useSearchParams();
   const current = params.get("job") || getActiveJob();
   const [scope, setScope] = useState<"job" | "all">(current ? "job" : "all");
@@ -78,6 +81,16 @@ export default function AskedQuestionsPage() {
     downloadText("interview-questions.md", lines.join("\n"));
   };
 
+  if (auth.ready && !auth.session && !debriefs.length) {
+    return (
+      <div className="page aq">
+        <SignInCard title="Sign in to keep the questions you were asked">
+          <p className="muted">After each real interview, log the questions they asked. They{"’"}re kept here for every job, with how each one went, so you can see what comes up again and practise the ones that went badly.</p>
+        </SignInCard>
+      </div>
+    );
+  }
+
   return (
     <div className="page aq">
       {unsaved && hasContent(unsaved) ? (
@@ -88,7 +101,7 @@ export default function AskedQuestionsPage() {
       ) : null}
 
       <div className="aq-bar">
-        {current ? (
+        {current && jobs.jobs.length ? (
           <div className="seg" role="group" aria-label="Which interviews">
             <button type="button" className={"seg-btn" + (scope === "job" ? " on" : "")} aria-pressed={scope === "job"} onClick={() => setScope("job")}>This job</button>
             <button type="button" className={"seg-btn" + (scope === "all" ? " on" : "")} aria-pressed={scope === "all"} onClick={() => setScope("all")}>All jobs</button>
