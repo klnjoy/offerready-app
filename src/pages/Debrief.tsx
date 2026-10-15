@@ -390,7 +390,7 @@ function DebriefEditor({ initial, jobTitle, today, onCancel, onSave }: {
           )}
           <p className="small muted">
             Shared: the company, round type, month, your questions and how each went, and the outcome. Never shared: your name, the interviewers, your notes or the exact date.
-            Other users will only see a company{"’"}s questions once at least 3 people have shared for it. You can un-share any time.
+            Shared rounds are kept anonymously for a future {"“"}questions asked at this company{"”"} page. Nobody else can see them yet, and when that page opens a company{"’"}s questions will show only once at least 3 people have shared for it. You can un-share any time.
           </p>
         </fieldset>
 
