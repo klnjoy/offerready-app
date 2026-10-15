@@ -3999,3 +3999,30 @@ html, body { overflow-x: clip; }
 .sb-batch p { margin: 2px 0 0; }
 .sb-batch-msg { margin: 0 0 10px; }
 .sb-draft-badge { display: inline-block; margin-left: 8px; vertical-align: middle; font-size: 0.72rem; font-weight: 750; padding: 2px 8px; border-radius: 999px; background: var(--amber-soft); color: var(--amber); border: 1px solid var(--amber-border); }
+
+/* Stories: a compact library list */
+.sb-lib-head p { margin: 2px 0 0; }
+.sb-lib { display: flex; flex-direction: column; gap: 10px; }
+.sb-lib-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.sb-lib-search { flex: 1 1 220px; min-width: 0; }
+.sb-lib-filter { flex: 0 1 230px; min-width: 0; }
+.sb-lib-note { margin: 0; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, #f59e0b 12%, transparent); }
+.sb-lib-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line, #e5e7eb); border-radius: 12px; background: var(--surface, #fff); overflow: hidden; }
+.sb-lib-row + .sb-lib-row { border-top: 1px solid var(--line, #e5e7eb); }
+.sb-lib-line { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 4px; }
+.sb-lib-toggle { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; font: inherit; color: inherit; text-align: left; background: none; border: 0; padding: 6px; cursor: pointer; border-radius: 8px; }
+.sb-lib-toggle:hover .sb-lib-title { text-decoration: underline; }
+.sb-lib-chev { display: inline-block; width: 12px; color: var(--muted, #6b7280); transition: transform .15s; }
+.sb-lib-row.on .sb-lib-chev { transform: rotate(90deg); }
+.sb-lib-main { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; min-width: 0; }
+.sb-lib-title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.sb-lib-tags { font-size: 0.8rem; color: var(--muted, #6b7280); }
+.sb-lib-star { font-size: 0.8rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.sb-lib-body { padding: 0 14px 14px 30px; }
+.sb-card-bare { padding: 0; border: 0; box-shadow: none; background: none; }
+.sb-chip.is-draft { background: color-mix(in srgb, #f59e0b 16%, transparent); color: inherit; }
+@media (max-width: 560px) {
+  .sb-lib-tags { width: 100%; }
+  .sb-lib-body { padding-left: 14px; }
+}
+.jn-prog { margin-left: auto; padding-left: 6px; font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--muted, #6b7280); }

@@ -64,6 +64,19 @@ function PathStatus({ path, cur, job }: { path: PathStep[]; cur: StepKey | null;
   }
   const here = path.find((s) => s.key === cur)!;
   const next = nextStep(path, cur);
+  // Last step done but an earlier one isn't: point there, not "all done".
+  const open = next ? null : path.find((s) => !s.done && s.key !== cur) || null;
+  if (here.done && open) {
+    return (
+      <div className="pp-status pp-status-done" role="status">
+        <span className="pp-status-ico" aria-hidden="true"><Icon name="check" size={16} /></span>
+        <span className="pp-status-text">
+          <strong>Step {here.n} done.</strong> Step {open.n}, <strong>{open.label}</strong>, is still open: {open.goal}.
+        </span>
+        <Link className="btn btn-sm hm-btn-signal" to={stepHref(open, job)}>Go to step {open.n} <Icon name="arrow" size={15} /></Link>
+      </div>
+    );
+  }
   if (here.done) {
     return (
       <div className="pp-status pp-status-done" role="status">

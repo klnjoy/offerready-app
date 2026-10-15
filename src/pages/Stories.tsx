@@ -188,7 +188,7 @@ export default function StoriesPage() {
               </div>
               <div role="cell" className="sb-row-stories">
                 {r.stories.length ? r.stories.slice(0, 3).map((s) => (
-                  <button key={s.id} type="button" className="sb-chip" onClick={() => setEditing({ mode: "full", story: s })} title="Edit this story">{s.title}</button>
+                  <button key={s.id} type="button" className={"sb-chip" + (s.draft ? " is-draft" : "")} onClick={() => setEditing({ mode: "full", story: s })} title={s.draft ? "Draft: check it and save" : "Edit this story"}>{s.title}{s.draft ? " · draft" : ""}</button>
                 )) : (
                   <button type="button" className="btn btn-small" onClick={() => openNew("quick", [r.key])}>Add a story</button>
                 )}
@@ -200,7 +200,10 @@ export default function StoriesPage() {
       </section>
 
       <section aria-labelledby="sb-list-h" className="stack">
-        <h2 id="sb-list-h" className="sb-list-h">Your stories <span className="muted">({stories.length})</span></h2>
+        <div className="sb-lib-head">
+          <h2 id="sb-list-h" className="sb-list-h">Your stories <span className="muted">({stories.length})</span></h2>
+          <p className="muted small">One library for all your jobs: a story you write once is reused for every job it fits. Eight to ten good stories cover most interviews.</p>
+        </div>
         {!stories.length ? (
           <Card className="sb-empty">
             <p><strong>No stories yet.</strong> Start with one you tell often: a hard deadline, a disagreement, a mistake you fixed.</p>
@@ -208,11 +211,87 @@ export default function StoriesPage() {
             <div className="row"><button type="button" className="btn btn-primary" onClick={() => openNew("quick")}>Capture your first story</button></div>
           </Card>
         ) : (
-          <div className="sb-grid">
-            {stories.map((s) => <StoryCard key={s.id} s={s} jobTitles={jobTitles} onEdit={() => setEditing({ mode: "full", story: s })} onDelete={() => remove(s.id)} />)}
-          </div>
+          <StoryLibrary stories={stories} jobId={activeJob?.id} jobTitles={jobTitles}
+            onEdit={(s) => setEditing({ mode: "full", story: s })} onDelete={remove} />
         )}
       </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// The library: a compact list you can search and filter, so it stays tidy
+// with many stories. A row opens to show the full card.
+
+const PAGE = 15;
+
+function StoryLibrary({ stories, jobId, jobTitles, onEdit, onDelete }: {
+  stories: Story[]; jobId?: string; jobTitles: Record<string, string>;
+  onEdit(s: Story): void; onDelete(id: string): void;
+}) {
+  const [q, setQ] = useState("");
+  const [view, setView] = useState("all");
+  const [open, setOpen] = useState<string | null>(null);
+  const [limit, setLimit] = useState(PAGE);
+  const drafts = stories.filter((s) => s.draft).length;
+  const forJob = jobId ? stories.filter((s) => s.jobIds.includes(jobId)).length : 0;
+  const usedTags = COMPETENCIES.filter((c) => stories.some((s) => s.tags.includes(c.key)));
+
+  const list = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return stories
+      .filter((s) => view === "all" ? true
+        : view === "drafts" ? !!s.draft
+        : view === "job" ? !!jobId && s.jobIds.includes(jobId)
+        : s.tags.includes(view))
+      .filter((s) => !needle || [s.title, s.situation, s.action, s.result, s.tags.map(tagLabel).join(" ")].join(" ").toLowerCase().includes(needle))
+      .sort((x, y) => Number(!!y.draft) - Number(!!x.draft) || (y.updatedAt || "").localeCompare(x.updatedAt || ""));
+  }, [stories, q, view, jobId]);
+
+  return (
+    <div className="sb-lib">
+      <div className="sb-lib-tools">
+        <input className="input sb-lib-search" type="search" placeholder="Search your stories" aria-label="Search your stories"
+          value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} />
+        <select className="input sb-lib-filter" aria-label="Show" value={view} onChange={(e) => { setView(e.target.value); setLimit(PAGE); }}>
+          <option value="all">All stories ({stories.length})</option>
+          {drafts ? <option value="drafts">Drafts to check ({drafts})</option> : null}
+          {jobId ? <option value="job">Linked to this job ({forJob})</option> : null}
+          {usedTags.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+        </select>
+      </div>
+      {drafts > 0 && view !== "drafts" ? (
+        <p className="small sb-lib-note"><strong>{drafts} {drafts === 1 ? "draft" : "drafts"} to check.</strong> Open each, fix anything in [brackets], and save. Not useful? Delete it.</p>
+      ) : null}
+      {!list.length ? <p className="muted small">No stories match. Clear the search or pick All stories.</p> : (
+        <ul className="sb-lib-list">
+          {list.slice(0, limit).map((s) => {
+            const c = starCheck(s);
+            const tone = c.score >= 80 ? "good" : c.score >= 50 ? "mid" : "weak";
+            const on = open === s.id;
+            return (
+              <li key={s.id} className={"sb-lib-row" + (on ? " on" : "") + (s.draft ? " is-draft" : "")}>
+                <div className="sb-lib-line">
+                  <button type="button" className="sb-lib-toggle" aria-expanded={on} onClick={() => setOpen(on ? null : s.id)}>
+                    <span className="sb-lib-chev" aria-hidden="true">{"›"}</span>
+                    <span className="sb-lib-main">
+                      <span className="sb-lib-title">{s.title || "Untitled story"}</span>
+                      {s.draft ? <span className="sb-draft-badge">Draft · check it</span> : null}
+                      <span className="sb-lib-tags">{s.tags.filter(isCompetency).slice(0, 2).map(tagLabel).join(" · ")}</span>
+                    </span>
+                  </button>
+                  <span className={"sb-lib-star band-" + tone} title="STAR completeness">{c.score}%</span>
+                  <button type="button" className="btn btn-ghost btn-small" onClick={() => onEdit(s)}>{s.draft ? "Check" : "Edit"}</button>
+                </div>
+                {on ? <div className="sb-lib-body"><StoryCard s={s} bare jobTitles={jobTitles} onEdit={() => onEdit(s)} onDelete={() => { setOpen(null); onDelete(s.id); }} /></div> : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {list.length > limit ? (
+        <button type="button" className="btn btn-ghost btn-small" onClick={() => setLimit(limit + PAGE)}>Show more ({list.length - limit} left)</button>
+      ) : null}
     </div>
   );
 }
@@ -239,7 +318,7 @@ function Meter({ s }: { s: Story }) {
   );
 }
 
-function StoryCard({ s, jobTitles, onEdit, onDelete }: { s: Story; jobTitles: Record<string, string>; onEdit(): void; onDelete(): void }) {
+function StoryCard({ s, bare, jobTitles, onEdit, onDelete }: { s: Story; bare?: boolean; jobTitles: Record<string, string>; onEdit(): void; onDelete(): void }) {
   const [confirm, setConfirm] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [copied, setCopied] = useState(false);
@@ -252,12 +331,12 @@ function StoryCard({ s, jobTitles, onEdit, onDelete }: { s: Story; jobTitles: Re
   };
 
   return (
-    <article className="card sb-card">
-      <div className="sb-card-head">
+    <article className={bare ? "sb-card sb-card-bare" : "card sb-card"}>
+      {bare ? null : <div className="sb-card-head">
         <h3>{s.title || "Untitled story"}{s.draft ? <span className="sb-draft-badge">Draft · check it</span> : null}</h3>
         <button type="button" className="btn btn-ghost btn-small" onClick={onEdit}>Edit</button>
-      </div>
-      {s.tags.length > 0 && (
+      </div>}
+      {!bare && s.tags.length > 0 && (
         <div className="chips">{s.tags.map((t) => <span key={t} className={"chip" + (isCompetency(t) ? " sb-tag" : "")}>{tagLabel(t)}</span>)}</div>
       )}
       {s.situation && <p className="sb-snippet">{s.situation}</p>}

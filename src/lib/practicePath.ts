@@ -24,6 +24,8 @@ export interface PathStep {
   /** What to do on this step, in a few words. */
   goal: string;
   done: boolean;
+  /** Progress on a step that isn't done yet, e.g. "1/5". */
+  progress?: string;
 }
 
 const BASE: Omit<PathStep, "done">[] = [
@@ -51,7 +53,12 @@ function doneMap(jobId: string): Record<StepKey, boolean> {
 
 export function practicePath(jobId: string): PathStep[] {
   const d = doneMap(jobId);
-  return BASE.map((s) => ({ ...s, done: d[s.key] }));
+  const qp = readJSON<Record<string, Record<string, unknown>>>(KEYS.questionProgress, {});
+  const answered = jobId ? Object.keys(qp[jobId] || {}).length : 0;
+  return BASE.map((s) => ({
+    ...s, done: d[s.key],
+    progress: s.key === "questions" && !d.questions && answered > 0 ? answered + "/" + QUESTIONS_GOAL : undefined,
+  }));
 }
 
 /** Link to a step, keeping the job. */

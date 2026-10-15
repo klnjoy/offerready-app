@@ -34,7 +34,7 @@ type Key =
   | "coach" | "bank" | "readiness"
   | "notes" | "debrief" | "asked" | "offers";
 
-interface Item { key: Key; label: string; to: string; n?: number; done?: boolean }
+interface Item { key: Key; label: string; to: string; n?: number; done?: boolean; progress?: string }
 /** `flat` groups list their pages straight under the job, without a folder. */
 interface Group { id: string; title: string; to?: string; flat?: boolean; items: Item[] }
 
@@ -79,7 +79,7 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
       { key: "resume", label: "Resume match", to: jp + "?tab=resume" },
     ] },
     { id: "practice", title: "Practise every day", to: "/practice", items: path.map((s) => ({
-      key: s.key, label: s.label, to: stepHref(s, jobId), n: s.n, done: s.done,
+      key: s.key, label: s.label, to: stepHref(s, jobId), n: s.n, done: s.done, progress: s.progress,
     })) },
     { id: "coach", title: "AI Interview Coach", flat: true, items: [
       { key: "coach", label: "AI Interview Coach", to: wj("/coach") },
@@ -198,7 +198,7 @@ export function JobTrail({ nav }: { nav: JobNavModel }) {
 // ---------------------------------------------------------------------------
 // The folder tree: Your jobs › a job › Practise every day › a step
 
-interface Node { id: string; label: string; sub?: string; to?: string; n?: number; done?: boolean; key?: Key; jobId?: string; kids?: Node[] }
+interface Node { id: string; label: string; sub?: string; to?: string; n?: number; done?: boolean; progress?: string; key?: Key; jobId?: string; kids?: Node[] }
 
 const MAX_JOBS = 6;
 
@@ -211,7 +211,7 @@ function buildTree(nav: JobNavModel, jobs: JobRow[]): Node[] {
     const id = "j:" + j.id;
     const kids: Node[] = [];
     for (const g of groups) {
-      const items = g.items.map((it): Node => ({ id: id + ":" + it.key, label: it.label, to: it.to, n: it.n, done: it.done, key: it.key, jobId: j.id }));
+      const items = g.items.map((it): Node => ({ id: id + ":" + it.key, label: it.label, to: it.to, n: it.n, done: it.done, progress: it.progress, key: it.key, jobId: j.id }));
       if (g.flat) kids.push(...items);
       else kids.push({ id: id + ":" + g.id, label: g.title, kids: items });
     }
@@ -248,6 +248,7 @@ function NodeLink({ node, on, className, onPick }: { node: Node; on: boolean; cl
       onClick={() => { if (node.jobId && node.jobId !== getActiveJob()) setActiveJob(node.jobId); onPick?.(); }}>
       {node.n ? <span className="jn-n" aria-hidden="true">{node.done ? <Icon name="check" size={11} /> : node.n}</span> : null}
       <span className="jn-tx">{node.label}</span>
+      {node.progress ? <span className="jn-prog" title={node.progress + " answered (5 marks it done)"}>{node.progress}</span> : null}
       {node.done ? <span className="hm-sr"> (done)</span> : null}
     </Link>
   );
@@ -409,17 +410,14 @@ export function PageToc() {
 // ---------------------------------------------------------------------------
 // Previous / next, like the library's page footer
 
-const SEQ: Key[] = ["overview", "questions", "drill", "stories", "mock", "readiness", "notes"];
-
 export function JobPager({ nav }: { nav: JobNavModel }) {
-  const { pathname } = useLocation();
-  if (!nav.key || nav.sub || !SEQ.includes(nav.key)) return null;
-  // The job page's other tabs aren't in the sequence.
-  if (pathname.startsWith("/jobs/") && nav.key !== "overview") return null;
+  // Same order as the left panel, so "Next" is always the item below this one.
+  if (!nav.key || nav.sub) return null;
   const all = nav.groups.flatMap((g) => g.items);
-  const i = SEQ.indexOf(nav.key);
-  const prev = i > 0 ? all.find((x) => x.key === SEQ[i - 1]) : null;
-  const next = i < SEQ.length - 1 ? all.find((x) => x.key === SEQ[i + 1]) : null;
+  const i = all.findIndex((x) => x.key === nav.key);
+  if (i < 0) return null;
+  const prev = i > 0 ? all[i - 1] : null;
+  const next = i < all.length - 1 ? all[i + 1] : null;
   const name = (x: Item) => (x.n ? "Step " + x.n + " · " : "") + x.label;
   return (
     <nav className="jn-pager" aria-label="Previous and next">
