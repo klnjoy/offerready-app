@@ -125,8 +125,8 @@ function resolveBack(to: string, search: string): string {
 function Logo() {
   return (
     <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
-      <path d="M33 11 A15 15 0 1 0 35 21" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
-      <path d="M13 33 L19 20 L25 11" fill="none" stroke="#fff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M33 11 A15 15 0 1 0 35 21" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <path d="M13 33 L19 20 L25 11" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M25 11 L31 5 M31 5 L24 6 M31 5 L30 12" fill="none" stroke="#22c07a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -261,7 +261,7 @@ export default function App() {
             })}
           </nav>
           <div className="topbar-actions">
-            <GetAppChip pathname={pathname} className="getapp-dark" />
+            <GetAppChip pathname={pathname} className="getapp-light" />
             <Link className="btn add-job-btn" to="/analyze" aria-label="Add a job">
               <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 4v12M4 10h12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
               <span className="add-job-long">Add a job</span><span className="add-job-short" aria-hidden="true">Add</span>

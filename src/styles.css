@@ -3939,3 +3939,49 @@ html, body { overflow-x: clip; }
 .aj-swap { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .aj-swap li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface); }
 .aj-swap-t { min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------------------------------------------------------------------------
+ * One header everywhere: the app's top bar takes the home page header's look
+ * (light glass, dark text, same height, same width), with the app's links. */
+.topbar { background: rgba(255, 255, 255, 0.86); -webkit-backdrop-filter: saturate(1.4) blur(12px); backdrop-filter: saturate(1.4) blur(12px); color: var(--ink-950); border-bottom: 1px solid rgba(12, 28, 56, 0.08); z-index: 60; }
+.topbar-inner { max-width: calc(var(--mk-w) + 2 * var(--gutter)); min-height: 68px; gap: 20px; }
+.topbar .brand { color: var(--ink-950); font-weight: 750; font-size: 1.14rem; }
+.topbar .brand b { color: var(--signal); font-weight: 750; }
+.topbar .nav-link { color: var(--ink-950); font-weight: 600; font-size: 0.97rem; }
+.topbar .nav-link:hover { color: var(--ink-950); background: rgba(12, 28, 56, 0.05); }
+.topbar .nav-link.active { color: var(--ink-950); }
+.topbar .account-link { color: var(--ink-950); border-color: var(--border-strong); }
+.topbar .account-link:hover { border-color: var(--ink-700); }
+.topbar .account-link.active { background: rgba(12, 28, 56, 0.05); }
+.topbar .menu-btn { color: var(--ink-950); border-color: var(--border-strong); }
+@media (min-width: 980px) {
+  .topbar .tnav-link.active::after { bottom: -16px; background: var(--signal); }
+}
+@media (max-width: 979px) {
+  .topbar .nav.tnav.open { border-top-color: var(--border); }
+  .topbar .tnav-link.active { box-shadow: inset 3px 0 0 var(--signal); background: var(--signal-soft); }
+}
+.footer-logo, .footer-top .footer-logo { color: #fff; }
+@media (prefers-color-scheme: dark) {
+  .topbar { background: rgba(11, 21, 39, 0.86); border-bottom-color: var(--border); color: var(--text); }
+  .topbar .brand, .topbar .nav-link, .topbar .nav-link:hover, .topbar .nav-link.active, .topbar .account-link, .topbar .menu-btn { color: var(--text); }
+  .topbar .nav-link:hover, .topbar .account-link.active { background: rgba(255, 255, 255, 0.06); }
+  .topbar .account-link, .topbar .menu-btn { border-color: var(--border-strong); }
+}
+@media print { .topbar { display: none !important; } }
+/* Pages line up with the header: same width as the home page. */
+.main, .main-jn { max-width: calc(var(--mk-w) + 2 * var(--gutter)); }
+.main-home { max-width: none; }
+/* Phones: the header fits on one row, like the home page's. "Get the app"
+ * is in the account menu; "Add a job" becomes a round + button. */
+@media (max-width: 1100px) { .topbar .getapp-light { width: 36px; height: 36px; padding: 0; justify-content: center; } .topbar .getapp-light .getapp-t { display: none; } }
+@media (max-width: 560px) {
+  .topbar-inner { flex-wrap: nowrap; gap: 8px; min-height: 60px; }
+  .topbar .brand { font-size: 1.02rem; min-width: 0; }
+  .topbar-actions { gap: 6px; flex: none; }
+  .topbar .getapp-light { display: none; }
+  .topbar .add-job-btn { width: 38px; height: 38px; min-height: 38px; padding: 0; justify-content: center; }
+  .topbar .add-job-btn .add-job-short, .topbar .add-job-btn .add-job-long { display: none; }
+  .topbar .nav.tnav.open { position: absolute; left: 0; right: 0; top: 100%; background: var(--surface); padding: 6px var(--gutter) 14px; border-bottom: 1px solid var(--border); box-shadow: var(--raise); }
+}
+@media (max-width: 360px) { .topbar .brand span { display: none; } }
