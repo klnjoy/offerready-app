@@ -39,7 +39,7 @@ import { SettingsTab } from "./JobSettings";
 type Tab = "overview" | "resume" | "after" | "settings";
 const TABS: { key: Tab; label: string; short?: string }[] = [
   { key: "overview", label: "Overview" },
-  { key: "resume", label: "Resume" },
+  { key: "resume", label: "Resume match", short: "Resume" },
   { key: "after", label: "After the interview", short: "After" },
   { key: "settings", label: "Settings" },
 ];
@@ -782,7 +782,7 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
             <p className="muted small">Added once and reused for every job, for tailoring and for mock interviews.</p>
           </div>
         </div>
-        <ResumeField compact />
+        <ResumeField compact confirm />
         <div className="row wrap">
           <button type="button" className="btn btn-primary" disabled={!resume || busy} onClick={check}>
             {busy ? "Checking…" : r ? "Check my fit again" : "Check my fit"}
