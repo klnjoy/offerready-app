@@ -19,7 +19,7 @@ import { allDoneDays, ensurePlanState, setTaskDone, type JobPlanState } from "..
 import { usePlan, invalidatePlan } from "../lib/plans";
 import { buildPrepPlan, carryOver, doneThisWeek, planToIcs, streakDays, type PlanTask, type PrepPlan } from "../lib/prepPlan";
 import { getHistory, weakTopicScores } from "../lib/progressStore";
-import { band, setActiveJob, weightedOverall } from "../lib/readiness";
+import { band, clearActiveJob, getActiveJob, setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle, roleGuideFor } from "../lib/roles";
 import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router";
 import { useSavedResume } from "../lib/savedResume";
@@ -33,12 +33,15 @@ import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import { Card, Chips, Disclaimer, Loading, Muted } from "../components/ui";
 import type { JobDetail, JobRow } from "../types";
 import { stepHref, usePracticePath } from "../lib/practicePath";
+import { jobsChanged } from "../components/JobNav";
+import { SettingsTab } from "./JobSettings";
 
-type Tab = "overview" | "resume" | "after";
+type Tab = "overview" | "resume" | "after" | "settings";
 const TABS: { key: Tab; label: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "resume", label: "Resume" },
   { key: "after", label: "After the interview" },
+  { key: "settings", label: "Settings" },
 ];
 
 type State = { kind: "loading" } | { kind: "signedout" } | { kind: "error"; msg: string } | { kind: "ready"; data: JobDetail };
@@ -61,7 +64,7 @@ export default function JobDetailPage({ id }: Record<string, string>) {
   const navigate = useNavigate();
   const [state, setState] = useState<State>({ kind: "loading" });
   const t = params.get("tab");
-  const tab: Tab = t === "resume" || t === "after" ? t : "overview";
+  const tab: Tab = t === "resume" || t === "after" || t === "settings" ? t : "overview";
   const added = params.get("added") === "1";
 
   useEffect(() => {
@@ -89,7 +92,7 @@ export default function JobDetailPage({ id }: Record<string, string>) {
     <div className="page jw">
       <JobHead id={id} title={displayJobTitle(data?.job || row)} job={data?.job || row} jobs={jobs.jobs} tab={tab}
         onSwitch={(nid) => { setActiveJob(nid); navigate(jobPath(nid, tab)); }}
-        onRenamed={(t, c) => { setData((d) => ({ ...d, job: { ...d.job, title: t, company: c } })); jobs.reload(); }} />
+        onRenamed={(t, c) => { setData((d) => ({ ...d, job: { ...d.job, title: t, company: c } })); jobs.reload(); jobsChanged(); }} />
       {state.kind === "loading" && <Loading>Loading this job{"…"}</Loading>}
       {state.kind === "signedout" && <SignInCard title="Sign in to open this job" />}
       {state.kind === "error" && <Card><p>{state.msg}</p><div className="row"><Link className="btn" to="/jobs">See all jobs</Link></div></Card>}
@@ -112,6 +115,9 @@ export default function JobDetailPage({ id }: Record<string, string>) {
           </nav>
           {tab === "overview" && <Overview data={data} />}
           {tab === "resume" && <ResumeTab data={data} onGap={(g) => setData((d) => ({ ...d, gap: g }))} />}
+          {tab === "settings" && <SettingsTab data={data}
+            onSaved={(t, c) => { setData((d) => ({ ...d, job: { ...d.job, title: t, company: c } })); jobs.reload(); jobsChanged(); }}
+            onDeleted={() => { if (getActiveJob() === id) clearActiveJob(); jobsChanged(); navigate("/jobs"); }} />}
           {tab === "after" && <AfterTab jobId={id} title={displayJobTitle(data.job)} company={data.job.company} />}
           <Disclaimer />
         </>

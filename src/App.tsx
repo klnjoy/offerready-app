@@ -10,6 +10,8 @@ import { GetAppChip } from "./components/GetAppChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
+import { JobPager, JobTrail, JobTree, useJobNav } from "./components/JobNav";
+import { useJobs } from "./lib/useJobs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
 import { track } from "./lib/track";
 import { SyncIndicator } from "./components/SyncStatus";
@@ -167,6 +169,8 @@ function AccountMenu({ pathname }: { pathname: string }) {
 export default function App() {
   const signedIn = !!useAuth().session;
   const { pathname, search, hash } = useLocation();
+  const jobs = useJobs();
+  const nav = useJobNav(jobs);
   const [menuOpen, setMenuOpen] = useState(false);
 
   let match: { route: Route; params: Record<string, string> } | null = null;
@@ -205,6 +209,25 @@ export default function App() {
     ? { to: "@job", label: getActiveJob() ? "Your job" : "All jobs" }
     : undefined);
 
+  const body = (
+    <>
+        {match?.route.subtitle ? (
+          <header className="page-head">
+            {back && !nav ? <Link className="back-link" to={resolveBack(back.to, search)}>{"←"} {back.label}</Link> : null}
+            <h1>{match.route.title}</h1>
+            <p>{match.route.subtitle}</p>
+          </header>
+        ) : null}
+        {pathname !== "/" ? <UsageAlert /> : null}
+        {match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
+        <ErrorBoundary resetKey={pathname}>
+          <Suspense fallback={<div className="page"><Loading /></div>}>
+            {Page ? <Page {...match!.params} /> : <NotFound />}
+          </Suspense>
+        </ErrorBoundary>
+    </>
+  );
+
   return (
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
@@ -237,21 +260,17 @@ export default function App() {
       </header>
       )}
 
-      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "")}>
-        {match?.route.subtitle ? (
-          <header className="page-head">
-            {back ? <Link className="back-link" to={resolveBack(back.to, search)}>{"←"} {back.label}</Link> : null}
-            <h1>{match.route.title}</h1>
-            <p>{match.route.subtitle}</p>
-          </header>
-        ) : null}
-        {pathname !== "/" ? <UsageAlert /> : null}
-        {match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
-        <ErrorBoundary resetKey={pathname}>
-          <Suspense fallback={<div className="page"><Loading /></div>}>
-            {Page ? <Page {...match!.params} /> : <NotFound />}
-          </Suspense>
-        </ErrorBoundary>
+      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (nav ? " main-jn" : "")}>
+        {nav ? <JobTrail nav={nav} jobs={jobs} /> : null}
+        {nav ? (
+          <div className="jn-layout">
+            <aside className="jn-side" aria-label="This job"><JobTree nav={nav} jobs={jobs} /></aside>
+            <div className="jn-body">
+              {body}
+              <JobPager nav={nav} />
+            </div>
+          </div>
+        ) : body}
       </main>
 
       <HelpBot />

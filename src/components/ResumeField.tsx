@@ -1,6 +1,6 @@
 /* Your resume, entered once: shows the saved resume ("Using your saved
  * resume · Replace · Remove") or an upload / paste editor. Uploading saves it
- * straight away; pasted text is saved with "Save resume" (or by the parent
+ * straight away (or, with `confirm`, only after "Save resume"); pasted text is saved with "Save resume" (or by the parent
  * on submit via onPaste). See lib/savedResume.ts for the privacy model. */
 
 import { useState } from "react";
@@ -10,16 +10,20 @@ import { resumeLabel, useSavedResume } from "../lib/savedResume";
 export const RESUME_PRIVACY =
   "Read in your browser and saved on this device, so you add it once. It syncs to your account only if you turn that on in Account. When we compare it with a job, the text is used only for that analysis and not kept by the analysis.";
 
-export function ResumeField({ onPaste, compact }: {
+export function ResumeField({ onPaste, compact, confirm }: {
   /** Pasted (not yet saved) text, so a parent form can save it on submit. */
   onPaste?(text: string): void;
   compact?: boolean;
+  /** Settings style: an uploaded file is shown first and saved only with "Save resume". */
+  confirm?: boolean;
 }) {
   const [saved, save, clear] = useSavedResume();
   const [editing, setEditing] = useState(false);
   const [pasted, setPasted] = useState("");
   const [status, setStatus] = useState("");
   const [err, setErr] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [removing, setRemoving] = useState(false);
 
   const setPaste = (t: string) => { setPasted(t); onPaste?.(t); };
 
@@ -29,6 +33,12 @@ export function ResumeField({ onPaste, compact }: {
     setStatus("Reading " + f.name + "…");
     try {
       const res = await extractResume(f);
+      if (confirm) {
+        setPaste(res.text);
+        setFileName(res.meta.fileName);
+        setStatus("Read " + res.meta.fileName + ". Check the text, then choose Save resume.");
+        return;
+      }
       save(res.text, res.meta.fileName);
       setStatus("");
       setPaste("");
@@ -41,11 +51,14 @@ export function ResumeField({ onPaste, compact }: {
 
   const savePaste = () => {
     if (pasted.trim().length < 40) { setErr("Paste a bit more of your resume (at least a few lines)."); return; }
-    save(pasted, "");
+    save(pasted, fileName);
     setPaste("");
+    setFileName("");
     setErr("");
+    setStatus("");
     setEditing(false);
   };
+  const cancel = () => { setEditing(false); setPaste(""); setFileName(""); setErr(""); setStatus(""); };
 
   if (saved && !editing) {
     return (
@@ -57,10 +70,18 @@ export function ResumeField({ onPaste, compact }: {
           <strong>Using your saved resume</strong>
           <span className="small muted">{resumeLabel(saved)}</span>
         </div>
-        <div className="rf-actions">
-          <button type="button" className="btn btn-small" onClick={() => { setEditing(true); setErr(""); }}>Replace</button>
-          <button type="button" className="link-btn small" onClick={() => { clear(); setPaste(""); }}>Remove</button>
-        </div>
+        {removing ? (
+          <div className="rf-actions rf-confirm" role="group" aria-label="Remove your resume">
+            <span className="small">Remove your saved resume?</span>
+            <button type="button" className="btn btn-small btn-danger" onClick={() => { clear(); setPaste(""); setRemoving(false); }}>Remove</button>
+            <button type="button" className="btn btn-ghost btn-small" onClick={() => setRemoving(false)}>Keep it</button>
+          </div>
+        ) : (
+          <div className="rf-actions">
+            <button type="button" className="btn btn-small" onClick={() => { setEditing(true); setErr(""); }}>Replace</button>
+            <button type="button" className="link-btn small" onClick={() => setRemoving(true)}>Remove</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -79,8 +100,12 @@ export function ResumeField({ onPaste, compact }: {
         placeholder="Paste your resume text here…" value={pasted} onChange={(e) => setPaste(e.target.value)} />
       {err && <p className="error" role="alert">{err}</p>}
       <div className="row wrap">
-        {pasted.trim() && <button type="button" className="btn btn-small" onClick={savePaste}>Save resume</button>}
-        {saved && <button type="button" className="btn btn-ghost btn-small" onClick={() => { setEditing(false); setPaste(""); setErr(""); }}>Keep the saved one</button>}
+        {confirm
+          ? <button type="button" className="btn btn-primary btn-small" disabled={!pasted.trim()} onClick={savePaste}>Save resume</button>
+          : pasted.trim() && <button type="button" className="btn btn-small" onClick={savePaste}>Save resume</button>}
+        {saved
+          ? <button type="button" className="btn btn-ghost btn-small" onClick={cancel}>{confirm ? "Cancel" : "Keep the saved one"}</button>
+          : confirm && pasted.trim() ? <button type="button" className="btn btn-ghost btn-small" onClick={cancel}>Cancel</button> : null}
       </div>
     </div>
   );
