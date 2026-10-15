@@ -75,7 +75,23 @@ const NEXT = [
   { when: "Sat", what: "Add one number to each of your three main stories" },
 ];
 
+/** Sample dates relative to today, so the report never looks out of date:
+ * interview in 8 days, ready (80) in 4. */
+function sampleDates() {
+  const day = (n: number) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+  const md = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const wd = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short" });
+  const iv = day(8), ready = day(4);
+  return { interview: wd(iv) + ", " + md(iv), ready: md(ready), thu: wd(day(2)), sat: wd(day(4)) };
+}
+
 export default function SampleReportPage() {
+  const d = sampleDates();
+  const next = [
+    { when: "Today", what: NEXT[0].what },
+    { when: d.thu, what: NEXT[1].what },
+    { when: d.sat, what: NEXT[2].what },
+  ];
   return (
     <div className="page sr">
       <div className="demo-banner">
@@ -86,13 +102,13 @@ export default function SampleReportPage() {
         <div>
           <p className="sr-kicker">Voice mock · System design · 24 min</p>
           <h2 id="sr-h">Senior AI Engineer at Northwind</h2>
-          <p className="muted">Interview on Thu, Oct 22 · this was your 3rd mock for this job</p>
+          <p className="muted">Interview on {d.interview} · this was your 3rd mock for this job</p>
         </div>
         <div className="sr-ready">
           <span className="sr-ring"><b>72</b></span>
           <div>
             <span className="sr-label">Readiness after this mock</span>
-            <strong>Ready by Oct 18</strong>
+            <strong>Ready by {d.ready}</strong>
             <span className="muted small">4 days before your interview · up from 64</span>
           </div>
         </div>
@@ -152,7 +168,7 @@ export default function SampleReportPage() {
       <section className="card" aria-labelledby="sr-next-h">
         <h3 id="sr-next-h" className="sr-h">Added to your plan</h3>
         <ul className="sr-next">
-          {NEXT.map((n) => <li key={n.what}><span className="sr-when">{n.when}</span>{n.what}</li>)}
+          {next.map((n) => <li key={n.what}><span className="sr-when">{n.when}</span>{n.what}</li>)}
         </ul>
         <p className="small muted">Weak answers come back in your plan before the interview, so you practise them again rather than forget them.</p>
       </section>

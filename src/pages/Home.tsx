@@ -12,6 +12,7 @@
 
 import { DOCS_BASE } from "../config";
 import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
+import { LIMITS } from "../lib/plans";
 import { displayJobTitle } from "../lib/roles";
 import { ExternalLink, Link } from "../lib/router";
 import { Icon, type IconName } from "../components/Icon";
@@ -102,15 +103,15 @@ function ContinueBar() {
 
 /* ---------- what only OfferReady does: tabbed showcase ---------- */
 
-/* A sample: Today (58) → Ready in 10 days (80) → Interview in 14 days.
- * 10 days to ready, then a 4-day buffer, so Ready sits at 10/14 of the track. */
-/** Sample dates stay realistic on any day: interview in 14 days, ready in 10
- * (58 now, about +2 points a day, so 80 by the ready date). */
+/* A sample: Today (58) → Ready in 11 days (80, at +2 a day as lib/forecast
+ * projects) → Interview in 15 days. Ready sits at 11/15 of the track. */
+/** Sample dates stay realistic on any day: interview in 15 days, ready in 11
+ * (58 now, +2 points a day: ceil((80 − 58) / 2) = 11). */
 function sampleDates() {
   const day = (n: number) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
   const md = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   const wd = (d: Date) => d.toLocaleDateString("en-US", { weekday: "short" });
-  const ready = day(10), interview = day(14);
+  const ready = day(11), interview = day(15);
   return { ready: md(ready), interview: md(interview), interviewFull: wd(interview) + ", " + md(interview) };
 }
 
@@ -129,12 +130,12 @@ function ForecastSample() {
         <p className="hm-fc-margin"><Icon name="check" size={15} /> 4 days before your interview</p>
       </div>
       <div className="hm-fc-tl" aria-hidden="true">
-        <span className="hm-fc-flag" style={{ left: "71.4%" }}>Ready · 80</span>
+        <span className="hm-fc-flag" style={{ left: "73.3%" }}>Ready · 80</span>
         <div className="hm-fc-track">
-          <span className="hm-fc-run" style={{ width: "71.4%" }} />
-          <span className="hm-fc-buf" style={{ left: "71.4%" }} />
+          <span className="hm-fc-run" style={{ width: "73.3%" }} />
+          <span className="hm-fc-buf" style={{ left: "73.3%" }} />
           <span className="hm-fc-dot hm-fc-dot-now" style={{ left: "0%" }} />
-          <span className="hm-fc-dot hm-fc-dot-ready" style={{ left: "71.4%" }} />
+          <span className="hm-fc-dot hm-fc-dot-ready" style={{ left: "73.3%" }} />
           <span className="hm-fc-dot hm-fc-dot-int" style={{ left: "100%" }} />
         </div>
         <div className="hm-fc-ends">
@@ -144,6 +145,126 @@ function ForecastSample() {
       </div>
       <p className="hm-fc-foot" aria-hidden="true">From your last 14 days of practice: about +2 points a day.</p>
     </figure>
+  );
+}
+
+
+/* ---------- sample result, right after the hero ----------
+ * What one job looks like after it's added and practised once, on the same
+ * sample data as /sample-report (Senior AI Engineer at Northwind). Each panel
+ * mirrors a real output: the job analysis (skills found / gaps), a question
+ * written for the job, the interviewer's follow-up with rubric feedback that
+ * quotes the answer, and the next plan task. */
+const PV_REQS: { skill: string; found: boolean }[] = [
+  { skill: "Python", found: true }, { skill: "RAG", found: true }, { skill: "AWS", found: true },
+  { skill: "Evaluation", found: false }, { skill: "Guardrails / PII", found: false },
+];
+
+function SamplePreview() {
+  return (
+    <section className="hm-section hm-pv-wrap" aria-labelledby="hm-pv-h">
+      <header className="hm-head">
+        <h2 id="hm-pv-h" className="hm-h2">Prepared for this job, then pushed like a real interviewer</h2>
+        <p className="hm-sub">General AI chat answers what you ask. OfferReady starts from the job description, finds your gaps, then keeps asking “why?” until your answer holds. Here’s one job, on sample data.</p>
+      </header>
+      <div className="hm-pv" role="group" aria-label="Sample result for one job">
+        <div className="hm-pv-top">
+          <span className="hm-pv-job"><b>Senior AI Engineer</b> · Northwind (sample)</span>
+          <span className="hm-fc-sample">Sample data</span>
+        </div>
+        <div className="hm-pv-grid">
+          <div className="hm-pv-card">
+            <p className="hm-pv-k"><Icon name="target" size={15} /> What the job asks</p>
+            <ul className="hm-pv-reqs">
+              {PV_REQS.map((r) => (
+                <li key={r.skill} className={r.found ? "found" : "gap"}>
+                  <span aria-hidden="true">{r.found ? <Icon name="check" size={13} /> : "!"}</span>{r.skill}<span className="hm-sr">{r.found ? ": found in your resume" : ": a gap"}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="hm-pv-note">3 of 5 found in your resume.</p>
+          </div>
+          <div className="hm-pv-card">
+            <p className="hm-pv-k"><Icon name="search" size={15} /> Your top gap</p>
+            <p className="hm-pv-strong">Guardrails and PII in production</p>
+            <p className="hm-pv-note">Not shown on your resume. The role handles customer data, so expect “how do you keep PII out of prompts?”</p>
+          </div>
+          <div className="hm-pv-card hm-pv-wide">
+            <p className="hm-pv-k"><Icon name="chat" size={15} /> A question written for this job</p>
+            <p className="hm-pv-q">“Design a RAG assistant for a support team with 40,000 articles.”</p>
+            <p className="hm-pv-k hm-pv-k2"><Icon name="shield" size={15} /> The follow-up</p>
+            <p className="hm-pv-q hm-pv-fu">“What happens when retrieval returns nothing useful?”</p>
+            <div className="hm-pv-fb">
+              <span><b>Structure</b> <span className="pill pill-ok">Strong</span></span>
+              <span><b>Evidence</b> <span className="pill pill-warn">Needs work</span></span>
+              <span className="hm-pv-quote">Quoted from your answer: “top five for the model”. Name the evaluation set you’d gate releases on.</span>
+            </div>
+          </div>
+          <div className="hm-pv-card hm-pv-next">
+            <p className="hm-pv-k"><Icon name="calendar" size={15} /> Added to your plan</p>
+            <p className="hm-pv-strong">Today, 5 min: re-answer “PII in prompts” out loud</p>
+            <p className="hm-pv-note">Then a trade-off drill on retrieval vs fine-tuning. Weak answers come back before the interview.</p>
+          </div>
+        </div>
+        <div className="hm-pv-foot">
+          <Link className="hm-link" to="/sample-report">See the full sample report<Icon name="arrow" size={15} /></Link>
+          <Link className="hm-link" to="/try">Try a sample question yourself<Icon name="arrow" size={15} /></Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------- readiness, worked out ----------
+ * Only what the app computes: readiness = 50% resume match + 30% practice +
+ * 20% plan progress (lib/readiness weightedOverall); "ready" is 80 and the
+ * ready date comes from the last 14 days of scores (lib/forecast). */
+function ReadinessWorked() {
+  const d = sampleDates();
+  const parts: { label: string; value: number; weight: number }[] = [
+    { label: "Resume match", value: 72, weight: 50 },
+    { label: "Practice scores", value: 51, weight: 30 },
+    { label: "Plan done", value: 31, weight: 20 },
+  ];
+  const skills: { name: string; pct: number }[] = [
+    { name: "RAG", pct: 78 }, { name: "Evaluation", pct: 52 }, { name: "Guardrails / PII", pct: 35 },
+  ];
+  return (
+    <section className="hm-section" aria-labelledby="hm-rw-h">
+      <header className="hm-head">
+        <h2 id="hm-rw-h" className="hm-h2">Know what to do today, and when you’ll be ready</h2>
+        <p className="hm-sub">Each job page shows your interview date, today’s plan with your weakest areas first, and one score that moves as you practise.</p>
+      </header>
+      <div className="hm-rw">
+        <div className="hm-rw-card">
+          <div className="hm-pv-top"><span className="hm-pv-job"><b>Interview</b> {d.interviewFull} · in 15 days</span><span className="hm-fc-sample">Sample</span></div>
+          <p className="hm-pv-k"><Icon name="list" size={15} /> Today’s plan, weakest first</p>
+          <ul className="hm-rw-tasks">
+            <li className="done"><Icon name="check" size={13} /> Trade-off drill: retrieval vs fine-tuning</li>
+            <li><span className="hm-float-box" aria-hidden="true" /> Study: guardrails and PII · 30 min</li>
+            <li><span className="hm-float-box" aria-hidden="true" /> Answer 3 questions out loud · 20 min</li>
+          </ul>
+          <p className="hm-pv-k"><Icon name="gauge" size={15} /> Your skills for this job</p>
+          <ul className="hm-rw-skills">
+            {skills.map((k) => (
+              <li key={k.name}><span>{k.name}</span><span className="hm-rw-bar" aria-hidden="true"><span style={{ width: k.pct + "%" }} className={k.pct < 50 ? "low" : k.pct < 75 ? "mid" : ""} /></span><b>{k.pct}%</b></li>
+            ))}
+          </ul>
+          <p className="hm-pv-note">Streak: 4 days · Tasks this week: 6</p>
+        </div>
+        <div className="hm-rw-card">
+          <p className="hm-pv-k"><Icon name="gauge" size={15} /> How the score is worked out</p>
+          <p className="hm-rw-score"><b>58</b><span> / 100 today · ready at 80</span></p>
+          <ul className="hm-rw-parts">
+            {parts.map((x) => (
+              <li key={x.label}><span>{x.label} <small>{x.weight}%</small></span><b>{x.value}</b></li>
+            ))}
+          </ul>
+          <p className="hm-pv-note">50% resume match + 30% practice + 20% plan progress. At your pace over the last 14 days (about +2 a day), you reach 80 by <b>{d.ready}</b>, 4 days before the interview.</p>
+          <p className="hm-rw-next"><span>Do this next</span>Study: guardrails and PII</p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -191,6 +312,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* 2. a sample result for one job, right after the hero */}
+      <SamplePreview />
+
       {/* roles strip */}
       <section className="hm-roles" aria-label="Roles OfferReady is built for">
         <p className="hm-roles-label">Built for technical interviews in</p>
@@ -208,6 +332,9 @@ export default function HomePage() {
         <DemoTour />
         <p className="hm-demo-more"><Link className="hm-link" to="/demo#coach">The AI Interview Coach, step by step<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/demo#demo-video-h">Watch it as a video<Icon name="arrow" size={15} /></Link><Link className="hm-link" to="/sample-report">See a sample report<Icon name="arrow" size={15} /></Link></p>
       </section>
+
+      {/* 3a. readiness, worked out */}
+      <ReadinessWorked />
 
       {/* 3b. every round */}
       <section className="hm-section" aria-labelledby="hm-fmt-h">
@@ -261,13 +388,19 @@ export default function HomePage() {
         <div className="hm-plans-intro">
           <p className="hm-kicker">Plans</p>
           <h2 id="hm-plan-h" className="hm-h2">Start free. Pay once when your interview is real.</h2>
-          <p className="hm-sub">The free plan covers a full prep loop for one job. When an interview is booked, a one-time pass covers your search: {PASSES.job.price} for one job, up to {PASSES.pass365.price} for a year. No subscription, nothing to cancel.</p>
+          <p className="hm-sub">The free plan covers a full prep loop for one job. When an interview is booked, a one-time pass covers your search: {PASSES.job.price} for one job, up to {PASSES.pass365.price} for a year. No subscription, nothing to cancel. Pass amounts are for the whole pass.</p>
         </div>
         <ul className="hm-tiers" aria-label="Plans">
           <li className="hm-tier">
             <span className="hm-tier-name">Free</span>
             <span className="hm-tier-price">$0</span>
             <span className="hm-tier-fit">One job, the full prep loop to try it</span>
+            <ul className="hm-tier-lim">
+              <li>Resets every month</li>
+              <li>{LIMITS.free.saved_jobs} saved job</li>
+              <li>{LIMITS.free.voice_mock} voice mock a month</li>
+              <li>{LIMITS.free.ai_grading} AI feedback a month</li>
+            </ul>
           </li>
           {PASS_ORDER.map((k) => {
             const p = PASSES[k];
@@ -278,6 +411,12 @@ export default function HomePage() {
                 <span className="hm-tier-name">{p.name}</span>
                 <span className="hm-tier-price">{p.price}<small> once</small></span>
                 <span className="hm-tier-fit">{p.fit}</span>
+                <ul className="hm-tier-lim">
+                  <li>{p.days} days of access</li>
+                  <li>{p.limits.saved_jobs} saved {p.limits.saved_jobs === 1 ? "job" : "jobs"}</li>
+                  <li>{p.limits.voice_mock} voice mocks</li>
+                  <li>{(p.limits.ai_grading ?? 0).toLocaleString("en-US")} AI feedback</li>
+                </ul>
               </li>
             );
           })}

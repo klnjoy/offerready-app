@@ -220,7 +220,9 @@ export default function PricingPage() {
         </div>
         <p className="hint">
           Pass numbers are for the whole pass, not per month. Saved jobs is how many you can keep at once. A use counts
-          only when the AI result comes back; failed or timed-out requests aren’t counted.
+          only when the AI result comes back; failed or timed-out requests aren’t counted. AI feedback covers answer
+          feedback and the AI Interview Coach. A voice mock counts once, however many follow-ups it has. Free amounts
+          reset on the 1st of each month (UTC).
         </p>
       </section>
 
