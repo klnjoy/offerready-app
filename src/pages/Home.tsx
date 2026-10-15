@@ -14,7 +14,9 @@ import { DOCS_BASE } from "../config";
 import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
 import { LIMITS } from "../lib/plans";
 import { displayJobTitle } from "../lib/roles";
-import { ExternalLink, Link } from "../lib/router";
+import { ExternalLink, Link, useLocation } from "../lib/router";
+import { useAuth } from "../lib/auth";
+import { Loading } from "../components/ui";
 import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
@@ -271,6 +273,15 @@ function ReadinessWorked() {
 /* ---------- page ---------- */
 
 export default function HomePage() {
+  const auth = useAuth();
+  const jobs = useJobs();
+  const { search } = useLocation();
+  // Signed in with a job: LandOnJob opens it. Show a short loading state
+  // meanwhile instead of flashing the sample screens. "/?home=1" opts out.
+  const wantsHome = /[?&]home\b/.test(search);
+  if (!wantsHome && ((auth.configured && !auth.ready) || (auth.session && (jobs.status === "loading" || (jobs.status === "ready" && jobs.jobs.length > 0))))) {
+    return <div className="page"><Loading /></div>;
+  }
   return (
     <div className="page hm">
       <ContinueBar />
