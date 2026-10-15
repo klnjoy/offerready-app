@@ -33,7 +33,10 @@ import { SignInCard } from "../components/AuthForm";
 import { FitDetails } from "../components/FitSummary";
 import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import { LIMITS } from "../lib/plans";
-import type { Analysis, GapResult, Skill } from "../types";
+import type { Analysis, GapResult, JobRow, Skill } from "../types";
+import { displayJobTitle } from "../lib/roles";
+import { clearActiveJob, getActiveJob } from "../lib/readiness";
+import { jobsChanged } from "../components/JobNav";
 import { track } from "../lib/track";
 
 interface ResultMeta {
@@ -529,6 +532,13 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
   const navigate = useNavigate();
   const [saveMsg, setSaveMsg] = useState<SaveMsg>(meta.saveNote ? { text: meta.saveNote } : null);
   const [busy, setBusy] = useState(false);
+  // After the user presses Save, the answer shows right under the button
+  // (it used to appear only at the top of the page, out of sight).
+  const [pressed, setPressed] = useState(false);
+  const saveRef = useRef<HTMLDivElement | null>(null);
+  /** Saved jobs, shown when the plan is full so one can be swapped out here. */
+  const [fullList, setFullList] = useState<JobRow[] | null>(null);
+  const [swap, setSwap] = useState<string>("");
   const [copied, setCopied] = useState("");
   const [feedback, setFeedback] = useState<"none" | "done">("none");
 
@@ -544,6 +554,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
   const saveToJobs = async () => {
     if (busy) return;
     setBusy(true);
+    setPressed(true);
     setSaveMsg({ text: "Saving…" });
     const token = await auth.getAccessToken();
     if (!token) { setBusy(false); setSaveMsg({ text: <>Please <Link to="/account">sign in</Link> to save this job.</> }); return; }
@@ -554,10 +565,35 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
       setActiveJob(res.body.job.id);
       navigate("/jobs/" + encodeURIComponent(res.body.job.id) + "?added=1");
     } else if (res.status === 403 && res.body?.upgrade) {
-      setSaveMsg({ text: <>Free includes {LIMITS.free.saved_jobs} saved job. <Link to="/pricing">Get a pass</Link> to save more, or remove one in <Link to="/jobs">Jobs</Link>.</> });
+      const cap = Number((res.body as { limit?: number } | null)?.limit) || LIMITS.free.saved_jobs;
+      void api.listJobs(token).then((l) => { if (l.status === 200 && l.body?.jobs) setFullList(l.body.jobs); });
+      setSaveMsg({ err: true, text: <>
+        <strong>Not saved: your plan keeps {cap} saved {cap === 1 ? "job" : "jobs"}, and it{"’"}s full.</strong>{" "}
+        Swap out a job you no longer need below, or <Link to="/pricing">get a pass</Link> to keep more.
+      </> });
     } else if (res.status === 401) setSaveMsg({ text: <>Please <Link to="/account">sign in</Link> to save this job.</> });
     else if (res.status === 0) setSaveMsg({ text: "Couldn't reach the server. Please try again.", err: true });
     else setSaveMsg({ text: res.body?.error || "Couldn't save this job. Please try again.", err: true });
+  };
+
+  /** Delete one saved job, then save this one in its place. */
+  const swapAndSave = async (oldId: string) => {
+    if (busy) return;
+    setBusy(true);
+    setSaveMsg({ text: "Deleting the old job…" });
+    const token = await auth.getAccessToken();
+    const del = token ? await api.deleteJob(token, oldId) : null;
+    if (!del || (del.status !== 200 && del.status !== 404)) {
+      setBusy(false);
+      setSaveMsg({ err: true, text: del?.status === 0 ? "Couldn’t reach the server. Please try again." : "Couldn’t delete that job, so nothing changed. Please try again." });
+      return;
+    }
+    if (getActiveJob() === oldId) clearActiveJob();
+    jobsChanged();
+    setFullList(null);
+    setSwap("");
+    setBusy(false);
+    await saveToJobs();
   };
 
   const recordFeedback = (v: "up" | "down") => {
@@ -577,7 +613,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
           {meta.note || "This was not generated from your resume."}
         </div>
       )}
-      {!meta.demo && !meta.shared && saveMsg && (
+      {!meta.demo && !meta.shared && saveMsg && !pressed && (
         <div className={"aj-notice" + (saveMsg.err ? " is-err" : "")} role="status">{saveMsg.text}</div>
       )}
       <p className="hint">Preparation guidance only, <strong>not a prediction</strong> of interview or offer outcomes.</p>
@@ -735,7 +771,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
           <div className="field-label">Save &amp; share this plan</div>
           <div className="row wrap">
             {!meta.shared && (
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={saveToJobs}>Save this job</button>
+              <button type="button" className="btn btn-primary" disabled={busy} onClick={saveToJobs}>{busy ? "Saving…" : "Save this job"}</button>
             )}
             <button type="button" className="btn btn-ghost" onClick={async () => { if (await copyText(toMarkdown(a))) flash("md"); }}>
               {copied === "md" ? "Copied ✓" : "Copy plan (Markdown)"}
@@ -751,6 +787,27 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
               {copied === "link" ? "Link copied ✓" : copied === "nolink" ? "Couldn't build link" : "Copy shareable link"}
             </button>
           </div>
+          {pressed && saveMsg ? (
+            <div ref={saveRef} className={"aj-notice aj-save-msg" + (saveMsg.err ? " is-err" : "")} role="status">{saveMsg.text}</div>
+          ) : null}
+          {pressed && fullList && fullList.length ? (
+            <ul className="aj-swap" aria-label="Your saved jobs">
+              {fullList.map((j) => (
+                <li key={j.id}>
+                  <span className="aj-swap-t"><strong>{displayJobTitle(j)}</strong>{j.company ? <span className="muted"> {"·"} {j.company}</span> : null}</span>
+                  {swap === j.id ? (
+                    <span className="row wrap">
+                      <span className="small">Delete it, with its plan and practice?</span>
+                      <button type="button" className="btn btn-danger btn-small" disabled={busy} onClick={() => swapAndSave(j.id)}>{busy ? "Working…" : "Delete and save"}</button>
+                      <button type="button" className="btn btn-ghost btn-small" disabled={busy} onClick={() => setSwap("")}>Keep it</button>
+                    </span>
+                  ) : (
+                    <button type="button" className="btn btn-small" onClick={() => setSwap(j.id)}>Delete and save this one instead</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <p className="hint">
             {meta.shared
               ? "You're viewing a shared plan. Nothing here is stored on a server."
