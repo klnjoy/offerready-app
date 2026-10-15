@@ -10,7 +10,7 @@ import { GetAppChip } from "./components/GetAppChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
-import { JobPager, JobTrail, JobTree, PageToc, useJobNav } from "./components/JobNav";
+import { JobMenu, JobPager, JobTrail, JobTree, PageToc, useJobNav } from "./components/JobNav";
 import { useJobs } from "./lib/useJobs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
 import { track } from "./lib/track";
@@ -63,6 +63,9 @@ interface Route {
   back?: { to: string; label: string };
   component: ComponentType<Record<string, string>>;
 }
+
+/** Pages that spend AI allowance: only these show the usage warning. */
+const AI_PAGES = ["/analyze", "/tailor", "/coach", "/questions", "/defend", "/stories", "/practice/bank", "/mock", "/interview/voice", "/simulator", "/account"];
 
 const BACK_PRACTICE = { to: "/practice", label: "Practice" };
 const BACK_MOCK = { to: "/mock", label: "Mock interview" };
@@ -170,7 +173,12 @@ export default function App() {
   const signedIn = !!useAuth().session;
   const { pathname, search, hash } = useLocation();
   const jobs = useJobs();
-  const nav = useJobNav(jobs);
+  const jobNav = useJobNav(jobs);
+  const nav = jobNav?.scoped ? jobNav : null;
+  // Phones: with a job, the top bar's Menu opens the job folders (one menu,
+  // not two). Without one, it shows the plain list of sections.
+  const [jobMenu, setJobMenu] = useState(false);
+  useEffect(() => setJobMenu(false), [pathname, search]);
   const [menuOpen, setMenuOpen] = useState(false);
 
   let match: { route: Route; params: Record<string, string> } | null = null;
@@ -218,7 +226,7 @@ export default function App() {
             <p>{match.route.subtitle}</p>
           </header>
         ) : null}
-        {pathname !== "/" ? <UsageAlert /> : null}
+        {AI_PAGES.some((x) => pathname === x || pathname.startsWith(x + "/")) ? <UsageAlert /> : null}
         {match && (match.route.back === BACK_PRACTICE || match.route.path === "/mock") ? <PracticeTabs /> : null}
         <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<div className="page"><Loading /></div>}>
@@ -252,16 +260,20 @@ export default function App() {
             </Link>
             <SyncIndicator />
             <AccountMenu pathname={pathname} />
-            <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
-              {menuOpen ? "Close" : "Menu"}
-            </button>
+            {jobNav ? (
+              <button type="button" className="menu-btn" aria-expanded={jobMenu} aria-controls="jn-drawer" onClick={() => setJobMenu(true)}>Menu</button>
+            ) : (
+              <button type="button" className="menu-btn" aria-expanded={menuOpen} aria-controls="main-nav" onClick={() => setMenuOpen((o) => !o)}>
+                {menuOpen ? "Close" : "Menu"}
+              </button>
+            )}
           </div>
         </div>
       </header>
       )}
 
       <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (nav ? " main-jn" : "")}>
-        {nav ? <JobTrail nav={nav} jobs={jobs} /> : null}
+        {nav ? <JobTrail nav={nav} /> : null}
         {nav ? (
           <div className="jn-layout">
             <aside className="jn-side"><JobTree nav={nav} jobs={jobs} /></aside>
@@ -274,6 +286,7 @@ export default function App() {
         ) : body}
       </main>
 
+      {jobNav && jobMenu ? <JobMenu nav={jobNav} jobs={jobs} onClose={() => setJobMenu(false)} /> : null}
       <HelpBot />
       <FeedbackDialog />
 

@@ -112,6 +112,8 @@ function useJobId(pathname: string, search: string, jobs: JobsState): string {
 }
 
 export interface JobNavModel {
+  /** The page belongs to a job: show the trail, side list and previous/next. */
+  scoped: boolean;
   jobId: string;
   title: string;
   groups: Group[];
@@ -120,7 +122,8 @@ export interface JobNavModel {
   hub?: boolean;
 }
 
-/** Everything the trail, sidebar and footer need, or null when they don't show. */
+/** Everything the trail, sidebar, footer and phone menu need, or null when
+ * there's no job yet (signed out, or no jobs). */
 export function useJobNav(live: JobsState): JobNavModel | null {
   const { pathname, search } = useLocation();
   // While the list reloads (after a rename, say), keep showing the last one,
@@ -143,10 +146,10 @@ export function useJobNav(live: JobsState): JobNavModel | null {
   const missing = m && jobs.status === "ready" && !jobs.jobs.some((j) => j.id === decodeURIComponent(m[1]));
   useEffect(() => { if (missing) reload(); }, [missing, reload]);
 
-  if (!scoped || jobs.status !== "ready" || !jobId) return null;
+  if (jobs.status !== "ready" || !jobId) return null;
   const job = jobs.jobs.find((j) => j.id === jobId);
-  const loc = locate(pathname, search);
-  return { jobId, title: displayJobTitle(job), groups, ...loc };
+  const loc = scoped ? locate(pathname, search) : { key: null };
+  return { scoped, jobId, title: displayJobTitle(job), groups, ...loc };
 }
 
 function findItem(nav: JobNavModel): { group: Group; item: Item } | null {
@@ -157,10 +160,7 @@ function findItem(nav: JobNavModel): { group: Group; item: Item } | null {
 // ---------------------------------------------------------------------------
 // Trail
 
-export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
-  const [open, setOpen] = useState(false);
-  const { pathname, search } = useLocation();
-  useEffect(() => setOpen(false), [pathname, search]);
+export function JobTrail({ nav }: { nav: JobNavModel }) {
   const found = findItem(nav);
   const jobTo = "/jobs/" + enc(nav.jobId);
   const crumbs: { label: string; to?: string }[] = [
@@ -178,10 +178,6 @@ export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
   const last = crumbs.length - 1;
   return (
     <div className="jn-trail-row">
-      <button type="button" className="jn-open" aria-expanded={open} aria-controls="jn-drawer" aria-label="Open the list of your jobs and steps" onClick={() => setOpen(true)}>
-        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-        <span>Steps</span>
-      </button>
       <nav className="jn-trail" aria-label="You are here">
         <ol>
           {crumbs.map((c, i) => (
@@ -193,7 +189,6 @@ export function JobTrail({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
           ))}
         </ol>
       </nav>
-      {open && <Drawer nav={nav} jobs={jobs} onClose={() => setOpen(false)} />}
     </div>
   );
 }
@@ -300,9 +295,10 @@ export function JobTree({ nav, jobs }: { nav: JobNavModel; jobs: JobsState }) {
   );
 }
 
-/** Phones and tablets: the study-notes menu. Slides in from the left, opens
- * at the folder you're in; go into a folder, or back up with the arrow. */
-function Drawer({ nav, jobs, onClose }: { nav: JobNavModel; jobs: JobsState; onClose(): void }) {
+/** Phones and tablets: the one menu (the top bar's Menu button), like the
+ * study notes menu. Slides in from the left, opens at the folder you're in;
+ * go into a folder, or back up with the arrow. */
+export function JobMenu({ nav, jobs, onClose }: { nav: JobNavModel; jobs: JobsState; onClose(): void }) {
   const nodes = buildTree(nav, jobs.jobs);
   const trail = pathTo(nodes, nav);
   const curId = trail[trail.length - 1];

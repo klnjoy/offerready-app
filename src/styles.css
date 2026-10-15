@@ -3839,7 +3839,7 @@ input[type="date"].input::-webkit-calendar-picker-indicator { opacity: 0.7; curs
 .jn-dr-foot { margin: 6px 18px 0; border-top: 0; font-size: 0.95rem; }
 
 /* computer: folder list on the left; "On this page" on the right when wide */
-@media (min-width: 1100px) {
+@media (min-width: 980px) {
   .jn-layout { grid-template-columns: 240px minmax(0, 1fr); }
   .jn-side { display: block; position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 0 10px 16px 0; border-right: 1px solid var(--border); }
   .main-jn .pp-steps { display: none; }
@@ -3848,17 +3848,16 @@ input[type="date"].input::-webkit-calendar-picker-indicator { opacity: 0.7; curs
   .jn-layout { grid-template-columns: 250px minmax(0, 1fr) 200px; }
   .jn-right { display: block; position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; }
 }
-@media (max-width: 1099px) {
-  .jn-open { display: inline-flex; }
-}
 .main-jn .jw-head > .back-link { display: none; }
 @media (max-width: 640px) {
   .jn-trail-row { margin-bottom: 12px; align-items: flex-start; }
   .jn-trail ol { font-size: 0.82rem; padding-top: 8px; }
   /* phones: Jobs › job › current; the parts between are in the menu */
+  .jn-trail ol { flex-wrap: nowrap; padding-top: 0; }
   .jn-trail li:nth-child(n+3):not(:last-child) { display: none; }
-  .jn-trail li:last-child:nth-child(n+4)::before { content: "› … ›"; }
-  .jn-trail li:last-child { overflow-wrap: anywhere; }
+  .jn-trail li:nth-child(2):not(:last-child) { flex: 0 1 auto; min-width: 0; }
+  .jn-trail li:nth-child(2):not(:last-child) a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 42vw; display: inline-block; vertical-align: bottom; }
+  .jn-trail li:last-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
   .jn-pager { grid-template-columns: 1fr; }
   .jn-next { grid-column: 1; }
 }
@@ -3887,4 +3886,17 @@ html, body { overflow-x: clip; }
   .jw-tab-long { display: none; }
   .jw-tab-short { display: inline; }
   .jw-tab { padding: 10px 9px; }
+}
+
+/* In-page job switchers repeat the menu where the job menu shows. */
+.main-jn .rd-switch-box { display: none; }
+.main-jn .rd-switch { grid-template-columns: 1fr; }
+/* Phones: the usage warning is one compact strip, not a big card. */
+@media (max-width: 640px) {
+  .ua { padding: 10px 40px 10px 12px; gap: 8px; margin-bottom: 12px; border-radius: 12px; }
+  .ua-body { flex-basis: 100%; gap: 2px; }
+  .ua-title { font-size: 0.92rem; }
+  .ua-sub { font-size: 0.82rem; }
+  .ua-bar { display: none; }
+  .ua-actions .btn { padding: 5px 10px; font-size: 0.84rem; }
 }
