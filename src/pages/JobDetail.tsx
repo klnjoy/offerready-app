@@ -478,7 +478,7 @@ function Overview({ data }: { data: JobDetail }) {
 
       <RoleGuideCard job={data.job} />
 
-      <SetupOnce jobId={jobId} hasResume={!!resumeSaved?.text} hasFit={!!data.gap} hasDate={!!date}>
+      <SetupOnce jobId={jobId} hasResume={!!resumeSaved?.text || !!data.gap} hasFit={!!data.gap} hasDate={!!date}>
         <FitMini data={data} />
       </SetupOnce>
 
@@ -645,7 +645,7 @@ function DateCard({ date, days, onSet, logTo }: { date: string; days: number | n
       ) : (
         <form className="stack-sm" onSubmit={(e) => { e.preventDefault(); save(); }}>
           <p className="small">{date ? "Pick the new date." : "When is your interview? Your plan fits the days you have."}</p>
-          <label className="td-sr" htmlFor="td-date-input">Interview date</label>
+          <label className="td-date-label" htmlFor="td-date-input">Interview date</label>
           <input id="td-date-input" className="input" type="date" min={localDay()} value={val} onChange={(e) => setVal(e.target.value)} />
           <div className="row">
             <button type="submit" className="btn btn-primary btn-small" disabled={!val}>Save date</button>
