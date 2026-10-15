@@ -80,8 +80,10 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
     { id: "practice", title: "Practise every day", to: "/practice", items: path.map((s) => ({
       key: s.key, label: s.label, to: stepHref(s, jobId), n: s.n, done: s.done,
     })) },
-    { id: "any", title: "Any time", items: [
+    { id: "coach", title: "AI Interview Coach", flat: true, items: [
       { key: "coach", label: "AI Interview Coach", to: "/coach" },
+    ] },
+    { id: "any", title: "Any time", items: [
       { key: "bank", label: "Question bank", to: "/practice/bank" },
       { key: "readiness", label: "Readiness", to: wj("/dashboard") },
     ] },
