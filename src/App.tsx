@@ -165,6 +165,7 @@ function AccountMenu({ pathname }: { pathname: string }) {
 }
 
 export default function App() {
+  const signedIn = !!useAuth().session;
   const { pathname, search, hash } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -253,7 +254,7 @@ export default function App() {
       <footer className="footer">
         <div className="footer-top">
           <Link className="footer-logo" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
-          <Link className="btn footer-cta" to="/analyze">Start free</Link>
+          {signedIn ? <Link className="btn footer-cta" to="/jobs">Open my jobs</Link> : <Link className="btn footer-cta" to="/analyze">Start free</Link>}
         </div>
         <div className="footer-inner">
           <div className="footer-col">
