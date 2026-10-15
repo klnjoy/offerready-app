@@ -3,7 +3,7 @@
  * (lib/debrief.ts → prepPlan debriefTopics); a next round with a date moves
  * the job's interview date, so the plan rolls forward to it. */
 
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { API_ENABLED } from "../config";
 import {
   FEELINGS, OUTCOME_LABELS, ROUND_LABELS, dateAfterDebrief, debriefReviewTopics, debriefStats, debriefsForJob, statsLine,
@@ -14,6 +14,7 @@ import { syncSharedDebrief, unshareDebrief } from "../lib/communityShare";
 import { getOutcomes } from "../lib/jobOutcomes";
 import { clearNotes, getNotes, hasContent, toDebriefQuestions } from "../lib/interviewNotes";
 import { useAuth } from "../lib/auth";
+import * as api from "../lib/api";
 import { track } from "../lib/track";
 import { submitOutcome } from "../components/OutcomeCheckIn";
 import { formatDay, getInterviewDate, localDay, setInterviewDate } from "../lib/interviewDates";
@@ -267,6 +268,15 @@ function DebriefEditor({ initial, jobTitle, today, onCancel, onSave }: {
         </div>
       </div>
       {err && <p className="error" role="alert">{err}</p>}
+      {isNew ? (
+        <FillBox jobTitle={jobTitle} onFill={(f) => setD((x) => ({
+          ...x,
+          questions: [...x.questions, ...f.questions.map((q) => ({ id: newId("q"), text: q.text, rating: q.rating, note: q.note }))].slice(0, 40),
+          feeling: x.feeling || f.feeling,
+          round: (f.round && (ROUNDS as string[]).includes(f.round) ? f.round : x.round) as Debrief["round"],
+          notes: [x.notes, f.notes].filter((t) => t && t.trim()).join("\n"),
+        }))} />
+      ) : null}
       <form className="dto-form" onSubmit={(e) => { e.preventDefault(); submit(); }}>
         <div className="dto-grid2">
           <label className="dto-field">
@@ -391,5 +401,46 @@ function DebriefEditor({ initial, jobTitle, today, onCancel, onSave }: {
         </div>
       </form>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// "Fill it in for me": tell it how the interview went; it fills in the form.
+
+function FillBox({ jobTitle, onFill }: { jobTitle: string; onFill(f: api.DebriefFill): void }) {
+  const auth = useAuth();
+  const [recap, setRecap] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<ReactNode>("");
+  const fill = async () => {
+    const tok = auth.session ? await auth.getAccessToken() : null;
+    if (!tok) { setMsg(<>Please <Link to="/account">sign in</Link> first.</>); return; }
+    setBusy(true); setMsg("");
+    const res = await api.fillDebrief(tok, recap.trim(), jobTitle ? { title: jobTitle } : undefined);
+    setBusy(false);
+    if (res.status === 200 && res.body?.fill) {
+      onFill(res.body.fill);
+      const n = res.body.fill.questions.length;
+      setRecap("");
+      setMsg(n ? "Added " + n + " " + (n === 1 ? "question" : "questions") + " below. Check each rating and note, then save." : "Added your notes below.");
+      return;
+    }
+    setMsg(res.status === 0 ? "Couldn’t reach the server. Check your connection and try again." : res.status === 429 ? "Too many requests right now. Try again in a minute." : res.body?.error || "Couldn’t fill in the debrief. Please try again.");
+  };
+  return (
+    <div className="sb-draft dto-fill">
+      <div>
+        <strong>Fill it in for me</strong>
+        <p className="small muted">Tell it how the interview went, in your own words: what they asked, how you answered, what was hard. It fills in the questions, how each one went and your notes below, for you to check. It only lists questions you mention.</p>
+      </div>
+      <textarea className="input sb-textarea" rows={4} maxLength={3000} value={recap} aria-label="How the interview went"
+        placeholder="e.g. Technical round with the EM. Asked how I'd evaluate a RAG system: I struggled with faithfulness metrics. Then designing a streaming pipeline in Snowflake, went well. Ended with a conflict story, OK. Felt decent overall."
+        onChange={(e) => setRecap(e.target.value)} />
+      <div className="row wrap">
+        <button type="button" className="btn btn-primary btn-small" disabled={busy || recap.trim().length < 15} onClick={fill}>{busy ? "Filling in…" : "Fill in the debrief"}</button>
+        <span className="small muted">Or skip this and add questions yourself.</span>
+      </div>
+      {msg ? <p className="small" role="status">{msg}</p> : null}
+    </div>
   );
 }

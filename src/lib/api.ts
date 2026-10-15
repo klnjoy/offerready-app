@@ -274,6 +274,26 @@ export function askHelp(question: string, area: string, extra?: Omit<HelpRequest
   });
 }
 
+export interface StoryDraft { title: string; situation: string; task: string; action: string; result: string; metrics: string; tags: string[] }
+
+/** "Draft it for me": a few words or a resume bullet -> a STAR draft. Metered (story_ai). */
+export function draftStory(token: string, notes: string, job?: { title?: string; skills?: string[] }) {
+  return call<{ draft: StoryDraft } & QuotaError>("/api/ask", {
+    method: "POST", token,
+    body: { purpose: "story_draft", notes, context: { surface: "app", page: { title: "Your stories", path: "/stories" }, ...(job ? { job } : {}) } },
+  });
+}
+
+export interface DebriefFill { questions: { text: string; rating: "good" | "ok" | "bad" | ""; note: string }[]; feeling: number; round: string; notes: string }
+
+/** "Fill it in for me": the user's recap of a real interview -> questions, ratings, notes. */
+export function fillDebrief(token: string, recap: string, job?: { title?: string }) {
+  return call<{ fill: DebriefFill }>("/api/ask", {
+    method: "POST", token,
+    body: { purpose: "debrief_fill", recap, context: { surface: "app", page: { title: "Interview debrief", path: "/debrief" }, ...(job ? { job } : {}) } },
+  });
+}
+
 export type HelpStreamOutcome =
   | { kind: "done"; extras: HelpExtras }
   | { kind: "aborted"; gotDelta: boolean }
