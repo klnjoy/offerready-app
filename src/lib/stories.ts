@@ -19,6 +19,8 @@ export interface Story {
   jobIds: string[];
   /** Free-text roles ("Data engineer, Tech lead"). */
   roles: string;
+  /** Drafted by AI and not yet checked by the user ("Draft · check it"). */
+  draft?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -76,6 +78,7 @@ export function normalizeStory(s: Partial<Story>): Story {
     tags: Array.isArray(s.tags) ? s.tags.filter(Boolean) : [],
     jobIds: Array.isArray(s.jobIds) ? s.jobIds.filter(Boolean) : [],
     roles: s.roles || "", createdAt: s.createdAt || now, updatedAt: s.updatedAt || now,
+    ...(s.draft ? { draft: true } : {}),
   };
 }
 
@@ -222,4 +225,23 @@ export function coachPrompt(s: Story): string {
     "R: " + cut(s.result, 90),
     "Metrics: " + cut(s.metrics, 50),
   ].join("\n");
+}
+
+/** Lines of a resume that describe something the person did (good seeds for a
+ * story): bullets with a verb or a number, not headings, contact lines or
+ * "Skill | Skill | Skill" banners. */
+export function storySeedLines(text: string, max = 6): string[] {
+  const out: string[] = [];
+  for (const raw of String(text || "").split(/\n+/)) {
+    const l = raw.replace(/^\s*(?:[-*\u2022\u25aa\u25cf\u2013]|\d+[.)])\s*/, "").trim();
+    if (l.length < 40 || l.length > 320) continue;
+    if ((l.match(/[|\u00b7]/g) || []).length >= 2) continue;
+    if (/@|https?:|linkedin|github\.com|\+?\d[\d ()-]{7,}/i.test(l)) continue;
+    const verb = /\b(led|built|designed|migrated|cut|reduced|improved|launched|delivered|owned|created|automated|scaled|shipped|moved|rebuilt|introduced|mentored|managed|drove|increased|saved|fixed|replaced|implemented|developed|architected|optimi[sz]ed|resolved|negotiated|partnered)\b/i.test(l);
+    const number = /\d/.test(l);
+    if (!verb && !number) continue;
+    if (!out.includes(l)) out.push(l);
+    if (out.length >= max) break;
+  }
+  return out;
 }

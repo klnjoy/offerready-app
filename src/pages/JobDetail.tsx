@@ -22,7 +22,7 @@ import { getHistory, weakTopicScores } from "../lib/progressStore";
 import { band, clearActiveJob, getActiveJob, setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle, roleGuideFor } from "../lib/roles";
 import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router";
-import { useSavedResume } from "../lib/savedResume";
+import { getSavedResume, useSavedResume } from "../lib/savedResume";
 import { loadStories, neededCompetencies, storyGaps } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
 import { KEYS, onDataChanged } from "../lib/storage";
@@ -68,6 +68,8 @@ export default function JobDetailPage({ id }: Record<string, string>) {
   const t = params.get("tab");
   const tab: Tab = t === "resume" || t === "after" || t === "settings" ? t : "overview";
   const added = params.get("added") === "1";
+  const wantFit = params.get("fit") === "1";
+  const [fitBusy, setFitBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -85,6 +87,25 @@ export default function JobDetailPage({ id }: Record<string, string>) {
     })();
     return () => { alive = false; };
   }, [id, auth.ready, auth.session]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Just added with a resume: compare it with the job in the background.
+  const fitRan = useRef(false);
+  useEffect(() => {
+    if (!wantFit || fitRan.current || state.kind !== "ready" || state.data.gap) return;
+    const resume = getSavedResume();
+    if (!resume) return;
+    fitRan.current = true;
+    const d = state.data;
+    const jd = d.job.job_description || d.job.analysis?.roleSummary || "";
+    if (jd.trim().length < 30) return;
+    setFitBusy(true);
+    void (async () => {
+      const tok = await auth.getAccessToken();
+      const res = await api.runGapAnalysis(tok, { jobId: id, role: displayJobTitle(d.job), jobDescription: jd, resumeText: resume.text });
+      setFitBusy(false);
+      if (res.status === 200 && res.body?.result) { invalidatePlan(); setState((s) => (s.kind === "ready" ? { kind: "ready", data: { ...s.data, gap: resultToGapRow(res.body!.result) } } : s)); }
+    })();
+  }, [wantFit, state.kind]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const row = jobs.jobs.find((j) => j.id === id);
   const data = state.kind === "ready" ? state.data : null;
@@ -105,9 +126,9 @@ export default function JobDetailPage({ id }: Record<string, string>) {
               <span className="jw-added-mark" aria-hidden="true">{"✓"}</span>
               <span>
                 <strong>Job added.</strong>{" "}
-                {data.gap ? "Your resume matches " + (data.gap.match_score || 0) + "%. Your plan is ready below." : "Your plan is ready below. Add your resume to see how you match."}
+                {data.gap ? "Your resume matches " + (data.gap.match_score || 0) + "%. Your plan is ready below." : fitBusy ? "Your plan is ready below. Comparing your resume with the job… (a few seconds)" : "Your plan is ready below. Add your resume to see how you match."}
               </span>
-              <button type="button" className="link-btn small" onClick={() => navigate(jobPath(id, tab), { replace: true })}>Dismiss</button>
+              <button type="button" className="link-btn small" onClick={() => navigate(jobPath(id, tab), { replace: true })} disabled={fitBusy}>Dismiss</button>
             </div>
           )}
           <nav className="jw-tabs" aria-label="Job sections">

@@ -236,17 +236,20 @@ export default function AnalyzePage() {
       if (v.interviewDate && isIsoDay(v.interviewDate)) setInterviewDate(jobId, v.interviewDate);
     }
 
-    // Fit check with the saved resume (saved to the job when there is one).
+    // Saved: open the job straight away; its page compares the resume in the
+    // background (?fit=1) so nobody waits for a second AI call here.
+    if (jobId) {
+      navigate("/jobs/" + encodeURIComponent(jobId) + "?added=1" + (resume ? "&fit=1" : ""), { replace: true });
+      return;
+    }
+
+    // Not saved: compare here so the result page can show the match.
     if (resume) {
       setView({ kind: "loading", step: 2, withResume });
       const fit = await api.runGapAnalysis(tok, { jobId: jobId || null, role: v.targetRole || deriveRoleTitle(v.targetRole, a), jobDescription: v.jobDescription, resumeText: resume.text });
       if (fit.status === 200 && fit.body?.result) meta.fit = fit.body.result;
     }
 
-    if (jobId) {
-      navigate("/jobs/" + encodeURIComponent(jobId) + "?added=1", { replace: true });
-      return;
-    }
     setView({ kind: "result", analysis: a, meta });
   };
 

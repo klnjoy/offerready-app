@@ -284,6 +284,14 @@ export function draftStory(token: string, notes: string, job?: { title?: string;
   });
 }
 
+/** Draft stories for several competencies at once from the resume. Metered: 1 story_ai use. */
+export function draftStories(token: string, resume: string, competencies: string[], job?: { title?: string }) {
+  return call<{ stories: StoryDraft[] }>("/api/ask", {
+    method: "POST", token,
+    body: { purpose: "story_batch", resume, competencies, context: { surface: "app", page: { title: "Your stories", path: "/stories" }, ...(job ? { job } : {}) } },
+  });
+}
+
 export interface DebriefFill { questions: { text: string; rating: "good" | "ok" | "bad" | ""; note: string }[]; feeling: number; round: string; notes: string }
 
 /** "Fill it in for me": the user's recap of a real interview -> questions, ratings, notes. */
