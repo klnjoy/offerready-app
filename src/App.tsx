@@ -10,7 +10,7 @@ import { GetAppChip } from "./components/GetAppChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
-import { JobPager, JobTrail, JobTree, useJobNav } from "./components/JobNav";
+import { JobPager, JobTrail, JobTree, PageToc, useJobNav } from "./components/JobNav";
 import { useJobs } from "./lib/useJobs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
 import { track } from "./lib/track";
@@ -264,11 +264,12 @@ export default function App() {
         {nav ? <JobTrail nav={nav} jobs={jobs} /> : null}
         {nav ? (
           <div className="jn-layout">
-            <aside className="jn-side" aria-label="This job"><JobTree nav={nav} jobs={jobs} /></aside>
+            <aside className="jn-side"><JobTree nav={nav} jobs={jobs} /></aside>
             <div className="jn-body">
               {body}
               <JobPager nav={nav} />
             </div>
+            <aside className="jn-right"><PageToc /></aside>
           </div>
         ) : body}
       </main>
