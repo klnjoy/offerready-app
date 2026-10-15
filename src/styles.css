@@ -3923,3 +3923,10 @@ html, body { overflow-x: clip; }
 .jw-tailored { display: flex; flex-direction: column; gap: 10px; border-color: var(--signal); }
 .jw-tc-text summary { cursor: pointer; font-weight: 600; font-size: 0.92rem; color: var(--link); }
 .jw-tc-text pre { white-space: pre-wrap; font-family: inherit; font-size: 0.88rem; max-height: 320px; overflow: auto; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; margin: 8px 0 0; }
+
+/* Sign in (signed out): the home page's header and width, nothing else on the page */
+.main-auth { max-width: calc(var(--mk-w) + 2 * var(--gutter)); padding-top: 40px; }
+.main-auth .auth-split { align-items: stretch; }
+@media (min-width: 820px) { .main-auth .auth-pitch { justify-content: center; } .main-auth .auth-card { padding: 32px; } }
+.auth-more { margin: 4px 0 0; text-align: center; color: var(--text-2); font-size: 0.92rem; }
+.auth-more a { color: var(--link); }
