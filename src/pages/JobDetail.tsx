@@ -37,10 +37,10 @@ import { jobsChanged } from "../components/JobNav";
 import { SettingsTab } from "./JobSettings";
 
 type Tab = "overview" | "resume" | "after" | "settings";
-const TABS: { key: Tab; label: string }[] = [
+const TABS: { key: Tab; label: string; short?: string }[] = [
   { key: "overview", label: "Overview" },
   { key: "resume", label: "Resume" },
-  { key: "after", label: "After the interview" },
+  { key: "after", label: "After the interview", short: "After" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -110,7 +110,9 @@ export default function JobDetailPage({ id }: Record<string, string>) {
           )}
           <nav className="jw-tabs" aria-label="Job sections">
             {TABS.map((x) => (
-              <Link key={x.key} to={jobPath(id, x.key)} className={"jw-tab" + (tab === x.key ? " on" : "")} aria-current={tab === x.key ? "page" : undefined}>{x.label}</Link>
+              <Link key={x.key} to={jobPath(id, x.key)} className={"jw-tab" + (tab === x.key ? " on" : "")} aria-current={tab === x.key ? "page" : undefined}>
+                {x.short ? <><span className="jw-tab-long">{x.label}</span><span className="jw-tab-short" aria-hidden="true">{x.short}</span></> : x.label}
+              </Link>
             ))}
           </nav>
           {tab === "overview" && <Overview data={data} />}

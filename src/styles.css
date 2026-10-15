@@ -3843,7 +3843,6 @@ input[type="date"].input::-webkit-calendar-picker-indicator { opacity: 0.7; curs
   .jn-layout { grid-template-columns: 240px minmax(0, 1fr); }
   .jn-side { display: block; position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; padding: 0 10px 16px 0; border-right: 1px solid var(--border); }
   .main-jn .pp-steps { display: none; }
-  .main-jn .jw-switch { display: none; }
 }
 @media (min-width: 1400px) {
   .jn-layout { grid-template-columns: 250px minmax(0, 1fr) 200px; }
@@ -3877,3 +3876,15 @@ input[type="date"].input::-webkit-calendar-picker-indicator { opacity: 0.7; curs
 .js-msg.ok { color: var(--signal-600); font-weight: 650; }
 .js-danger { border-color: var(--red-border); }
 .rf-confirm { flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Phones: nothing may push the page sideways (iOS lets you pan a page that
+ * is even a few pixels too wide, which hides the left margin). */
+html, body { overflow-x: clip; }
+/* With the Steps menu, the job page doesn't need its own job switcher. */
+.main-jn .jw-switch { display: none; }
+.jw-tab-short { display: none; }
+@media (max-width: 480px) {
+  .jw-tab-long { display: none; }
+  .jw-tab-short { display: inline; }
+  .jw-tab { padding: 10px 9px; }
+}
