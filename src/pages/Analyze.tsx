@@ -224,7 +224,7 @@ export default function AnalyzePage() {
     setView({ kind: "loading", step: 1, withResume });
     let jobId = "";
     if (tok) {
-      const saved = await api.createJob(tok, { analysis: a, title: v.targetRole || a.jobTitle || "", company: (v.company || a.company || "").slice(0, 200), jobDescription: v.jobDescription, model: d.model || "" });
+      const saved = await api.createJob(tok, { analysis: withSummary(a, v.jobDescription), title: v.targetRole || a.jobTitle || "", company: (v.company || a.company || "").slice(0, 200), jobDescription: v.jobDescription, model: d.model || "" });
       if (saved.status === 201 && saved.body?.job?.id) { jobId = saved.body.job.id; track("job_added", { resume: !!withResume }); }
       else if (saved.status === 403 && saved.body?.upgrade) meta.saveNote = <>Free includes {LIMITS.free.saved_jobs} saved job, so this one isn{"’"}t saved. <Link to="/pricing">Get a pass</Link> to keep more, or remove one in <Link to="/jobs">Jobs</Link>.</>;
       else meta.saveNote = saved.status === 0 ? "Couldn’t reach the server to save this job. Try “Save this job” below." : saved.body?.error || "Couldn’t save this job. Try “Save this job” below.";
@@ -525,6 +525,15 @@ function AddJobLoading({ step, withResume }: { step: number; withResume: boolean
 
 // ---- result (sample, shared link, or a job that couldn't be saved) ---------
 
+/** The server needs a role summary; the AI sometimes leaves it empty. Use
+ * the start of the posting (or the title) so the job can still be saved. */
+function withSummary(a: Analysis, jd: string): Analysis {
+  if (a.roleSummary && a.roleSummary.trim()) return a;
+  const flat = (jd || "").replace(/\s+/g, " ").trim();
+  const summary = flat ? (flat.length > 400 ? flat.slice(0, 400).replace(/\s+\S*$/, "") + "\u2026" : flat) : (a.jobTitle || "Saved job");
+  return { ...a, roleSummary: summary };
+}
+
 type SaveMsg = { text: ReactNode; err?: boolean } | null;
 
 function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; meta: ResultMeta; onAnother(): void }) {
@@ -558,7 +567,7 @@ function AnalysisResult({ analysis: a, meta, onAnother }: { analysis: Analysis; 
     setSaveMsg({ text: "Saving…" });
     const token = await auth.getAccessToken();
     if (!token) { setBusy(false); setSaveMsg({ text: <>Please <Link to="/account">sign in</Link> to save this job.</> }); return; }
-    const res = await api.createJob(token, { analysis: a, title: targetRole || a.jobTitle || "", company: (a.company || "").slice(0, 200), jobDescription: meta.input?.jobDescription || "", model: meta.model || "" });
+    const res = await api.createJob(token, { analysis: withSummary(a, meta.input?.jobDescription || ""), title: targetRole || a.jobTitle || "", company: (a.company || "").slice(0, 200), jobDescription: meta.input?.jobDescription || "", model: meta.model || "" });
     setBusy(false);
     if (res.status === 201 && res.body?.job?.id) {
       track("job_added", { via: "save" });
