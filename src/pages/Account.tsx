@@ -125,10 +125,12 @@ export default function AccountPage() {
   };
 
   const UNLOCKS = [
-    ["Saved jobs", "Keep every role you analyze, with its gaps and plan, in one place."],
-    ["Readiness on every device", "Your resume match, questions and practice follow you wherever you sign in."],
-    ["Trade-off drills", "Practise defending your decisions when the interviewer pushes back, counted toward the job you\u2019re preparing for."],
+    ["Your jobs and plan", "Every job you\u2019re preparing for, with its resume match, gaps and a day-by-day plan to the interview."],
+    ["Practice that follows you", "Questions, drills, stories and mock interviews, with your readiness, on every device you sign in on."],
+    ["Every question you were asked", "Keep the real questions from each interview, and practise the ones that went badly."],
   ];
+
+  const [showLocal, setShowLocal] = useState(false);
 
   return (
     <div className="page">
@@ -158,25 +160,25 @@ export default function AccountPage() {
         </>
       )}
       {auth.session ? (
-        <PlanUsageCard
-          billing={billing.info}
-          refreshBilling={billing.refresh}
-          onUpgrade={(o) => { started.current = false; setWantsUpgrade(o || "auto"); }}
-          onPortal={openPortal}
-        />
+        <>
+          <PlanUsageCard
+            billing={billing.info}
+            refreshBilling={billing.refresh}
+            onUpgrade={(o) => { started.current = false; setWantsUpgrade(o || "auto"); }}
+            onPortal={openPortal}
+          />
+          <YourDataCard />
+          <InstallAppCard />
+        </>
       ) : (
-        <Card className="plan-card">
-          <div>
-            <h2>OfferReady passes</h2>
-            <p className="muted">Pay once for the length of your search: the full trade-off drill library, AI answer grading, voice mock interviews and scenarios for your exact job. Nothing renews.</p>
-          </div>
-          <div className="row wrap">
-            <Link className="btn btn-primary" to="/pricing">See passes</Link>
-          </div>
-        </Card>
+        <>
+          <p className="auth-more">
+            Not ready to sign in? <Link to="/try">Try a sample question</Link> {"·"} <Link to="/pricing">See pricing</Link> {"·"}{" "}
+            <button type="button" className="link-btn" aria-expanded={showLocal} onClick={() => setShowLocal((v) => !v)}>Data on this device</button>
+          </p>
+          {showLocal ? <YourDataCard /> : null}
+        </>
       )}
-      <YourDataCard />
-      <InstallAppCard />
     </div>
   );
 }

@@ -65,6 +65,10 @@ interface Route {
   component: ComponentType<Record<string, string>>;
 }
 
+/** Pages a signed-out visitor reaches from the home page: they keep the home
+ * page's header, so signing in doesn't look like a different site. */
+const PUBLIC_PAGES = ["/account", "/pricing", "/demo", "/try", "/faq", "/sample-report", "/app", "/example"];
+
 /** Pages that spend AI allowance: only these show the usage warning. */
 const AI_PAGES = ["/analyze", "/tailor", "/coach", "/questions", "/defend", "/stories", "/practice/bank", "/mock", "/interview/voice", "/simulator", "/account"];
 
@@ -241,7 +245,7 @@ export default function App() {
     <div className="app">
       <a className="skip-link" href="#main">Skip to content</a>
       {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
-      {pathname === "/" ? <MarketingHeader /> : (
+      {pathname === "/" || (!signedIn && PUBLIC_PAGES.includes(pathname)) ? <MarketingHeader /> : (
       <header className="topbar">
         <div className="topbar-inner">
           <Link className="brand" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
@@ -273,7 +277,7 @@ export default function App() {
       </header>
       )}
 
-      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (nav ? " main-jn" : "")}>
+      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (!signedIn && pathname === "/account" ? " main-auth" : "") + (nav ? " main-jn" : "")}>
         {nav ? <JobTrail nav={nav} /> : null}
         {nav ? (
           <div className="jn-layout">
