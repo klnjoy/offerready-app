@@ -4486,3 +4486,28 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .adc-tips ul { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 6px; }
 .adc-tips h2 { font-size: 1.1rem; margin: 0 0 8px; }
 .adc-days .cp-chip.on { background: var(--signal-soft); border-color: #22c07a; color: var(--signal-600); font-weight: 700; }
+
+/* Computer Today v2: numbers across the top, two balanced columns, no "On this page" */
+@media (min-width: 980px) {
+  .main-jn[data-jobhome] .jn-layout { grid-template-columns: 240px minmax(0, 1fr); }
+  .main-jn[data-jobhome] .jn-right { display: none; }
+}
+.tdw-wrap { display: flex; flex-direction: column; gap: 18px; }
+.tdw-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tdw-stat { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.tdw-stat:hover { border-color: var(--border-strong); }
+.tdw-stat.is-set { border-style: dashed; }
+.tdw-stat-text { display: flex; flex-direction: column; min-width: 0; }
+.tdw-stat-text > span { font-size: 0.78rem; font-weight: 650; color: var(--text-2); }
+.tdw-stat-text strong { font-size: 1.6rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.tdw-stat-text strong.tdy-set { font-size: 1.15rem; color: var(--signal-600); padding: 4px 0 2px; }
+.tdw-stat-text em { font-style: normal; font-size: 0.78rem; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tdw-ring { flex: none; }
+.tdw-ring-track { fill: none; stroke: var(--border); stroke-width: 6; }
+.tdw-ring-fill { fill: none; stroke: #22c07a; stroke-width: 6; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
+.tdw-ring-goal { stroke: var(--text-2); stroke-width: 2; stroke-linecap: round; }
+.tdw { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.tdw-side .td-date-card { margin: 0; }
+@media (max-width: 1100px) { .tdw-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1020px) { .tdw { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .tdw-ring-fill { transition: none; } }

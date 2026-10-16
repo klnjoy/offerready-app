@@ -649,24 +649,70 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
       );
     }
 
-    // Computer: the same pieces, in two columns.
+    // Computer: a row of numbers across the top, then two columns built
+    // from the same pieces as the phone.
+    const ring = (pct: number) => {
+      const R = 22; const C = 2 * Math.PI * R; const v = Math.max(0, Math.min(100, pct));
+      return (
+        <svg className="tdw-ring" viewBox="0 0 56 56" width="56" height="56" aria-hidden="true">
+          <circle cx="28" cy="28" r={R} className="tdw-ring-track" />
+          <circle cx="28" cy="28" r={R} className="tdw-ring-fill" strokeDasharray={(C * v) / 100 + " " + C} transform="rotate(-90 28 28)" />
+          <line x1="28" y1="2" x2="28" y2="9" className="tdw-ring-goal" transform={"rotate(" + 0.8 * 360 + " 28 28)"} />
+        </svg>
+      );
+    };
+    const deskStats = (
+      <div className="tdw-stats">
+        <Link to={"/dashboard?job=" + enc(jobId)} className="tdw-stat tdw-stat-ready">
+          {ring(r ?? 0)}
+          <span className="tdw-stat-text">
+            <span>Ready</span>
+            <strong>{r != null ? r + "%" : "—"}</strong>
+            {delta != null && delta !== 0 ? <em className={delta > 0 ? "tdy-up" : "tdy-down"}>{(delta > 0 ? "▲ " + delta : "▼ " + Math.abs(delta)) + " this week · " + deltaWhy}</em> : <em>Goal 80%</em>}
+          </span>
+        </Link>
+        <button type="button" className={"tdw-stat" + (date && !passed ? "" : " is-set")} onClick={openDate}>
+          <span className="tdw-stat-text">
+            <span>Interview</span>
+            {date && !passed ? (days === 0 ? <strong className="tdy-hot">Today</strong> : <strong>{days} {days === 1 ? "day" : "days"}</strong>) : <strong className="tdy-set">Set date</strong>}
+            <em>{date && !passed ? formatDay(date, { weekday: "short", month: "short", day: "numeric" }) : "Plan assumes 2 weeks"}</em>
+          </span>
+        </button>
+        <Link to={"/questions?job=" + enc(jobId)} className="tdw-stat">
+          <span className="tdw-stat-text">
+            <span>Answered</span>
+            <strong>{derived.practised}</strong>
+            <em>{derived.practised === 1 ? "question" : "questions"} for this job</em>
+          </span>
+        </Link>
+        <Link to={jobPath(jobId, "resume")} className="tdw-stat">
+          <span className="tdw-stat-text">
+            <span>Resume match</span>
+            <strong>{data.gap ? (data.gap.match_score || 0) + "%" : "—"}</strong>
+            <em>{data.gap ? derived.gaps.length + (derived.gaps.length === 1 ? " gap" : " gaps") + " to close" : "Add your resume"}</em>
+          </span>
+        </Link>
+      </div>
+    );
     return (
-      <div className="tdw">
-        <div className="tdw-main">
-          {sessionEl}
-          {planEl}
-          {weekEl}
-          <div className="tdy-group">
-            {interviewsRow}
-            {detailsRow(null)}
+      <div className="tdw-wrap">
+        {deskStats}
+        <div className="tdw">
+          <div className="tdw-main">
+            {sessionEl}
+            {planEl}
           </div>
+          <aside className="tdw-side" aria-label="This job at a glance">
+            {!date || passed ? dateCard : null}
+            {weekEl}
+            {gapsEl}
+            <div className="tdy-group">
+              {interviewsRow}
+              {detailsRow(date && !passed ? dateCard : null)}
+            </div>
+            {roleGuide}
+          </aside>
         </div>
-        <aside className="tdw-side" aria-label="This job at a glance">
-          {statsEl}
-          {dateCard}
-          {gapsEl}
-          {roleGuide}
-        </aside>
       </div>
     );
   }
