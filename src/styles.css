@@ -4789,3 +4789,21 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .ro-added { display: inline-flex; align-items: center; justify-content: center; min-width: 84px; padding: 6px 10px; font-size: 0.85rem; font-weight: 700; color: var(--signal-600); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bgj { background: #1d2b45; border: 1px solid rgba(255,255,255,0.12); } }
 :root[data-theme="dark"] .bgj { background: #1d2b45; border: 1px solid rgba(255,255,255,0.12); }
+
+/* Mock interview hub v2 */
+.mk-hero h2 { font-size: 1.25rem; }
+.mk-job select { font: inherit; font-size: 0.85rem; font-weight: 650; color: #f4f8fd; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.22); border-radius: 999px; padding: 6px 12px; max-width: 100%; }
+.mk-job option { color: #0c1c38; }
+.mk-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+.mk-kind { text-align: left; font: inherit; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.05); color: #f4f8fd; cursor: pointer; }
+.mk-kind strong { font-size: 0.92rem; }
+.mk-kind span { font-size: 0.75rem; color: rgba(232,240,252,0.7); line-height: 1.3; }
+.mk-kind.on { border-color: #22c07a; background: rgba(34,192,122,0.16); box-shadow: inset 0 0 0 1px #22c07a; }
+.mk-len { display: flex; gap: 6px; flex-wrap: wrap; }
+.mk-len button { font: inherit; font-size: 0.82rem; font-weight: 650; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,0.22); background: transparent; color: #f4f8fd; cursor: pointer; }
+.mk-len button.on { background: #f4f8fd; color: #0c1c38; border-color: #f4f8fd; }
+.mk-start { margin-top: 4px; }
+.mk-hero .mk-what { -webkit-line-clamp: unset; display: block; font-size: 0.82rem; }
+.mk-art { flex: none; width: 52px; height: 40px; border-radius: 10px; overflow: hidden; }
+.mk-ico { flex: none; width: 52px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: var(--signal-soft); color: var(--signal-600); }
+.mk-recent li { margin: 0; }
