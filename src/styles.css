@@ -4376,3 +4376,47 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .rd-todo2 .rd-todo-why { white-space: normal; line-height: 1.4; }
 .rd-todo-note { margin: 0 4px; }
 .rd-hero-side:empty { display: none; }
+
+/* Today v2: the session card, stats with meaning, the week strip, gaps */
+.tses { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 18px 18px 18px; border-radius: 20px; color: #f4f8fd;
+  background: radial-gradient(120% 140% at 100% 0%, rgba(34, 192, 122, 0.28), transparent 55%), linear-gradient(160deg, #13294a, #0d1d36); border: 1px solid rgba(141, 183, 234, 0.18); }
+.tses h2 { margin: 0; font-size: 1.3rem; line-height: 1.3; color: #fff; }
+.tses p { margin: 0; font-size: 0.9rem; color: rgba(232, 240, 252, 0.78); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tses-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.tses-eyebrow { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: #6fe0a9; }
+.tses-meta { font-size: 0.82rem; color: rgba(232, 240, 252, 0.75); font-variant-numeric: tabular-nums; }
+.tses-segs { display: flex; gap: 5px; margin: 2px 0 6px; }
+.tses-segs span { flex: 1; height: 6px; border-radius: 6px; background: rgba(255, 255, 255, 0.16); }
+.tses-segs span.on { background: #22c07a; }
+.tses-next { font-size: 0.8rem; font-weight: 650; color: rgba(232, 240, 252, 0.7); }
+.tses-btn { align-self: stretch; justify-content: center; margin-top: 8px; min-height: 48px; font-size: 1.02rem; font-weight: 750; border-radius: 14px; background: #22c07a; color: #06281a; border: 0; }
+.tses-btn:hover { background: #1fb070; color: #06281a; }
+.tses-btn-2 { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.tses.is-done .tses-eyebrow { color: #6fe0a9; }
+.tdy-stat em.tdy-up { color: var(--signal-600); font-weight: 700; }
+.tdy-stat em.tdy-down { color: var(--amber); font-weight: 700; }
+.tdy-stat em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tdy-days { list-style: none; margin: 0; padding: 10px 6px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+.tdy-days li { margin: 0; display: flex; justify-content: center; }
+.tdy-day { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: 0; padding: 4px 0; cursor: pointer; color: var(--text-2); font: inherit; border-radius: 12px; width: 100%; }
+.tdy-dow { font-size: 0.72rem; font-weight: 700; }
+.tdy-dot { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 0.88rem; font-weight: 700; color: var(--text); border: 2px solid var(--border); font-variant-numeric: tabular-nums; }
+.tdy-day.is-future .tdy-dot { color: var(--text-2); border-style: dashed; }
+.tdy-day.is-done .tdy-dot { background: #22c07a; border-color: #22c07a; color: #06281a; }
+.tdy-day.is-today .tdy-dow { color: var(--signal-600); }
+.tdy-day.is-today .tdy-dot { border-color: #22c07a; }
+.tdy-day.is-int .tdy-dot { border-color: #f2b84b; color: #f2b84b; }
+.tdy-day.is-sel .tdy-dot { box-shadow: 0 0 0 3px var(--signal-soft); }
+.tdy-cu { margin-top: 2px; }
+.tdy-cu .tdy-list-in { border: 0; border-radius: 0; border-top: 1px solid var(--border); }
+.tdy-gaps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.tdy-gaps li { margin: 0; }
+.tdy-gaps a { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+.tdy-gaps a::after { content: "›"; color: var(--text-3); }
+.tdy-gaps a:hover { border-color: var(--signal); }
+/* Phone Today: no empty trail row above the title */
+@media (max-width: 760px) {
+  .has-tb [data-jobhome] .jn-trail-row { display: none; }
+  .has-tb [data-jobhome] .jw-today { margin-top: 0; }
+}
+.tdy-day.is-missed .tdy-dot { color: var(--text-3); border-color: transparent; background: var(--surface-2); }
