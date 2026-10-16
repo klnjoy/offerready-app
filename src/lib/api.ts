@@ -198,6 +198,21 @@ export interface PlanResponse {
   pass?: { kind: PassKind; kinds: PassKind[]; starts_at: string; expires_at: string; since: string } | null;
   /** Mock pack credits left (never expire). */
   credits?: { voice_mock?: number };
+  /** Present (true) only for admins (ADMIN_EMAILS on the server). */
+  is_admin?: boolean;
+}
+
+// ---- admin: AI cost per feature (api/me/plan.js ?op=costs) ------------------
+
+export interface AiCostRow {
+  feature: string; calls: number; users: number;
+  input_tokens: number; cached_tokens: number; output_tokens: number;
+  cost_usd: number | string; avg_cost_usd: number | string; avg_ms: number | string; failed: number;
+}
+export interface AiCostSummary { days: number; since: string; rows: AiCostRow[] }
+
+export function getAiCosts(token: string, days: number) {
+  return call<AiCostSummary>("/api/me/plan?op=costs&days=" + encodeURIComponent(String(days)), { token });
 }
 
 /** 403 body from any limited endpoint when the user is over quota. */

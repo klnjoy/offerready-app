@@ -39,6 +39,8 @@ export interface PlanInfo {
   pass: PlanPass | null;
   /** Mock pack credits left (never expire). */
   mockCredits: number;
+  /** Can see the admin AI cost view (ADMIN_EMAILS on the server). */
+  isAdmin: boolean;
 }
 
 /** Feature rows for Pricing, Account and the home page. `free` is the monthly
@@ -93,7 +95,7 @@ export function canUse(usage: Partial<Record<Feature, Usage>>, f: Feature): bool
 
 // ---- usePlan: /api/me/plan with a 2-minute memory + sessionStorage cache ----
 
-interface Cached { who: string; at: number; plan: Plan; usage: Partial<Record<Feature, Usage>>; resetsAt?: string; pass?: PlanPass | null; mockCredits?: number }
+interface Cached { who: string; at: number; plan: Plan; usage: Partial<Record<Feature, Usage>>; resetsAt?: string; pass?: PlanPass | null; mockCredits?: number; isAdmin?: boolean }
 
 const TTL_MS = 2 * 60 * 1000;
 const SS_KEY = "offerready.plan.v2";
@@ -128,7 +130,7 @@ function fresh(who: string): Cached | null {
   return s;
 }
 
-function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsAt" | "pass" | "mockCredits"> {
+function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsAt" | "pass" | "mockCredits" | "isAdmin"> {
   const plan: Plan = body.plan === "pro" ? "pro" : "free";
   const usage: Partial<Record<Feature, Usage>> = {};
   for (const f of Object.keys(LIMITS[plan]) as Feature[]) {
@@ -143,7 +145,7 @@ function normalize(body: PlanResponse): Pick<Cached, "plan" | "usage" | "resetsA
     ? { kind: bp.kind, kinds: Array.isArray(bp.kinds) && bp.kinds.length ? bp.kinds : [bp.kind], expiresAt: bp.expires_at }
     : null;
   const mockCredits = Math.max(0, Number(body.credits?.voice_mock) || 0);
-  return { plan, usage, resetsAt: pass ? undefined : body.period_end, pass, mockCredits };
+  return { plan, usage, resetsAt: pass ? undefined : body.period_end, pass, mockCredits, isAdmin: body.is_admin === true };
 }
 
 function notify() {
@@ -216,6 +218,7 @@ export function usePlan(): PlanInfo & { refresh(): void; can(f: Feature): boolea
     resetsAt: cached?.resetsAt,
     pass: cached?.pass || null,
     mockCredits: cached?.mockCredits || 0,
+    isAdmin: !!cached?.isAdmin,
     refresh: () => load(true),
     // Pack credits keep voice mock interviews open past the allowance.
     can: (f: Feature) => canUse(usage, f) || (f === "voice_mock" && (cached?.mockCredits || 0) > 0),

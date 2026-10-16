@@ -11,6 +11,7 @@ import { loadStories } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
 import { openFeedback } from "../components/Feedback";
 import { openHelp } from "../components/HelpBot";
+import { usePlan } from "../lib/plans";
 
 const ic = (d: ReactNode) => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -39,6 +40,7 @@ export default function MorePage() {
   const navigate = useNavigate();
   const job = getActiveJob();
   const jq = job ? "?job=" + encodeURIComponent(job) : "";
+  const plan = usePlan();
 
   const nJobs = jobs.status === "ready" ? jobs.jobs.length : null;
   const nStories = loadStories().length;
@@ -63,6 +65,7 @@ export default function MorePage() {
       { icon: ICON.app, label: "Get the app", sub: "Install on your phone or computer", to: "/app" },
       { icon: ICON.help, label: "Help", sub: "Ask how anything works", run: openHelp },
       { icon: ICON.feedback, label: "Send feedback", run: openFeedback },
+      ...(plan.isAdmin ? [{ icon: ICON.plan, label: "AI costs", sub: "Admin: spend per feature", to: "/admin/costs" }] : []),
       ...(auth.session ? [{ icon: ICON.out, label: "Sign out", run: async () => { await auth.signOut(); navigate("/"); } }] : []),
     ] },
   ];
