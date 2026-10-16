@@ -77,7 +77,7 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
   return [
     // In the order you prepare: set up, practise, the interview, then settings.
     { id: "job", title: "This job", flat: true, items: [
-      { key: "overview", label: "Overview", to: jp },
+      { key: "overview", label: "Today", to: jp },
       { key: "resume", label: "Resume match", to: jp + "?tab=resume" },
     ] },
     { id: "practice", title: "Practise every day", to: "/practice", items: path.map((s) => ({
@@ -90,7 +90,7 @@ function groupsFor(jobId: string, path: PathStep[]): Group[] {
       { key: "bank", label: "Question bank", to: "/practice/bank" },
       { key: "readiness", label: "Readiness", to: wj("/dashboard") },
     ] },
-    { id: "day", title: "Interview day and after", to: jp + "?tab=after", items: [
+    { id: "day", title: "Interviews", to: jp + "?tab=after", items: [
       { key: "notes", label: "Interview notes", to: wj("/notes") },
       // One place for rounds: log a new one, see the ones you've logged.
       { key: "debrief", label: "Debriefs", to: wj("/debrief") },

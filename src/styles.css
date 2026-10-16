@@ -4424,3 +4424,28 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .tdy-date-cta .tdy-text { flex: 1; }
 .tdy-date-cta .tdy-text span { white-space: normal; }
 .tdy-date-ico { flex: none; font-size: 1.3rem; }
+
+/* Job page: no tab row on phones (Today has its own header; other sections get "‹ Today") */
+@media (max-width: 760px) {
+  .has-tb .jw-tabs { display: none; }
+  .jw-sub { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+  .jw-sub h1 { margin: 4px 0 0; font-size: 1.7rem; }
+  .jw-sub-job { margin: 0; }
+  .jw-today { position: relative; }
+  .jw-gear-btn { position: absolute; right: 0; top: 4px; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; color: var(--text-2); border: 1px solid var(--border); background: var(--surface); }
+  .jw-gear-btn:hover { color: var(--text); }
+}
+@media (min-width: 761px) { .jw-gear-btn { display: none; } }
+.jw-gear { text-decoration: none; margin-left: 6px; }
+
+/* Computer Today: two columns built from the same pieces as the phone */
+.tdw { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.tdw-main, .tdw-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.tdw-side .tdy-stats { grid-template-columns: 1fr; }
+.tdw-side .tdy-stat { flex-direction: row; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tdw-side .tdy-stat > span { flex: 1 0 100%; }
+@media (max-width: 1020px) { .tdw { grid-template-columns: minmax(0, 1fr); } .tdw-side .tdy-stats { grid-template-columns: repeat(3, 1fr); } .tdw-side .tdy-stat { flex-direction: column; } }
+.jw-head h1 .jw-gear { font-size: 0.85rem; font-weight: 600; vertical-align: middle; }
+.tdw-side .tdy-head { flex-wrap: wrap; gap: 2px 10px; }
+.tdw-side .tdy-head h2 { font-size: 1.1rem; }
+.tdw-side .tdy-stat strong { font-size: 1.3rem; }
