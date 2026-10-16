@@ -55,6 +55,28 @@ export function ShortlistCheck({ text, fileName, title, keywords, jobId, tailore
           ))}
         </ul>
       ) : null}
+      <details className="sl-how">
+        <summary>How shortlisting works</summary>
+        <ol className="sl-steps">
+          {STAGES.map((st, i) => (
+            <li key={st.t}>
+              <span className="sl-step-n" aria-hidden="true">{i + 1}</span>
+              <div>
+                <strong>{st.t}</strong>
+                <p className="small">{st.d}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <p className="small muted">Every company{"’"}s process and tools differ; this is the common pattern. The checks above cover steps 1 and 2. For step 3, <Link to={"/tailor?job=" + encodeURIComponent(jobId)}>tailor your bullets</Link> to this job{"’"}s stack and scope.</p>
+      </details>
     </section>
   );
 }
+
+const STAGES = [
+  { t: "Screening software (ATS) filters", d: "Workday, Greenhouse, Lever and others read your resume as text. Recruiters filter by keywords, job title and must-have questions (location, work authorisation, years). Unreadable files (scans, tables, columns) can drop out here." },
+  { t: "A recruiter scans for 10–30 seconds", d: "They read the top third: your title, recent company, years, main skills, and whether your results have numbers. A clear summary at the top helps most." },
+  { t: "The hiring manager reads closely", d: "They look for the same stack, the scope you worked at (team, data size, users) and real impact. Referrals often skip straight to here." },
+  { t: "Interview invites go to the closest matches", d: "The clearest evidence of fit wins, not the longest resume. Tailor for each job, apply early, and ask for a referral where you can." },
+];
