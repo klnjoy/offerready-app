@@ -1,62 +1,136 @@
-/* Mock interview: pick voice or text. Each card says what you get and what
- * the browser needs; the voice card checks this browser live. */
+/* Mock interview (/mock): set up and start in one place. The voice interview
+ * is the main path: pick the kind of round and the length here (saved as the
+ * voice mock's preferences), then Start. Recent mocks show how you did.
+ * Other ways (text interview, notes for a real interview) sit below. */
 
-import { useMemo } from "react";
-import { Link } from "../lib/router";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { displayJobTitle } from "../lib/roles";
 import { detectSupport } from "../lib/voice";
+import { readJSON, writeJSON } from "../lib/storage";
+import { setActiveJob } from "../lib/readiness";
 import { Icon } from "../components/Icon";
 import { Art } from "../components/Art";
+
+/* Same keys and shapes as pages/VoiceMock.tsx. */
+const PREFS_KEY = "offerready.voicePrefs.v1";
+const SESSIONS_KEY = "offerready.voiceSessions.v1";
+type Kind = "behavioral" | "technical" | "system_design" | "mixed";
+const KINDS: { id: Kind; label: string; line: string }[] = [
+  { id: "behavioral", label: "Behavioral", line: "Your stories: ownership, conflict, impact" },
+  { id: "technical", label: "Technical", line: "How it works, why, and the trade-offs" },
+  { id: "system_design", label: "System design", line: "Requirements, components, scale, failure" },
+  { id: "mixed", label: "Full loop", line: "All three, like a real interview day" },
+];
+type Rec = { at: number; jobTitle: string; type: Kind; length: number; answers: { feedback?: { scores?: Record<string, number> } | null; selfRating?: number }[] };
+
+function score(r: Rec): number | null {
+  const vals: number[] = [];
+  for (const a of r.answers || []) {
+    const s = a.feedback?.scores;
+    if (s) { const v = Object.values(s).filter((x) => typeof x === "number"); if (v.length) vals.push(v.reduce((m, x) => m + x, 0) / v.length); }
+    else if (a.selfRating) vals.push(a.selfRating);
+  }
+  return vals.length ? Math.round((vals.reduce((m, x) => m + x, 0) / vals.length) * 20) : null;
+}
 
 export default function MockHubPage() {
   const support = useMemo(() => detectSupport(), []);
   const voiceOk = support.recognition && support.mic;
   const jobs = useJobs();
-  const job = jobs.status === "ready" ? jobs.jobs.find((j) => j.id === jobs.activeId) || jobs.jobs[0] : undefined;
+  const navigate = useNavigate();
+  const prefs = useMemo(() => readJSON<Record<string, unknown>>(PREFS_KEY, {}), []);
+  const [kind, setKind] = useState<Kind>(KINDS.some((k) => k.id === prefs.type) ? (prefs.type as Kind) : "behavioral");
+  const [len, setLen] = useState<3 | 5>(prefs.length === 5 ? 5 : 3);
+  const recent = useMemo(() => {
+    const s = readJSON<Rec[]>(SESSIONS_KEY, []);
+    return (Array.isArray(s) ? s : []).filter((r) => r && r.answers?.length).sort((a, b) => b.at - a.at).slice(0, 3);
+  }, []);
+  const list = jobs.status === "ready" ? jobs.jobs : [];
+  const job = list.find((j) => j.id === jobs.activeId) || list[0];
+
+  const start = () => {
+    writeJSON(PREFS_KEY, { ...prefs, type: kind, length: len, ...(voiceOk ? {} : { typeAnswers: true }) });
+    navigate("/interview/voice");
+  };
 
   return (
-    <div className="page hub">
-      {job ? (
-        <p className="hub-job">
-          <span className="td-job-label">Interviewing for</span>
-          <Link className="td-job-title" to={"/jobs/" + encodeURIComponent(job.id)}>{displayJobTitle(job)}</Link>
-          <span className="small muted">The voice interview asks this job{"’"}s questions. You can switch job when you start.</span>
+    <div className="page mk">
+      <section className="tses mk-hero" aria-labelledby="mk-h">
+        <span className="tses-eyebrow">Mock interview</span>
+        <h2 id="mk-h">{job && list.length <= 1 ? "Practise for " + displayJobTitle(job) : "Practise a real interview round"}</h2>
+        {list.length > 1 && job ? (
+          <label className="mk-job">
+            <span className="hm-sr">Job</span>
+            <select value={job.id} onChange={(e) => setActiveJob(e.target.value)} aria-label="Job">
+              {list.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
+            </select>
+          </label>
+        ) : null}
+
+        <div className="mk-kinds" role="radiogroup" aria-label="Kind of round">
+          {KINDS.map((k) => (
+            <button key={k.id} type="button" role="radio" aria-checked={kind === k.id} className={"mk-kind" + (kind === k.id ? " on" : "")} onClick={() => setKind(k.id)}>
+              <strong>{k.label}</strong><span>{k.line}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mk-len" role="radiogroup" aria-label="Length">
+          {([3, 5] as const).map((n) => (
+            <button key={n} type="button" role="radio" aria-checked={len === n} className={len === n ? "on" : ""} onClick={() => setLen(n)}>
+              {n} questions · {n === 3 ? "about 12 min" : "about 20 min"}
+            </button>
+          ))}
+        </div>
+
+        <button type="button" className="btn tses-btn mk-start" onClick={start}>
+          Start {voiceOk ? "voice interview" : "interview"} <span aria-hidden="true">→</span>
+        </button>
+        <p className="mk-what">
+          {voiceOk
+            ? "You answer out loud. The interviewer follows up on what you said, then scores content and delivery."
+            : "Voice works best in Chrome or Edge. Here you type your answers; the follow-ups and scores are the same."}
         </p>
-      ) : null}
-      <ol className="hub-grid hub-grid-2" aria-label="Kinds of mock interview">
-        <li className="hub-card is-rec">
-          <Link className="hub-link" to="/interview/voice" aria-describedby="mock-voice-get">
-            <Art k="mock" className="hub-art" />
-            <span className="hub-top"><span className="hub-rec">Recommended</span></span>
-            <span className="hub-title">Voice interview</span>
-            <span className="hub-when" id="mock-voice-get">You answer out loud. The interviewer asks follow-ups on what you actually said, then scores your content and delivery: pace, filler words and structure.</span>
-            <span className={"hub-support" + (voiceOk ? " is-ok" : " is-warn")}>
-              {voiceOk ? "Your browser supports voice." : "Voice works best in Chrome or Edge on a computer. Here you can type your answers instead."}
-              {" "}Needs microphone access. 3 or 5 questions, about 12 to 20 minutes.
-            </span>
-            <span className="hub-cta">Start a voice interview <Icon name="arrow" size={16} className="hub-svg" /></span>
+      </section>
+
+      {recent.length > 0 && (
+        <section className="tdy" aria-labelledby="mk-recent">
+          <div className="tdy-head"><h2 id="mk-recent">Your recent mocks</h2></div>
+          <ul className="tdy-group mk-recent">
+            {recent.map((r) => {
+              const sc = score(r);
+              return (
+                <li key={r.at} className="tdy-grow">
+                  <span className="tdy-text">
+                    <strong>{KINDS.find((k) => k.id === r.type)?.label || "Mock"} · {r.answers.length} answers</strong>
+                    <span>{r.jobTitle || "General"} · {new Date(r.at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                  </span>
+                  {sc != null && <span className={"rd2-score" + (sc >= 70 ? " is-good" : sc >= 50 ? " is-mid" : " is-weak")}>{sc}%</span>}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      <section className="tdy" aria-labelledby="mk-other">
+        <div className="tdy-head"><h2 id="mk-other">Other ways</h2></div>
+        <div className="tdy-group">
+          <Link className="tdy-grow" to="/simulator">
+            <Art k="text" className="mk-art" />
+            <span className="tdy-text"><strong>Text interview</strong><span>A general mixed loop, not tied to your job. No microphone.</span></span>
+            <span className="tdy-chev" aria-hidden="true">›</span>
           </Link>
-        </li>
-        <li className="hub-card">
-          <Link className="hub-link" to="/simulator" aria-describedby="mock-text-get">
-            <Art k="text" className="hub-art" />
-            <span className="hub-title">Text interview <span className="hub-tag">General</span></span>
-            <span className="hub-when" id="mock-text-get">General practice, not tied to your job: a mixed loop across areas and levels. Answer, compare with a strong answer, then face the follow-up.</span>
-            <span className="hub-support is-ok">Works in any browser. No microphone needed.</span>
-            <span className="hub-cta">Start a text interview <Icon name="arrow" size={16} className="hub-svg" /></span>
+          <Link className="tdy-grow" to="/notes">
+            <span className="mk-ico" aria-hidden="true"><Icon name="list" size={20} /></span>
+            <span className="tdy-text"><strong>Real interview today?</strong><span>Take notes as it happens; they become a debrief after.</span></span>
+            <span className="tdy-chev" aria-hidden="true">›</span>
           </Link>
-        </li>
-      </ol>
-      <Link className="hub-real" to="/notes">
-        <span className="hub-ico" aria-hidden="true"><Icon name="list" size={20} className="hub-svg" /></span>
-        <span className="hub-real-body">
-          <span className="hub-real-title">Real interview today? Take notes</span>
-          <span className="hub-real-text">Type each question as it’s asked. Afterwards, your notes become a debrief in one click.</span>
-        </span>
-        <Icon name="arrow" size={16} className="hub-svg" />
-      </Link>
-      <p className="small muted">A voice interview for a saved job counts toward that job{"’"}s score in <Link to="/dashboard">Readiness</Link>. Text interview scores stay in this browser and feed your weak areas.</p>
+        </div>
+      </section>
+      <p className="small muted">A voice mock for a saved job counts toward its score in <Link to="/dashboard">Progress</Link>. Practice only, never during a live interview.</p>
     </div>
   );
 }
