@@ -33,13 +33,13 @@ import { CopyButton } from "../components/StreamDraft";
 import { Card, Loading, Muted } from "../components/ui";
 import type { Analysis, GapRow, GeneratedQuestion } from "../types";
 
-const MODES: { key: CopilotMode; label: string; hint: string }[] = [
-  { key: "answer", label: "Build my answer", hint: "A speakable answer from your experience" },
-  { key: "example", label: "Find my best example", hint: "The strongest real project to use" },
-  { key: "star", label: "STAR it", hint: "Situation, task, action, result" },
-  { key: "tradeoff", label: "Explain the trade-off", hint: "Options, what you give up, when it flips" },
-  { key: "design", label: "System design outline", hint: "Requirements to cost, in order" },
-  { key: "followups", label: "Likely follow-ups", hint: "What they'll ask next, and how to handle it" },
+const MODES: { key: CopilotMode; label: string; short: string; hint: string }[] = [
+  { key: "answer", label: "Build my answer", short: "Answer", hint: "A speakable answer from your experience." },
+  { key: "example", label: "Find my best example", short: "Best example", hint: "The strongest real project to use." },
+  { key: "star", label: "STAR it", short: "STAR", hint: "Situation, task, action, result." },
+  { key: "tradeoff", label: "Explain the trade-off", short: "Trade-off", hint: "Options, what you give up, when it flips." },
+  { key: "design", label: "System design outline", short: "Design", hint: "Requirements to cost, in order." },
+  { key: "followups", label: "Likely follow-ups", short: "Follow-ups", hint: "What they’ll ask next, and how to handle it." },
 ];
 
 const SOURCE_LABEL: Record<CopilotSource, string> = {
@@ -71,6 +71,7 @@ export default function CopilotPage() {
   const [run, setRun] = useState<Run>({ kind: "idle" });
   const [practise, setPractise] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
+  const [mode, setMode] = useState<CopilotMode>("answer");
 
   const wantJob = params.get("job") || "";
   useEffect(() => {
@@ -193,18 +194,27 @@ export default function CopilotPage() {
             <Card className="cp-ask">
               <label className="field-label" htmlFor="cp-q">Interview question</label>
               <textarea id="cp-q" className="input textarea" rows={3} value={question} placeholder="e.g. Why did you choose RAG instead of fine-tuning?"
-                onChange={(e) => setQuestion(e.target.value)} />
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void ask(mode); } }} />
               {suggested.length > 0 && !question && (
                 <div className="cp-suggest">
-                  <span className="small muted">From this job{"’"}s questions:</span>
-                  {suggested.map((q) => <button key={q} type="button" className="cp-chip" onClick={() => setQuestion(q)}>{q.length > 90 ? q.slice(0, 88) + "…" : q}</button>)}
+                  <span className="small muted">Try one from this job:</span>
+                  <div className="cp-suggest-track">
+                    {suggested.map((q) => <button key={q} type="button" className="cp-chip" onClick={() => setQuestion(q)}>{q.length > 90 ? q.slice(0, 88) + "…" : q}</button>)}
+                  </div>
                 </div>
               )}
-              <div className="cp-modes" role="group" aria-label="What should the coach do?">
+              <div className="cp-mode-pick" role="radiogroup" aria-label="What should the coach do?">
                 {MODES.map((m) => (
-                  <button key={m.key} type="button" className={"btn " + (m.key === "answer" ? "btn-primary" : "")} disabled={run.kind === "busy"} title={m.hint} onClick={() => ask(m.key)}>{m.label}</button>
+                  <button key={m.key} type="button" role="radio" aria-checked={mode === m.key} className={"cp-mode" + (mode === m.key ? " on" : "")} title={m.hint} onClick={() => setMode(m.key)}>
+                    {m.short}
+                  </button>
                 ))}
               </div>
+              <p className="small muted cp-mode-hint">{MODES.find((m) => m.key === mode)?.hint}</p>
+              <button type="button" className="btn btn-primary cp-go" disabled={run.kind === "busy"} onClick={() => ask(mode)}>
+                {run.kind === "busy" ? "Building…" : "Ask the coach"}
+              </button>
             </Card>
 
             {run.kind === "busy" && <Loading>Building from your resume and stories{"…"}</Loading>}

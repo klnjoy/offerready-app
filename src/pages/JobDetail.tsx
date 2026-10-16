@@ -559,27 +559,58 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
     return (
       <>
         {head}
-        <p className="jd-status">
-          <Link to="/dashboard" className="jd-status-item"><b>{r != null ? r + "%" : "—"}</b> ready</Link>
-          {date && !passed ? <span className="jd-status-item">{days != null && days > 0 ? <>Interview in <b>{days}</b> {days === 1 ? "day" : "days"}</> : <b>Interview today</b>}</span> : null}
-        </p>
-        {nextCard}
-        {todayCard}
-        {phone && (!date || passed) ? (
-          <button type="button" className="td-date-nudge" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
-            <span><strong>{passed ? "Set your next interview date" : "Add your interview date"}</strong><span className="small muted">Your plan fits the days you have</span></span>
-            <span className="td-date-nudge-cta">Set</span>
-          </button>
-        ) : !date || passed ? dateCard : null}
-        {everyDay}
+        <div className="tdy-stats">
+          <Link to={"/dashboard?job=" + enc(jobId)} className="tdy-stat">
+            <span>Ready</span><strong>{r != null ? r + "%" : "—"}</strong>
+          </Link>
+          <div className="tdy-stat">
+            <span>Streak</span><strong>{streak}</strong><em>{streak === 1 ? "day" : "days"}</em>
+          </div>
+          {date && !passed ? (
+            <button type="button" className="tdy-stat" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <span>Interview</span>{days === 0 ? <strong className="tdy-hot">Today</strong> : <><strong>{days}</strong><em>{days === 1 ? "day left" : "days left"}</em></>}
+            </button>
+          ) : (
+            <button type="button" className="tdy-stat is-set" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+              <span>Interview</span><strong className="tdy-set">Set date</strong>
+            </button>
+          )}
+        </div>
+        {unlogged || !data.gap || !derived.hasAnalysis ? nextCard : null}
+        <section className="tdy" aria-labelledby="tdy-h">
+          <div className="tdy-head">
+            <h2 id="tdy-h">{viewDate === today ? "Today’s plan" : "Plan for " + formatDay(viewDate, { weekday: "short", month: "short", day: "numeric" })}</h2>
+            <span className="small muted">{tasks.length ? doneToday + " of " + tasks.length + " done" : todayDay ? "" : viewDate === date ? "Interview day" : "Rest day"}</span>
+          </div>
+          {tasks.length > 0 ? <div className="tdy-bar" aria-hidden="true"><span style={{ width: Math.round((doneToday / tasks.length) * 100) + "%" }} /></div> : null}
+          {tasks.length > 0 ? (
+            <ul className="tdy-list">
+              {tasks.map((t) => <TodayRow key={t.id} t={t} jobId={jobId} done={!!state.done[t.id]} onToggle={toggle} />)}
+            </ul>
+          ) : <p className="muted small tdy-empty">{viewDate === date ? "Good luck today. Keep Interview notes open to jot each question." : "Nothing planned. A short practice still keeps your streak going."}</p>}
+          {tasks.length > 0 && doneToday === tasks.length ? <p className="tdy-done">{viewDate === today ? "Today’s plan is done. Nice work." : "All done for this day."}</p> : null}
+          {viewDate !== today ? <button type="button" className="link-btn small" onClick={() => setSel(today)}>Back to today</button> : null}
+        </section>
+        {catchUp.length > 0 && (
+          <section className="tdy" aria-labelledby="tdy-cu-h">
+            <div className="tdy-head"><h2 id="tdy-cu-h">Catch up</h2><span className="small muted">From earlier days</span></div>
+            <ul className="tdy-list">
+              {catchUp.map((t) => <TodayRow key={t.id} t={t} jobId={jobId} done={!!state.done[t.id]} onToggle={toggle} />)}
+            </ul>
+          </section>
+        )}
+        <ul className="tdy-links" aria-label="More for this job">
+          <li><Link to={"/practice?job=" + enc(jobId)}><span>Practise every day</span><span className="small muted">Questions, drills, stories, mocks</span></Link></li>
+          <li><Link to={jobPath(jobId, "resume")}><span>Resume match</span><span className="small muted">{data.gap ? (data.gap.match_score || 0) + "% match" : "Check your fit"}</span></Link></li>
+          <li><Link to={"/notes?job=" + enc(jobId)}><span>Interview day</span><span className="small muted">Notes during the interview, then a debrief</span></Link></li>
+        </ul>
         <details className="card jd-more">
-          <summary><span>More for this job</span><span className="small muted">Full plan, readiness, interview day, set-up</span></summary>
+          <summary><span>Full plan and job details</span><span className="small muted">Every day to your interview, readiness, set-up</span></summary>
           <div className="jd-more-body">
             {date && !passed ? dateCard : null}
+            {planCard}
             {readinessCard}
             {interviewDay}
-            {planCard}
             {roleGuide}
             {setupCard}
             {aboutCard}
@@ -800,6 +831,37 @@ function AboutJob({ data }: { data: JobDetail }) {
         ))}
       </div>
     </details>
+  );
+}
+
+// Phone Today: one row per task. Tap the row to start it, the circle to tick it.
+const KIND_ICON: Record<string, ReactNode> = {
+  setup: <path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5L14.5 3ZM9 13l2 2 4-4" />,
+  study: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM9 7.5h7M9 11h5" />,
+  review: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" />,
+  drill: <path d="M12 4v15M6 7h12M6 7l-3 6h6zM18 7l-3 6h6zM9 20h6" />,
+  story: <path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10ZM8.5 9.5h7M8.5 12.5h4" />,
+  defend: <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z" />,
+  mock: <path d="M9 3h6v11H9zM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />,
+  light: <path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />,
+};
+
+function TodayRow({ t, jobId, done, onToggle }: { t: PlanTask; jobId: string; done: boolean; onToggle(t: PlanTask, on: boolean): void }) {
+  return (
+    <li className={"tdy-row k-" + t.kind + (done ? " is-done" : "")}>
+      <Link className="tdy-main" to={resolveTo(t.to, jobId)}>
+        <span className="tdy-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{KIND_ICON[t.kind] || KIND_ICON.study}</svg>
+        </span>
+        <span className="tdy-text">
+          <strong>{t.title}</strong>
+          <span>{t.minutes} min{t.detail ? " · " + t.detail : ""}</span>
+        </span>
+      </Link>
+      <button type="button" className="tdy-check" aria-pressed={done} aria-label={(done ? "Mark not done: " : "Mark done: ") + t.title} onClick={() => onToggle(t, !done)}>
+        {done ? <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
+      </button>
+    </li>
   );
 }
 
