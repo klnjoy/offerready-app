@@ -4723,3 +4723,7 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .ro-how strong { color: var(--text); }
 @media (min-width: 900px) { .ro-list { grid-template-columns: 1fr 1fr; } }
 .ro-what { margin-top: 4px; }
+.ro-areas { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.ro-areas .cp-chip.on { background: var(--ink-950, #0c1c38); border-color: var(--ink-950, #0c1c38); color: #fff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ro-areas .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; } }
+:root[data-theme="dark"] .ro-areas .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; }
