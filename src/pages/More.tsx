@@ -54,6 +54,7 @@ export default function MorePage() {
     ] },
     { title: "Learn", rows: [
       { icon: ICON.library, label: "Study library", sub: "Where to start, by role", href: DOCS_BASE + "Where-To-Start/index.html" },
+      { icon: ICON.how, label: "Keep up with AI", sub: "News and free courses from the source", to: "/learn" },
       { icon: ICON.how, label: "How OfferReady works", sub: "A worked example in a few minutes", to: "/example" },
     ] },
     { title: "Account", rows: [
