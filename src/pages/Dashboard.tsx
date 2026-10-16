@@ -295,6 +295,14 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
     <div className="rd-stack">
       {note && <Card><Muted>{note}</Muted></Card>}
 
+      <div className="rd-export no-print">
+        <button type="button" className="btn btn-small rd-export-btn" onClick={() => window.print()} title="Save or share this report as a PDF">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9M6 8.5l4 4 4-4M4 14.5v1.5A1.5 1.5 0 0 0 5.5 17.5h9A1.5 1.5 0 0 0 16 16v-1.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          Export
+        </button>
+      </div>
+      <p className="print-only rd-print-head">OfferReady readiness report · {title}{detail.job.company ? " · " + detail.job.company : ""} · {formatDay(today, { month: "long", day: "numeric", year: "numeric" })}</p>
+
       {jobs.length > 1 ? <JobPicker jobs={jobs} current={detail.job.id} onSwitch={onSwitch} back={{ to: "/dashboard", label: "All jobs (" + jobs.length + ")" }} /> : null}
 
       {/* 1. The answer */}
