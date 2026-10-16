@@ -20,7 +20,6 @@ import { KEYS, readJSON, writeJSON } from "../lib/storage";
 import { OFFLINE_SCENARIOS } from "../data/offlineScenarios";
 import { AuthForm } from "../components/AuthForm";
 import { Card, ErrorText } from "../components/ui";
-import { JobPicker } from "../components/JobPicker";
 import { NextStepCard } from "../components/PracticeTabs";
 import { FeedbackView } from "../components/FeedbackView";
 import type { Analysis, AnswerFeedback, JobRow, Scenario, ScenarioNode } from "../types";
@@ -353,136 +352,117 @@ function ScenarioList({
   const statusCount = (k: typeof status) => inRole.filter((s) => k === "all" ? true : k === "new" ? best[s.slug] == null : k === "improve" ? best[s.slug] != null && best[s.slug] < 70 : best[s.slug] != null && best[s.slug] >= 70).length;
   const cats = ["all", ...uniqueCats(list)];
 
+  const kicker = savedRun ? "" : best[recommended?.slug || ""] != null ? "Lift your lowest score" : "Your next drill";
   return (
-    <div className="stack">
+    <div className="stack dr2">
       {!offline && jobs.length > 1 && activeJob?.title ? (
-        <div className="job-banner job-banner-picker">
-          <JobPicker jobs={jobs} current={activeJob.id} onSwitch={onSwitchJob}
-            label={<><span className="job-banner-label">Current job</span> <strong>{activeJob.title}</strong> {"·"} <span className="small">practice counts toward its readiness</span></>} />
-        </div>
-      ) : !offline && (
-        <div className="job-banner">
-          {pointer && activeJob?.id === pointer && activeJob.title ? (
-            <><span className="job-banner-label">Current job</span> <strong>{activeJob.title}</strong> {"·"} <span className="small">completed practice counts toward this job{"’"}s readiness</span></>
-          ) : pointer ? (
-            <><span className="job-banner-label">Current job</span> <span className="small">practice will be saved to your active job</span></>
-          ) : (
-            <><span className="job-banner-label">No active job selected</span> <Link className="btn btn-small" to="/jobs">Choose a job</Link> <span className="small">{"—"} practice is saved locally until you pick one</span></>
-          )}
-        </div>
-      )}
-      {savedRun && (
-        <section className="drill-resume" aria-labelledby="drill-resume-h">
-          <span className="drill-hero-kicker">Unfinished drill</span>
-          <h2 id="drill-resume-h">{savedRun.title}</h2>
-          <p className="muted">{savedRun.answered} of {savedRun.total || "?"} answered. Pick up where you left off.</p>
-          <div className="row wrap">
-            <button type="button" className="btn btn-primary" onClick={() => onResume(savedRun)}>Continue</button>
-            <button type="button" className="btn btn-ghost" onClick={onDiscard}>Discard</button>
-          </div>
-        </section>
-      )}
-      {jobDrill?.content && activeJob?.title && (
-        <section className="drill-mine" aria-labelledby="drill-mine-h">
-          <span className="drill-hero-kicker">Written for {activeJob.title}</span>
-          <h2 id="drill-mine-h">{jobDrill.title}</h2>
-          <p className="muted">Your own drill for this job. Saved here, so you can run it as often as you like.</p>
-          <div className="row wrap">
-            <button type="button" className="btn btn-primary" onClick={onGenerate}>{best[jobDrill.slug] != null ? "Run it again" : "Start this drill"}</button>
-            <button type="button" className="btn btn-ghost" disabled={genBusy} onClick={onRegenerate}>{genBusy ? "Writing…" : "Write a different one"}</button>
-          </div>
-        </section>
-      )}
-      {recommended && list.length > 0 && (
-        <section className="drill-hero" aria-labelledby="drill-hero-h">
-          <div className="drill-hero-main">
-            <span className="drill-hero-kicker">{best[recommended.slug] != null ? "Lift your lowest score" : activeJob?.title ? "Recommended for " + activeJob.title : "Start here"}</span>
-            <h2 id="drill-hero-h">{recommended.title}</h2>
-            {recommended.teaser?.setup && <p className="muted">{recommended.teaser.setup}</p>}
-            <p className="drill-hero-how">You make a design call, then the interviewer pushes on why, trade-offs, a new constraint and an incident. Each answer gets feedback. About 10 minutes.</p>
-            <div className="row wrap">
-              <button type="button" className="btn btn-primary" onClick={() => onOpen(recommended)}>{best[recommended.slug] != null ? "Run it again" : "Start this drill"}</button>
-              {canGenerate && !jobDrill?.content && <button type="button" className="btn" disabled={genBusy} onClick={onGenerate}>{genBusy ? "Writing your drill… (about 20 seconds)" : "Write one for this exact job"}</button>}
-            </div>
-          </div>
-          <div className="drill-hero-stats" aria-label="Your drills">
-            <span><b>{doneCount}</b> of {list.length} done</span>
-            {avgBest != null && <span><b>{avgBest}%</b> average best</span>}
-          </div>
-        </section>
-      )}
-      <h2 className="section-heading">All drills</h2>
-      <p className="hint">
-        {offline
-          ? "Practice the decisions senior AI, data, and cloud engineers defend under pressure. Pick one, make the call, and hold your reasoning as the interviewer keeps pushing — why, trade-off, constraint, incident. Your ratings feed your readiness."
-          : "Each drill is one design problem from a real senior interview, across roles. Preview any drill free; the full library comes with any pass."}
-      </p>
+        <label className="dr2-job">
+          <span className="dr2-job-k">For</span>
+          <select value={activeJob.id} onChange={(e) => onSwitchJob(e.target.value)} aria-label="Job">
+            {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
+          </select>
+        </label>
+      ) : !offline && !pointer ? (
+        <p className="small muted dr2-nojob"><Link to="/jobs">Pick a job</Link> so your drills count toward its readiness.</p>
+      ) : null}
 
-      {matchedRole && activeCat !== "all" && (
+      {savedRun && (
+        <section className="tses dr2-hero" aria-labelledby="drill-resume-h">
+          <span className="tses-eyebrow">Unfinished drill</span>
+          <h2 id="drill-resume-h">{savedRun.title}</h2>
+          <p>{savedRun.answered} of {savedRun.total || "?"} answered. Pick up where you left off.</p>
+          <button type="button" className="btn tses-btn" onClick={() => onResume(savedRun)}>Continue <span aria-hidden="true">→</span></button>
+          <button type="button" className="dr2-link" onClick={onDiscard}>Discard it</button>
+        </section>
+      )}
+
+      {!savedRun && jobDrill?.content && activeJob?.title && (
+        <section className="tses dr2-hero" aria-labelledby="drill-mine-h">
+          <span className="tses-eyebrow">Written for this job</span>
+          <h2 id="drill-mine-h">{jobDrill.title}</h2>
+          <DrillHow />
+          <button type="button" className="btn tses-btn" onClick={onGenerate}>{best[jobDrill.slug] != null ? "Run it again" : "Start this drill"} <span aria-hidden="true">→</span></button>
+          <button type="button" className="dr2-link" disabled={genBusy} onClick={onRegenerate}>{genBusy ? "Writing…" : "Write a different one"}</button>
+        </section>
+      )}
+
+      {!savedRun && !jobDrill?.content && recommended && list.length > 0 && (
+        <section className="tses dr2-hero" aria-labelledby="drill-hero-h">
+          <span className="tses-eyebrow">{kicker}</span>
+          <h2 id="drill-hero-h">{recommended.title}</h2>
+          {recommended.teaser?.setup && <p className="dr2-setup">{recommended.teaser.setup}</p>}
+          <DrillHow />
+          <button type="button" className="btn tses-btn" onClick={() => onOpen(recommended)}>{best[recommended.slug] != null ? "Run it again" : "Start this drill"} <span aria-hidden="true">→</span></button>
+          {canGenerate && <button type="button" className="dr2-link" disabled={genBusy} onClick={onGenerate}>{genBusy ? "Writing your drill… (about 20 seconds)" : "Or write one for this exact job"}</button>}
+        </section>
+      )}
+
+      {list.length > 0 && (
+        <p className="dr2-stats"><b>{doneCount}</b> of {list.length} drills done{avgBest != null ? <> · average best <b>{avgBest}%</b></> : null}</p>
+      )}
+
+      {matchedRole && activeCat !== "all" && canGenerate && !recommended && (
         <div className="scn-match">
-          {!(!offline && pointer && activeJob?.id === pointer && activeJob.title) && (
-            <p><span className="job-banner-label">Current job</span> <strong>{matchedRole}</strong></p>
-          )}
-          <p>
-            Showing <strong>{familyLabel(activeCat)}</strong> scenarios, the closest to this job.{" "}
-            <button type="button" className="link-btn" onClick={onClear}>Show all roles</button>
-          </p>
-          {canGenerate && !recommended && (
-            <>
-              <button type="button" className="btn btn-primary" disabled={genBusy} onClick={onGenerate}>
-                {genBusy ? "Writing your scenario…" : "Write a scenario for this job"}
-              </button>
-              <p className="hint">Built from <strong>{matchedRole}</strong> and its gaps. Comes with any pass. If it can’t be written right now, the closest scenario below opens instead.</p>
-            </>
-          )}
+          <button type="button" className="btn btn-primary" disabled={genBusy} onClick={onGenerate}>
+            {genBusy ? "Writing your scenario…" : "Write a scenario for this job"}
+          </button>
+          <p className="hint">Built from <strong>{matchedRole}</strong> and its gaps. If it can’t be written right now, the closest scenario below opens instead.</p>
         </div>
       )}
 
       {!list.length ? (
         <p className="hint">No scenarios published yet.</p>
       ) : (
-        <>
-          <div className="scn-filter" role="group" aria-label="Filter by role">
-            {cats.map((c) => (
-              <button key={c} type="button" className={"scn-chip" + (c === activeCat || (familyEmpty && c === "all") ? " on" : "")} aria-pressed={c === activeCat || (familyEmpty && c === "all")} onClick={() => onCat(c)}>
-                {c === "all" ? "All roles" : catLabel(c)}
-              </button>
-            ))}
-          </div>
-          <div className="scn-filter scn-status" role="group" aria-label="Filter by progress">
-            {([["all", "All"], ["new", "Not started"], ["improve", "Below 70%"], ["done", "Done"]] as const).map(([k, label]) => (
-              <button key={k} type="button" className={"scn-chip" + (status === k ? " on" : "")} aria-pressed={status === k} onClick={() => setStatus(k)}>
-                {label} <span className="scn-chip-n">{statusCount(k)}</span>
-              </button>
-            ))}
-          </div>
-          {familyEmpty && <p className="hint">There are no {familyLabel(activeCat)} scenarios in the library yet, so here are all of them. The design calls carry over across roles.{canGenerate ? " Or write one for this job above." : ""}</p>}
-          {!shown.length && <p className="hint">{status === "all" ? "No scenarios in this role yet." : "No drills match this filter."}</p>}
-          <div className="scn-grid">
-          {shown.map((s) => (
-            <div className="scn-card" key={s.slug}>
-              <div className="scn-card-top">
-                <span className="topic">{catLabel(s.category)}</span>
-                {best[s.slug] != null && <span className={"qw-status " + (best[s.slug] >= 80 ? "good" : best[s.slug] >= 55 ? "mid" : "low")}>Done · best {best[s.slug]}%</span>}
-              </div>
-              <h3>{s.title}</h3>
-              {s.teaser?.setup && <p className="scn-setup">{s.teaser.setup}</p>}
-              {(s.teaser?.you_will_practice || []).length > 0 && <div className="scn-skills">{s.teaser!.you_will_practice!.slice(0, 4).map((x, i) => <span key={i} className="scn-skill">{x}</span>)}</div>}
-              <div className="row">
-                <button type="button" className="btn btn-primary" onClick={() => onOpen(s)}>
-                  {best[s.slug] != null ? "Practise again" : offline || s.entitled ? "Start drill" : "Preview drill"}
+        <section className="tdy" aria-labelledby="dr2-all">
+          <div className="tdy-head"><h2 id="dr2-all">All drills</h2><span className="small muted">{offline ? "Free, bundled" : "Preview any free"}</span></div>
+          {cats.length > 2 && (
+            <div className="ro-chips" role="group" aria-label="Filter by role">
+              {cats.map((c) => (
+                <button key={c} type="button" className={"cp-chip" + (c === activeCat || (familyEmpty && c === "all") ? " on" : "")} aria-pressed={c === activeCat || (familyEmpty && c === "all")} onClick={() => (c === "all" ? onClear() : onCat(c))}>
+                  {c === "all" ? "All roles" : catLabel(c)}
                 </button>
-                {!offline && !s.entitled && <span className="scn-lock">Free preview · full with a pass</span>}
-              </div>
+              ))}
             </div>
-          ))}
-          </div>
-          {offline && (
-            <p className="hint">These bundled scenarios run free, right here. A pass adds the full multi-role library, with progress saved to your account.</p>
           )}
-        </>
+          <div className="ro-chips ro-chips-2" role="group" aria-label="Filter by progress">
+            {([["all", "All"], ["new", "Not started"], ["improve", "Below 70%"], ["done", "Done"]] as const).map(([k, label]) => (
+              <button key={k} type="button" className={"cp-chip" + (status === k ? " on" : "")} aria-pressed={status === k} onClick={() => setStatus(k)}>
+                {label} <span className="ro-n">{statusCount(k)}</span>
+              </button>
+            ))}
+          </div>
+          {familyEmpty && <p className="small muted">No {familyLabel(activeCat)} drills yet, so here are all of them. The design calls carry over across roles.</p>}
+          {!shown.length && <p className="small muted">{status === "all" ? "No drills in this role yet." : "No drills match this filter."}</p>}
+          <ul className="tdy-group dr2-list">
+            {shown.map((s) => (
+              <li key={s.slug}>
+                <button type="button" className="tdy-grow" onClick={() => onOpen(s)}>
+                  <span className="tdy-text">
+                    <strong>{s.title}</strong>
+                    <span>{catLabel(s.category)}{(s.teaser?.you_will_practice || []).length ? " · " + s.teaser!.you_will_practice!.slice(0, 2).join(", ") : ""}{!offline && !s.entitled ? " · free preview" : ""}</span>
+                  </span>
+                  {best[s.slug] != null
+                    ? <span className={"rd2-score" + (best[s.slug] >= 70 ? " is-good" : best[s.slug] >= 50 ? " is-mid" : " is-weak")}>{best[s.slug]}%</span>
+                    : <span className="tdy-pill is-new">Start</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+          {offline && <p className="small muted">These bundled drills run free, right here. A pass adds the full multi-role library, with progress saved to your account.</p>}
+        </section>
       )}
     </div>
+  );
+}
+
+/** The drill in three steps, so people know what they're starting. */
+function DrillHow() {
+  return (
+    <ol className="dr2-how" aria-label="How a drill works">
+      <li><b>Make the call</b><span>Pick a design and say why</span></li>
+      <li><b>Hold it</b><span>4 follow-ups: trade-off, constraint, incident</span></li>
+      <li><b>Get scored</b><span>Feedback on each answer · 10 min</span></li>
+    </ol>
   );
 }
 

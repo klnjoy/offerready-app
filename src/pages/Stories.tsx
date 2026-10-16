@@ -133,12 +133,29 @@ export default function StoriesPage() {
 
   return (
     <div className="page sb">
-      <div className="sb-toolbar">
-        <button type="button" className="btn btn-primary" onClick={() => openNew("quick")}>+ Quick capture</button>
-        <button type="button" className="btn" onClick={() => openNew("full")}>New full story</button>
-        <span className="sb-toolbar-gap" />
-        <button type="button" className="btn btn-ghost" onClick={exportMd} disabled={!stories.length}>Export Markdown</button>
-      </div>
+      <section className="tses sb-hero" aria-labelledby="sb-hero-h">
+        <span className="tses-eyebrow">Behavioral round{jobTitle ? " · " + jobTitle : ""}</span>
+        <h2 id="sb-hero-h">{missing.length ? (rows.length - missing.length) + " of " + rows.length + " covered. " + missing.length + " to go." : "Every competency is covered."}</h2>
+        <div className="tses-segs" aria-hidden="true">{rows.map((r) => <span key={r.key} className={r.stories.length ? "on" : ""} />)}</div>
+        <p className="sb-hero-p">{missing.length
+          ? <>Next: a story for <strong>{missing[0].label.toLowerCase()}</strong>. One real story can cover two competencies.</>
+          : <>Now practise telling them out loud in under two minutes each.</>}</p>
+        {missing.length > 0 && resume ? (
+          <button type="button" className="btn tses-btn" disabled={batchBusy} onClick={() => draftAll(missing.map((m) => m.key))}>
+            {batchBusy ? "Drafting… (about 20 seconds)" : "Draft " + Math.min(4, missing.length) + (Math.min(4, missing.length) === 1 ? " story" : " stories") + " from my resume"} <span aria-hidden="true">→</span>
+          </button>
+        ) : missing.length > 0 ? (
+          <button type="button" className="btn tses-btn" onClick={() => openNew("quick", [missing[0].key])}>Write a story for {missing[0].label.toLowerCase()} <span aria-hidden="true">→</span></button>
+        ) : (
+          <Link className="btn tses-btn" to="/interview/voice">Practise in a behavioral mock <span aria-hidden="true">→</span></Link>
+        )}
+        <div className="sb-hero-more">
+          <button type="button" className="dr2-link" onClick={() => openNew("quick")}>Quick capture</button>
+          <button type="button" className="dr2-link" onClick={() => openNew("full")}>New full story</button>
+        </div>
+        {missing.length > 0 && resume ? <span className="sb-hero-note">AI drafts are marked Draft until you check them; anything your resume doesn{"’"}t say stays in [brackets].</span> : null}
+        {batchMsg ? <p className="sb-hero-msg" role="status">{batchMsg}</p> : null}
+      </section>
       {flash && <p className="sb-flash" role="status">{flash}</p>}
 
       {editing && (
@@ -152,34 +169,12 @@ export default function StoriesPage() {
       <section className="card sb-matrix" aria-labelledby="sb-matrix-h">
         <div className="sb-sec-head">
           <div>
-            <h2 id="sb-matrix-h">Coverage {jobTitle ? <span className="sb-for">for {jobTitle}</span> : null}</h2>
-            <p className="muted small">
-              {analysis ? "What this job is likely to probe, from its seniority, responsibilities and skills." : jobs.status === "ready" && !jobs.jobs.length ? "Add a job to see what it needs. Until then, these are the competencies most loops ask about." : "The competencies most behavioural rounds ask about."}
-            </p>
-          </div>
-          <div className="sb-score" aria-label={"Covered " + (rows.length - missing.length) + " of " + rows.length}>
-            <strong>{rows.length - missing.length}</strong>/{rows.length}<span>covered</span>
+            <h2 id="sb-matrix-h">What {jobTitle ? "this job" : "interviewers"} will ask about</h2>
+            <p className="muted small">{analysis ? "From the job’s seniority, responsibilities and skills. Gaps first." : "The competencies most behavioral rounds ask about. Gaps first."}</p>
           </div>
         </div>
-        {missing.length > 0 ? (
-          <>
-            <p className="sb-gapline" role="note"><strong>No story for:</strong> {missing.map((m) => m.label.toLowerCase()).join(", ")}</p>
-            <div className="sb-batch">
-              <div>
-                <strong>Too many to write? Let AI start them.</strong>
-                <p className="small muted">{resume
-                  ? <>Drafts up to 4 stories for these from your resume, in one go. One story can cover two of them. Each is marked <strong>Draft</strong> until you check it; anything your resume doesn{"’"}t say stays in [brackets]. Uses 1 story AI credit.</>
-                  : <>Add your resume on the job{"’"}s Resume match tab, and AI can draft these stories from it in one go.</>}</p>
-              </div>
-              {resume ? <button type="button" className="btn btn-primary btn-small" disabled={batchBusy} onClick={() => draftAll(missing.map((m) => m.key))}>{batchBusy ? "Drafting… (about 20 seconds)" : "Draft stories from my resume"}</button> : null}
-            </div>
-            {batchMsg ? <p className="small sb-batch-msg" role="status">{batchMsg}</p> : null}
-          </>
-        ) : (
-          <p className="sb-okline">Every competency this job needs has at least one story.</p>
-        )}
         <div className="sb-rows" role="table" aria-label="Competency coverage">
-          {rows.map((r) => (
+          {[...rows].sort((x, y) => Number(!!x.stories.length) - Number(!!y.stories.length)).map((r) => (
             <div key={r.key} role="row" className={"sb-row" + (r.stories.length ? " is-covered" : " is-gap")}>
               <div role="cell" className="sb-row-comp">
                 <span className="sb-dot" aria-hidden="true" />
@@ -192,7 +187,7 @@ export default function StoriesPage() {
                 {r.stories.length ? r.stories.slice(0, 3).map((s) => (
                   <button key={s.id} type="button" className={"sb-chip" + (s.draft ? " is-draft" : "")} onClick={() => setEditing({ mode: "full", story: s })} title={s.draft ? "Draft: check it and save" : "Edit this story"}>{s.title}{s.draft ? " · draft" : ""}</button>
                 )) : (
-                  <button type="button" className="btn btn-small" onClick={() => openNew("quick", [r.key])}>Add a story</button>
+                  <button type="button" className="btn btn-small" onClick={() => openNew("quick", [r.key])}>+ Add</button>
                 )}
                 {r.stories.length > 3 && <span className="small muted">+{r.stories.length - 3}</span>}
               </div>
@@ -203,8 +198,8 @@ export default function StoriesPage() {
 
       <section aria-labelledby="sb-list-h" className="stack">
         <div className="sb-lib-head">
-          <h2 id="sb-list-h" className="sb-list-h">Your stories <span className="muted">({stories.length})</span></h2>
-          <p className="muted small">One library for all your jobs: a story you write once is reused for every job it fits. Eight to ten good stories cover most interviews.</p>
+          <h2 id="sb-list-h" className="sb-list-h">Your stories <span className="muted">({stories.length})</span>{stories.length ? <button type="button" className="link-btn small sb-export" onClick={exportMd}>Export</button> : null}</h2>
+          <p className="muted small">One library for all your jobs. Eight to ten good stories cover most interviews.</p>
         </div>
         {!stories.length ? (
           <Card className="sb-empty empty-card">
