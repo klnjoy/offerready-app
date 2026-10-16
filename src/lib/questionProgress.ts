@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { KEYS, onDataChanged, readJSON, writeJSON } from "./storage";
 
-export interface QProgress { score: number; how: "ai" | "self"; at: string }
+export interface QProgress { score: number; how: "ai" | "self"; at: string; /** First score, kept when a retry scores better. */ first?: number }
 type Store = Record<string, Record<string, QProgress>>;
 
 /** Short, stable key for a question's text (FNV-1a). */
@@ -27,7 +27,8 @@ export function useQuestionProgress(jobId: string): [Record<string, QProgress>, 
     const k = qKey(prompt);
     // Keep the better score; a newer AI grade replaces a self-rating.
     const prev = cur[k];
-    const keep = prev && prev.score > p.score && !(p.how === "ai" && prev.how === "self") ? { ...prev, at: p.at } : p;
+    const first = prev ? prev.first ?? prev.score : undefined;
+    const keep = prev && prev.score > p.score && !(p.how === "ai" && prev.how === "self") ? { ...prev, at: p.at } : { ...p, ...(first != null && first !== p.score ? { first } : {}) };
     all[jobId] = { ...cur, [k]: keep };
     writeJSON(KEYS.questionProgress, all);
     setMap(all[jobId]);

@@ -16,6 +16,7 @@ import { clampInt, setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { KEYS, readJSON, writeJSON } from "../lib/storage";
+import { qKey, type QProgress } from "../lib/questionProgress";
 import { loadStories, neededCompetencies, storyGaps, type Story } from "../lib/stories";
 import { useJobs } from "../lib/useJobs";
 import { SignInCard } from "../components/AuthForm";
@@ -166,6 +167,15 @@ function storyText(s: Story) {
   return [s.title, s.situation, s.task, s.action, s.result, s.metrics, s.roles, s.tags.join(" ")].join(" ");
 }
 
+const AREAS: { key: string; label: string }[] = [
+  { key: "technical", label: "Technical" },
+  { key: "behavioral", label: "Behavioral" },
+  { key: "system_design", label: "System design" },
+  { key: "leadership", label: "Leadership" },
+];
+/** Distinct practice days before we show a ready-date forecast. */
+const FORECAST_DAYS = 3;
+
 function buildModel(d: JobDetail, interviewDate: string, today: string, stories: Story[]) {
   const { job, gap, progress, practice, questions } = d;
   const jobQ = job.id ? "?job=" + encodeURIComponent(job.id) : "";
@@ -253,14 +263,46 @@ function buildModel(d: JobDetail, interviewDate: string, today: string, stories:
     return { name, level, why, resume: isGap ? "gap" : isStrong ? "strong" : null, practice: p, stories: nStories, mock: m };
   });
 
-  // --- top three this week ---
+  // --- where you stand, by area (server practice rows + this device's answers) ---
+  const qp = (readJSON<Record<string, Record<string, QProgress>>>(KEYS.questionProgress, {})[job.id]) || {};
+  const answered = questions
+    .map((q) => ({ q, p: qp[qKey(q.prompt)] }))
+    .filter((x): x is { q: typeof questions[number]; p: QProgress } => !!x.p && typeof x.p.score === "number");
+  const areaOf = (c: string) => {
+    const t = String(c || "").toLowerCase();
+    if (/behav/.test(t)) return "behavioral";
+    if (/design|architect|scenario|defend|drill/.test(t)) return "system_design";
+    if (/lead|manage/.test(t)) return "leadership";
+    if (/voice|mock|simulator/.test(t)) return "";
+    return "technical";
+  };
+  const byArea: Record<string, number[]> = { technical: [], behavioral: [], system_design: [], leadership: [] };
+  for (const x of answered) { const a2 = areaOf(String(x.q.category || "")); if (a2) byArea[a2].push(x.p.score); }
+  if (!answered.length) for (const s2 of done) { const a2 = areaOf((s2.category || "") + " " + (s2.mode || "")); if (a2) byArea[a2].push(Number(s2.score) || 0); }
+  const areas = AREAS.map((A) => ({ ...A, score: avg(byArea[A.key]), n: byArea[A.key].length }));
+  const recent = answered
+    .sort((x, y) => (timeOf(y.p.at) || 0) - (timeOf(x.p.at) || 0))
+    .slice(0, 5)
+    .map((x) => ({ prompt: x.q.prompt, score: x.p.score, first: x.p.first, area: areaOf(String(x.q.category || "")) }));
+  // Distinct days with practice: the forecast waits for 3.
+  const dayKeys = new Set<string>();
+  for (const p2 of points) dayKeys.add(new Date(p2.at).toISOString().slice(0, 10));
+  for (const x of answered) if (x.p.at) dayKeys.add(String(x.p.at).slice(0, 10));
+  for (const h of history) if (h && h.when) dayKeys.add(String(h.when).slice(0, 10));
+  const practiceDays = dayKeys.size;
+
+  // --- top three this week (in interview terms) ---
   const todo: Todo[] = [];
+  const weakArea = areas.filter((x) => x.score != null && x.score < 70).sort((x, y) => (x.score as number) - (y.score as number))[0];
+  if (weakArea) todo.push({ title: "Answer 3 " + weakArea.label.toLowerCase() + " questions", why: "Your weakest area so far: " + weakArea.score + "% across " + weakArea.n + (weakArea.n === 1 ? " answer" : " answers") + ".", to: "/questions" + jobQ, cta: "Practise", gain: 4 });
+  const low = recent.filter((r) => r.score < 60).sort((x, y) => x.score - y.score)[0];
+  if (low) todo.push({ title: "Retry your " + low.score + "% answer", why: "“" + (low.prompt.length > 70 ? low.prompt.slice(0, 68) + "…" : low.prompt) + "”. Use the fixes in the feedback, then compare.", to: "/questions" + jobQ, cta: "Retry it", gain: 3 });
   if (match == null) todo.push({ title: "Check your fit for this job", why: "Resume match is half your score and hasn’t been measured yet.", to: "/fit" + jobQ, cta: "Check fit", gain: 25 });
   else if (match < 85) todo.push({ title: "Tailor your resume to this job", why: "Rewrite your bullets around the skills it asks for, then re-check your fit.", to: "/tailor" + jobQ, cta: "Tailor resume", gain: Math.max(1, Math.round(0.5 * Math.min(10, 85 - match))) });
   if (!questions.length) todo.push({ title: "Get your interview questions", why: "A question set written for this job and its gaps.", to: "/questions", cta: "Get questions", gain: 3 });
   if (practiced < 10) {
     const n = Math.min(5, 10 - practiced);
-    todo.push({ title: "Practise " + n + " more round" + (n === 1 ? "" : "s"), why: "Each round counts toward the 10 that make up “Practice done”.", to: "/defend" + jobQ, cta: "Start a round", gain: 2 * n });
+    todo.push({ title: "Answer " + n + " more question" + (n === 1 ? "" : "s") + " for this job", why: "Out loud, then read the feedback. The more you answer, the steadier you get.", to: "/questions" + jobQ, cta: "Practise", gain: 2 * n });
   }
   if (quality == null || quality < 80) {
     const q = quality || 0;
@@ -270,10 +312,14 @@ function buildModel(d: JobDetail, interviewDate: string, today: string, stories:
   if (weakest) todo.push({ title: "Practise " + weakest.name, why: weakest.why + ". It’s the weakest skill this job needs.", to: practiseHref(weakest.name, job.id), cta: "Practise it", gain: 2 });
   const sg = storyGaps(neededCompetencies(a, job.title || "").slice(0, 4), stories)[0];
   if (sg) todo.push({ title: "Write a story for " + sg.toLowerCase(), why: "This job will ask about it and your story bank has nothing yet.", to: "/stories?competency=" + encodeURIComponent(sg), cta: "Add a story", gain: 1 });
+  // Concrete interview actions (weakest area, a low answer to retry) come
+  // first; the rest by estimated gain. One step per title.
+  const firstUp = todo.slice(0, (weakArea ? 1 : 0) + (low ? 1 : 0));
   const seen = new Set<string>();
-  const top = todo.sort((x, y) => y.gain - x.gain).filter((t) => (seen.has(t.to) ? false : (seen.add(t.to), true))).slice(0, 3);
+  const top = [...firstUp, ...todo.slice(firstUp.length).sort((x, y) => y.gain - x.gain)]
+    .filter((t) => (seen.has(t.title) ? false : (seen.add(t.title), true))).slice(0, 3);
 
-  return { score, parts, points, forecast, skills, top, hasGap, practiced, quality, jobQ };
+  return { score, parts, points, forecast, skills, top, hasGap, practiced, quality, jobQ, areas, recent, practiceDays };
 }
 
 const practiseHref = (skill: string, jobId?: string) =>
@@ -315,7 +361,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
         </label>
       ) : null}
 
-      {/* 1. The answer */}
+      {/* 1. Am I ready? */}
       <section className={"card rd-hero rd-tone-" + v.tone} aria-labelledby="rd-q">
         <div className="rd-hero-main">
           <ScoreDial score={m.score} />
@@ -325,33 +371,69 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
             <p className="rd-verdict-line">{v.line}</p>
           </div>
         </div>
-        <div className="rd-hero-side">
-          {date && days != null ? (
-            <div className="rd-count">
-              <span className="rd-count-num">{days > 1 ? days : days === 1 ? "1" : days === 0 ? "0" : Math.abs(days)}</span>
-              <span className="rd-count-text">
-                <strong>{days > 1 ? "days to your interview" : days === 1 ? "day: it’s tomorrow" : days === 0 ? "Interview today" : countdownLabel(days)}</strong>
-                <span>{formatDay(date, { weekday: "short", month: "short", day: "numeric" })}</span>
-              </span>
-            </div>
-          ) : null}
+        <div className="rd2-hero-foot">
+          {m.points.length >= 2 ? <Spark points={m.points} /> : <span className="small muted">Your trend appears after two practice sessions.</span>}
+          <span className="rd2-int">
+            {date && days != null && days >= 0
+              ? <><strong>{days === 0 ? "Interview today" : days === 1 ? "Interview tomorrow" : "Interview in " + days + " days"}</strong> · {formatDay(date, { weekday: "short", month: "short", day: "numeric" })}</>
+              : date && days != null ? <strong>{countdownLabel(days)}</strong>
+              : <Link to={"/jobs/" + encodeURIComponent(detail.job.id)}>Set your interview date</Link>}
+          </span>
         </div>
       </section>
 
       {fresh && <HowItStarts jobQ={m.jobQ} />}
 
-      {/* 2. Forecast */}
-      <ForecastCard f={m.forecast} interviewDate={date} today={today} jobId={detail.job.id} />
+      {/* 2. Where am I weak? */}
+      <section className="rd2" aria-labelledby="rd2-areas-h">
+        <div className="pl-head"><h2 id="rd2-areas-h">Where you stand</h2><span className="small muted">Average score by area</span></div>
+        <ul className="tdy-group rd2-areas">
+          {m.areas.map((x) => (
+            <li key={x.key} className="rd2-area">
+              <div className="rd2-area-top">
+                <strong>{x.label}</strong>
+                <span className="rd2-area-num">{x.score != null ? x.score + "%" : "Not tried"}<em>{x.n ? " · " + x.n + (x.n === 1 ? " answer" : " answers") : ""}</em></span>
+              </div>
+              <div className={"rd2-bar" + (x.score == null ? " is-none" : x.score >= 70 ? " is-good" : x.score >= 50 ? " is-mid" : " is-weak")} aria-hidden="true">
+                <span style={{ width: (x.score ?? 0) + "%" }} /><i style={{ left: READY_LINE + "%" }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="small muted rd2-note">The line marks the ready bar ({READY_LINE}%). <Link to={"/questions" + m.jobQ}>Practise questions for this job</Link></p>
+      </section>
 
-      {/* 3. What to do this week: the biggest gains, one tap each */}
+      {/* 3. Am I getting better? */}
+      <section className="rd2" aria-labelledby="rd2-recent-h">
+        <div className="pl-head"><h2 id="rd2-recent-h">Your recent answers</h2><span className="small muted">Latest first</span></div>
+        {m.recent.length ? (
+          <ul className="tdy-group rd2-recent">
+            {m.recent.map((r, i) => (
+              <li key={i}>
+                <Link className="tdy-grow" to={"/questions" + m.jobQ}>
+                  <span className="tdy-text">
+                    <strong className="rd2-q">{r.prompt}</strong>
+                    <span>{r.first != null && r.first !== r.score ? "First try " + r.first + "% → now " + r.score + "%" : AREAS.find((x) => x.key === r.area)?.label || "Answer"}</span>
+                  </span>
+                  <span className={"rd2-score" + (r.score >= 70 ? " is-good" : r.score >= 50 ? " is-mid" : " is-weak")}>{r.score}%{r.first != null && r.score > r.first ? <em> ▲{r.score - r.first}</em> : null}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="small muted">No scored answers yet. <Link to={"/questions" + m.jobQ}>Answer your first question</Link> and it shows up here.</p>
+        )}
+      </section>
+
+      {/* 4. What to do next */}
       <section className="rd-week2" aria-labelledby="rd-week-h">
         <div className="pl-head">
-          <h2 id="rd-week-h">Your top 3 this week</h2>
-          <span className="small muted">Biggest gains first</span>
+          <h2 id="rd-week-h">Your next steps</h2>
+          <span className="small muted">Most useful first</span>
         </div>
         <ol className="tdy-group rd-todo2">
           {m.top.map((t, i) => (
-            <li key={t.to}>
+            <li key={t.to + i}>
               <Link className="tdy-grow" to={t.to}>
                 <span className="rd-todo-n" aria-hidden="true">{i + 1}</span>
                 <span className="tdy-text"><strong>{t.title}</strong><span className="rd-todo-why">{t.why}</span></span>
@@ -364,14 +446,22 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
         <p className="small muted rd-todo-note">Points are estimates of how much each one can add.</p>
       </section>
 
+      {/* 5. Forecast, once there's enough to go on */}
+      {m.practiceDays >= FORECAST_DAYS ? (
+        <ForecastCard f={m.forecast} interviewDate={date} today={today} jobId={detail.job.id} />
+      ) : (
+        <div className="rd2-fc-wait">
+          <strong>When will you be ready?</strong>
+          <span>Practise on {FORECAST_DAYS - m.practiceDays} more {FORECAST_DAYS - m.practiceDays === 1 ? "day" : "days"} and we{"’"}ll forecast your ready date from your real pace.</span>
+        </div>
+      )}
 
-      {/* 4. Breakdown */}
-      <Breakdown parts={m.parts} score={m.score} />
-
-      {/* 4. Skills heatmap */}
-      <Heatmap skills={m.skills} jobId={detail.job.id} hasGap={m.hasGap} />
-
-      {/* 5. Trend */}
+      {/* 6. Details */}
+      <details className="card rd2-details">
+        <summary>Details: score breakdown, skills and trend</summary>
+        <div className="rd2-details-body">
+          <Breakdown parts={m.parts} score={m.score} />
+          <Heatmap skills={m.skills} jobId={detail.job.id} hasGap={m.hasGap} />
       <section className="card rd-trend" aria-labelledby="rd-trend-h">
         <div className="rd-sec-head">
           <h2 id="rd-trend-h">Your score over time</h2>
@@ -379,7 +469,30 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
         </div>
         {m.points.length >= 2 ? <TrendChart points={m.points} today={today} interviewDate={date} f={m.forecast} /> : <TrendEmpty jobQ={m.jobQ} />}
       </section>
+        </div>
+      </details>
     </div>
+  );
+}
+
+/** A small trend line of the readiness score (oldest to newest). */
+function Spark({ points }: { points: { at: number; score: number }[] }) {
+  const ps = points.slice(-14);
+  const W = 140, H = 36;
+  const t0 = ps[0].at, t1 = ps[ps.length - 1].at || t0 + 1;
+  const x = (t: number) => (t1 === t0 ? W : ((t - t0) / (t1 - t0)) * (W - 4) + 2);
+  const y = (v: number) => H - 3 - (v / 100) * (H - 6);
+  const d = ps.map((p, i) => (i ? "L" : "M") + x(p.at).toFixed(1) + " " + y(p.score).toFixed(1)).join(" ");
+  const first = ps[0].score, last = ps[ps.length - 1].score, diff = last - first;
+  return (
+    <span className="rd2-spark">
+      <svg viewBox={"0 0 " + W + " " + H} width={W} height={H} role="img" aria-label={"Readiness went from " + first + " to " + last + " over " + ps.length + " sessions"}>
+        <line x1="0" x2={W} y1={y(READY_LINE)} y2={y(READY_LINE)} className="rd2-spark-goal" />
+        <path d={d} className="rd2-spark-line" />
+        <circle cx={x(ps[ps.length - 1].at)} cy={y(last)} r="3" className="rd2-spark-dot" />
+      </svg>
+      <span className={"rd2-spark-d" + (diff > 0 ? " up" : diff < 0 ? " down" : "")}>{diff > 0 ? "▲ " + diff : diff < 0 ? "▼ " + Math.abs(diff) : "No change"} <em>since {shortDay(new Date(t0).toISOString().slice(0, 10))}</em></span>
+    </span>
   );
 }
 
@@ -426,7 +539,7 @@ function HowItStarts({ jobQ }: { jobQ: string }) {
 }
 
 // ---- 2. Forecast ----
-function ForecastCard({ f, interviewDate, today, jobId }: { f: Forecast; interviewDate: string; today: string; jobId: string }) {
+function ForecastCard({ f, interviewDate, today }: { f: Forecast; interviewDate: string; today: string; jobId?: string }) {
   const tone = f.status === "on-track" || f.status === "reached" ? "good" : f.status === "late" || f.status === "stalled" || f.status === "far" ? "warn" : "locked";
   const dti = f.daysToInterview;
   const showStrip = f.readyDate && f.daysToReady != null;
@@ -445,7 +558,6 @@ function ForecastCard({ f, interviewDate, today, jobId }: { f: Forecast; intervi
           <span className="muted small">{f.used} of 2 sessions</span>
         </div>
       )}
-      {!interviewDate ? <div className="row no-print"><Link className="btn btn-small" to={"/jobs/" + encodeURIComponent(jobId)}>Set your interview date</Link></div> : null}
     </section>
   );
 }

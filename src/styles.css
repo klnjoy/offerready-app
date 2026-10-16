@@ -4606,3 +4606,48 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .cp2-next-list { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
 .cp2-next-list .cp-chip { text-align: left; white-space: normal; line-height: 1.35; }
 .cp2-new { align-self: center; }
+
+/* Progress v2: ready? / where you stand / getting better */
+.rd2 { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rd2-hero-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+.rd2-int { font-size: 0.9rem; color: var(--text-2); }
+.rd2-int strong { color: var(--text); }
+.rd2-spark { display: inline-flex; align-items: center; gap: 10px; }
+.rd2-spark-line { fill: none; stroke: #22c07a; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.rd2-spark-dot { fill: #22c07a; }
+.rd2-spark-goal { stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.rd2-spark-d { font-size: 0.85rem; font-weight: 700; color: var(--text-2); }
+.rd2-spark-d.up { color: var(--signal-600); }
+.rd2-spark-d.down { color: var(--weak); }
+.rd2-spark-d em { font-style: normal; font-weight: 500; color: var(--text-3); }
+.rd2-areas { list-style: none; margin: 0; padding: 0; }
+.rd2-area { margin: 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
+.rd2-area + .rd2-area { border-top: 1px solid var(--border); }
+.rd2-area-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.rd2-area-num { font-weight: 800; font-variant-numeric: tabular-nums; }
+.rd2-area-num em { font-style: normal; font-weight: 500; color: var(--text-2); font-size: 0.85rem; }
+.rd2-bar { position: relative; height: 8px; border-radius: 8px; background: var(--border); }
+.rd2-bar span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 8px; background: var(--text-3); }
+.rd2-bar.is-good span { background: var(--good); }
+.rd2-bar.is-mid span { background: var(--mid); }
+.rd2-bar.is-weak span { background: var(--weak); }
+.rd2-bar i { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-2); border-radius: 2px; }
+.rd2-note { margin: 0 4px; }
+.rd2-recent { list-style: none; margin: 0; padding: 0; }
+.rd2-recent li { margin: 0; }
+.rd2-q { font-weight: 600 !important; white-space: normal; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rd2-score { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; padding: 3px 10px; border-radius: 999px; background: var(--surface-2); }
+.rd2-score.is-good { color: var(--signal-600); background: var(--signal-soft); }
+.rd2-score.is-mid { color: var(--amber); background: var(--amber-soft); }
+.rd2-score.is-weak { color: var(--weak); background: color-mix(in srgb, var(--weak) 12%, transparent); }
+.rd2-score em { font-style: normal; font-size: 0.75rem; margin-left: 2px; }
+.rd2-fc-wait { display: flex; flex-direction: column; gap: 2px; padding: 14px 16px; border-radius: 16px; border: 1px dashed var(--border-strong); background: var(--surface); }
+.rd2-fc-wait span { color: var(--text-2); font-size: 0.92rem; }
+.rd2-details { padding: 0; }
+.rd2-details > summary { cursor: pointer; padding: 14px 16px; font-weight: 700; list-style: none; }
+.rd2-details > summary::-webkit-details-marker { display: none; }
+.rd2-details > summary::after { content: "›"; float: right; color: var(--text-3); transition: transform 0.15s; }
+.rd2-details[open] > summary::after { transform: rotate(90deg); }
+.rd2-details-body { display: flex; flex-direction: column; gap: 14px; padding: 0 12px 12px; }
+.rd2-details-body > .card { box-shadow: none; }
+@media print { .rd2-details { display: block; } .rd2-details > .rd2-details-body { display: flex !important; } }
