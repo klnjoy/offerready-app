@@ -38,6 +38,7 @@ import { deleteTailoredResume, downloadText, useTailoredResume } from "../lib/ta
 import { CopyButton } from "../components/StreamDraft";
 import { SettingsTab } from "./JobSettings";
 import { ShortlistCheck } from "../components/ShortlistCheck";
+import { SkillPlan } from "../components/SkillPlan";
 import { jobKeywords } from "../lib/tailor";
 import { Art } from "../components/Art";
 
@@ -1025,6 +1026,8 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
         <ShortlistCheck text={tailored?.text || resume.text} fileName={tailored ? tailored.fileName : resume.fileName} tailored={!!tailored}
           title={displayJobTitle(data.job)} keywords={slKeywords} jobId={jobId} />
       ) : null}
+
+      <SkillPlan skills={slKeywords} resumeText={tailored?.text || resume?.text || ""} jobId={jobId} />
 
       {r ? <FitDetails result={r} /> : (
         <Card><Muted>No fit check yet. Add your resume and press {"“"}Check my fit{"”"} to see your match score, what{"’"}s found and what{"’"}s missing.</Muted></Card>
