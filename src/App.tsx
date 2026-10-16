@@ -97,15 +97,15 @@ const ROUTES: Route[] = [
   { path: "/interview/voice", title: "Voice interview", section: "mock", back: BACK_MOCK, subtitle: "Answer out loud. The interviewer follows up on what you actually said, then scores your content and delivery.", component: VoiceMockPage },
   { path: "/simulator", title: "Text interview", section: "mock", back: BACK_MOCK, subtitle: "A mixed loop of questions. Answer, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
   { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
-  { path: "/account", title: "Account", component: AccountPage },
+  { path: "/account", title: "Account", section: "more", component: AccountPage },
   { path: "/more", title: "More", section: "more", component: MorePage },
-  { path: "/pricing", title: "Pricing", component: PricingPage },
-  { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
-  { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },
-  { path: "/faq", title: "Questions and study notes", subtitle: "Quick answers about OfferReady, and the free study library behind the questions.", component: FaqPage },
-  { path: "/sample-report", title: "Sample mock interview report", subtitle: "What you get after a voice mock interview. Sample data, no account needed.", component: SampleReportPage },
-  { path: "/app", title: "Get the app", subtitle: "Install OfferReady on your computer, Android phone or iPhone. Free, no app store needed.", component: GetAppPage },
-  { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", component: ExamplePage },
+  { path: "/pricing", title: "Pricing", section: "more", component: PricingPage },
+  { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", section: "more", component: DemoPage },
+  { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", section: "more", component: TryPage },
+  { path: "/faq", title: "Questions and study notes", subtitle: "Quick answers about OfferReady, and the free study library behind the questions.", section: "more", component: FaqPage },
+  { path: "/sample-report", title: "Sample mock interview report", subtitle: "What you get after a voice mock interview. Sample data, no account needed.", section: "more", component: SampleReportPage },
+  { path: "/app", title: "Get the app", subtitle: "Install OfferReady on your computer, Android phone or iPhone. Free, no app store needed.", section: "more", component: GetAppPage },
+  { path: "/example", title: "Sample walkthrough", subtitle: "A worked example on sample data: how one job becomes a focused preparation plan.", section: "more", component: ExamplePage },
 ];
 
 const NAV: { key: Section; to: string; label: string }[] = [
@@ -228,6 +228,10 @@ export default function App() {
 
   const body = (
     <>
+        {/* Phones: pages opened from More get a way back to it. */}
+        {signedIn && section === "more" && pathname !== "/more" ? (
+          <Link className="tb-back" to="/more"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M12.5 4.5 7 10l5.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>More</Link>
+        ) : null}
         {match?.route.subtitle ? (
           <header className="page-head">
             {back && !nav ? <Link className="back-link" to={resolveBack(back.to, search)}>{"←"} {back.label}</Link> : null}
