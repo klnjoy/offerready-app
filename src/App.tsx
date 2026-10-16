@@ -1,3 +1,4 @@
+import { BgJobPill } from "./components/BgJobPill";
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { DOCS_BASE, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
@@ -313,6 +314,7 @@ export default function App() {
 
       {jobNav && jobMenu ? <JobMenu nav={jobNav} jobs={jobs} onClose={() => setJobMenu(false)} /> : null}
       {signedIn && pathname !== "/" ? <TabBar section={section} /> : null}
+      {signedIn ? <BgJobPill /> : null}
       <HelpBot />
       <FeedbackDialog />
 
