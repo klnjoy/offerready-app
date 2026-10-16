@@ -140,7 +140,7 @@ export default function JobDetailPage({ id }: Record<string, string>) {
               </Link>
             ))}
           </nav>
-          {tab === "overview" && <Overview data={data} />}
+          {tab === "overview" && <Overview data={data} jobs={jobs.jobs} onSwitch={(nid) => { setActiveJob(nid); navigate(jobPath(nid, "overview")); }} />}
           {tab === "resume" && <ResumeTab data={data} onGap={(g) => setData((d) => ({ ...d, gap: g }))} />}
           {tab === "settings" && <SettingsTab data={data}
             onSaved={(t, c) => { setData((d) => ({ ...d, job: { ...d.job, title: t, company: c } })); jobs.reload(); jobsChanged(); }}
@@ -176,25 +176,8 @@ function JobHead({ id, title, job, jobs, tab, onSwitch, onRenamed }: {
     else setErr(res?.body?.error || "Couldn’t rename the job. Please try again.");
   };
   const phone = useNarrow("(max-width: 760px)");
-  if (phone && tab === "overview" && !editing) {
-    // Phone "Today": what to do today for this job, with the job as a switcher.
-    return (
-      <header className="jw-head jw-today">
-        <h1>Today</h1>
-        {jobs.length > 1 ? (
-          <label className="jw-today-job">
-            <span className="hm-sr">Job</span>
-            <select aria-label="Switch job" value={id} onChange={(e) => onSwitch(e.target.value)}>
-              {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j) + (j.company ? " · " + j.company : "")}</option>)}
-            </select>
-            <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </label>
-        ) : (
-          <p className="jw-today-job is-one">{title}{meta ? " · " + meta : ""}</p>
-        )}
-      </header>
-    );
-  }
+  // Phone "Today": the header (with the calendar) is drawn by Overview.
+  if (phone && tab === "overview" && !editing) return null;
   return (
     <header className="jw-head">
       <Link className="back-link" to="/jobs">{"←"} All jobs</Link>
@@ -325,7 +308,7 @@ function SetupOnce({ jobId, hasResume, hasFit, hasDate, children }: { jobId: str
 
 const parseWhen = (w: string) => { const t = Date.parse(w); return isNaN(t) ? 0 : t; };
 
-function Overview({ data }: { data: JobDetail }) {
+function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRow[]; onSwitch?(id: string): void }) {
   const plan = usePlan();
   const today = localDay();
   const jobId = data.job.id;
@@ -334,6 +317,10 @@ function Overview({ data }: { data: JobDetail }) {
   const [doneDays, setDoneDays] = useState<string[]>(allDoneDays);
   const [showAll, setShowAll] = useState(false);
   const narrow = useNarrow();
+  const phone = useNarrow("(max-width: 760px)");
+  // Phone Today: the day shown (today unless picked on the calendar).
+  const [sel, setSel] = useState(today);
+  const [calOpen, setCalOpen] = useState(false);
   const debriefs = useDebriefs();
   const [resumeSaved] = useSavedResume();
 
@@ -387,9 +374,10 @@ function Overview({ data }: { data: JobDetail }) {
   const logTo = "/debrief?job=" + enc(jobId) + "&new=1";
 
   const { prep } = derived;
-  const todayDay = prep.days.find((d) => d.date === today);
+  const viewDate = phone ? sel : today;
+  const todayDay = prep.days.find((d) => d.date === viewDate);
   const tasks = todayDay ? todayDay.tasks : [];
-  const catchUp = carryOver(prep, today, state.done);
+  const catchUp = viewDate === today ? carryOver(prep, today, state.done) : [];
   const firstOpen = [...tasks, ...catchUp].find((t) => !state.done[t.id]);
   const next: Next = unlogged && passed
     ? { label: "Log how your interview went", why: "Note the questions while you still remember them. The ones that went badly come back in your plan, and a next round date re-plans up to it.", to: logTo, cta: "Log interview" }
@@ -431,9 +419,9 @@ function Overview({ data }: { data: JobDetail }) {
       <section className="card td-tasks" aria-labelledby="td-tasks-h">
         <div className="td-sec-head">
           <div>
-            <h2 id="td-tasks-h">Your plan for today</h2>
+            <h2 id="td-tasks-h">{viewDate === today ? "Your plan for today" : "Your plan for " + formatDay(viewDate, { weekday: "long", month: "short", day: "numeric" })}</h2>
             <p className="muted small">
-              {todayDay ? "Day " + (todayDay.index + 1) + " of " + prep.totalDays + (todayDay.type === "mock" ? " · mock day" : todayDay.type === "light" ? " · light day" : "") : "No tasks for today"}
+              {todayDay ? "Day " + (todayDay.index + 1) + " of " + prep.totalDays + (todayDay.type === "mock" ? " · mock day" : todayDay.type === "light" ? " · light day" : "") : viewDate === date ? "Interview day" : viewDate === today ? "No tasks for today" : "No tasks this day"}
               {" · "}{doneToday}/{tasks.length} done
             </p>
           </div>
@@ -455,7 +443,8 @@ function Overview({ data }: { data: JobDetail }) {
             </ul>
           </>
         )}
-        {tasks.length > 0 && doneToday === tasks.length && <p className="td-alldone">Today{"’"}s plan is done. Nice work.</p>}
+        {tasks.length > 0 && doneToday === tasks.length && <p className="td-alldone">{viewDate === today ? "Today’s plan is done. Nice work." : "All done for this day."}</p>}
+        {viewDate !== today ? <button type="button" className="link-btn small" onClick={() => setSel(today)}>Back to today</button> : null}
       </section>
   );
   const readinessCard = <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />;
@@ -536,11 +525,39 @@ function Overview({ data }: { data: JobDetail }) {
   );
   const aboutCard = <AboutJob data={data} />;
 
-  if (narrow) {
+  if (narrow || phone) {
     // Phone: only what to do now; the rest is one tap away.
     const r = derived.readiness;
+    const marks: Record<string, { n: number; done: number; type: string }> = {};
+    for (const d of prep.days) marks[d.date] = { n: d.tasks.length, done: d.tasks.filter((t) => state.done[t.id]).length, type: d.type };
+    const head = phone ? (
+      <header className="jw-head jw-today">
+        <button type="button" className="jw-today-h" aria-expanded={calOpen} aria-controls="td-cal" onClick={() => setCalOpen((o) => !o)}>
+          <h1>{sel === today ? "Today" : formatDay(sel, { weekday: "short", month: "short", day: "numeric" })}</h1>
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" className={calOpen ? "up" : ""}><path d="M5 8l5 5 5-5" fill="currentColor" /></svg>
+          <span className="hm-sr">{calOpen ? "Hide calendar" : "Show calendar"}</span>
+        </button>
+        {calOpen ? (
+          <PlanCalendar sel={sel} today={today} interview={date || ""} marks={marks}
+            onPick={(d) => { setSel(d); setCalOpen(false); }}
+            onSetInterview={(d) => setDate(d)} />
+        ) : null}
+        {jobs.length > 1 && onSwitch ? (
+          <label className="jw-today-job">
+            <span className="hm-sr">Job</span>
+            <select aria-label="Switch job" value={jobId} onChange={(e) => onSwitch(e.target.value)}>
+              {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j) + (j.company ? " · " + j.company : "")}</option>)}
+            </select>
+            <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </label>
+        ) : (
+          <p className="jw-today-job is-one">{title}{data.job.company ? " · " + data.job.company : ""}</p>
+        )}
+      </header>
+    ) : null;
     return (
       <>
+        {head}
         <p className="jd-status">
           <Link to="/dashboard" className="jd-status-item"><b>{r != null ? r + "%" : "—"}</b> ready</Link>
           {date && !passed ? <span className="jd-status-item">{days != null && days > 0 ? <>Interview in <b>{days}</b> {days === 1 ? "day" : "days"}</> : <b>Interview today</b>}</span> : null}
@@ -583,6 +600,69 @@ function Overview({ data }: { data: JobDetail }) {
   );
 }
 
+
+// ---------------------------------------------------------------------------
+// Phone Today: a month calendar of the plan. Dots mark plan days, a tick
+// marks a finished day, a ring marks the interview. Pick a day to see its
+// tasks, or set it as the interview day.
+
+function PlanCalendar({ sel, today, interview, marks, onPick, onSetInterview }: {
+  sel: string; today: string; interview: string; marks: Record<string, { n: number; done: number; type: string }>;
+  onPick(d: string): void; onSetInterview(d: string | null): void;
+}) {
+  const [ym, setYm] = useState(() => sel.slice(0, 7));
+  const [pick, setPick] = useState(sel);
+  const [y, m] = ym.split("-").map(Number);
+  const first = new Date(y, m - 1, 1);
+  const daysIn = new Date(y, m, 0).getDate();
+  const lead = first.getDay();
+  const iso = (d: number) => ym + "-" + String(d).padStart(2, "0");
+  const shift = (n: number) => { const d = new Date(y, m - 1 + n, 1); setYm(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0")); };
+  const cells: (number | null)[] = [...Array(lead).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)];
+  const label = first.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const pickMark = marks[pick];
+  return (
+    <div id="td-cal" className="pcal" role="dialog" aria-label="Plan calendar">
+      <div className="pcal-top">
+        <strong>{label}</strong>
+        <div>
+          <button type="button" className="pcal-nav" aria-label="Previous month" onClick={() => shift(-1)}>{"‹"}</button>
+          <button type="button" className="pcal-nav" aria-label="Next month" onClick={() => shift(1)}>{"›"}</button>
+        </div>
+      </div>
+      <div className="pcal-grid" role="grid">
+        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => <span key={i} className="pcal-dow" aria-hidden="true">{d}</span>)}
+        {cells.map((d, i) => {
+          if (!d) return <span key={"e" + i} />;
+          const k = iso(d);
+          const mk = marks[k];
+          const cls = "pcal-day" + (k === today ? " is-today" : "") + (k === pick ? " is-sel" : "") + (k === interview ? " is-iv" : "")
+            + (mk ? (mk.n && mk.done >= mk.n ? " is-done" : " has-plan") : "") + (k < today ? " is-past" : "");
+          const desc = (k === interview ? "Interview day. " : "") + (mk ? mk.done + " of " + mk.n + " tasks done" : "No plan tasks");
+          return (
+            <button key={k} type="button" className={cls} aria-label={formatDay(k, { weekday: "long", month: "long", day: "numeric" }) + ". " + desc}
+              aria-pressed={k === pick} onClick={() => setPick(k)}>
+              {d}
+            </button>
+          );
+        })}
+      </div>
+      <p className="pcal-legend small muted"><span className="pcal-key has-plan" /> plan day <span className="pcal-key is-done" /> done <span className="pcal-key is-iv" /> interview</p>
+      <div className="pcal-foot">
+        <span className="small">
+          <strong>{pick === today ? "Today" : formatDay(pick, { weekday: "short", month: "short", day: "numeric" })}</strong>
+          {pick === interview ? " · interview day" : pickMark ? " · " + pickMark.done + "/" + pickMark.n + " done" : ""}
+        </span>
+        <div className="row">
+          {pick === interview
+            ? <button type="button" className="btn btn-ghost btn-small" onClick={() => onSetInterview(null)}>Clear interview day</button>
+            : pick > today ? <button type="button" className="btn btn-ghost btn-small" onClick={() => onSetInterview(pick)}>Set as interview day</button> : null}
+          <button type="button" className="btn btn-primary btn-small" onClick={() => onPick(pick)}>Show this day</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** True on phone-width screens. The job page shows less there: what to do
  * now first, everything else folded under "More for this job". */
