@@ -60,7 +60,7 @@ interface FormValues {
 
 type View =
   | { kind: "form"; prefill?: Partial<FormValues>; error?: string }
-  | { kind: "loading"; step: number; withResume: boolean }
+  | { kind: "loading"; step: number; withResume: boolean; title?: string; company?: string }
   | { kind: "result"; analysis: Analysis; meta: ResultMeta };
 
 // ---- pending job across sign-in --------------------------------------------
@@ -188,7 +188,7 @@ export default function AnalyzePage() {
   const addJob = async (v: FormValues) => {
     const resume = getSavedResume();
     const withResume = !!resume;
-    setView({ kind: "loading", step: 0, withResume });
+    setView({ kind: "loading", step: 0, withResume, title: v.targetRole, company: v.company });
     const tok = auth.session ? await auth.getAccessToken() : null;
     // Signed-in runs count toward the plan's monthly analyses (server-enforced).
     const res = await api.analyzeJob({ jobDescription: v.jobDescription, targetRole: v.targetRole, resume: resume?.text }, tok);
@@ -222,7 +222,7 @@ export default function AnalyzePage() {
     const meta: ResultMeta = { model: d.model, input: { targetRole: v.targetRole, jobDescription: v.jobDescription } };
 
     // Save the job.
-    setView({ kind: "loading", step: 1, withResume });
+    setView((cur) => ({ kind: "loading", step: 1, withResume, ...(cur.kind === "loading" ? { title: cur.title, company: cur.company } : {}) }));
     let jobId = "";
     if (tok) {
       const saved = await api.createJob(tok, { analysis: withSummary(a, v.jobDescription), title: v.targetRole || a.jobTitle || "", company: (v.company || a.company || "").slice(0, 200), jobDescription: v.jobDescription, model: d.model || "" });
@@ -246,7 +246,7 @@ export default function AnalyzePage() {
 
     // Not saved: compare here so the result page can show the match.
     if (resume) {
-      setView({ kind: "loading", step: 2, withResume });
+      setView((cur) => ({ kind: "loading", step: 2, withResume, ...(cur.kind === "loading" ? { title: cur.title, company: cur.company } : {}) }));
       const fit = await api.runGapAnalysis(tok, { jobId: jobId || null, role: v.targetRole || deriveRoleTitle(v.targetRole, a), jobDescription: v.jobDescription, resumeText: resume.text });
       if (fit.status === 200 && fit.body?.result) meta.fit = fit.body.result;
     }
@@ -286,7 +286,7 @@ export default function AnalyzePage() {
           </SignInCard>
         </div>
       )}
-      {view.kind === "loading" && <AddJobLoading step={view.step} withResume={view.withResume} />}
+      {view.kind === "loading" && <AddJobLoading step={view.step} withResume={view.withResume} title={view.title} company={view.company} />}
       {view.kind === "result" && (
         <AnalysisResult
           analysis={view.analysis}
@@ -514,17 +514,49 @@ function AddJobForm({
   );
 }
 
-function AddJobLoading({ step, withResume }: { step: number; withResume: boolean }) {
-  const steps = ["Reading the job", "Saving it to your jobs", ...(withResume ? ["Comparing your resume"] : [])];
+/* The wait while a job is added (usually 15 to 30 seconds): a progress bar
+ * that keeps moving, steps in plain words, and something useful to do
+ * meanwhile (a warm-up question and what's coming), instead of a bare list. */
+const WAIT_TIPS = [
+  "You’ll get the skills this job asks for, in order of how much they matter.",
+  "Your gaps become “Prepare your answer” tasks, so nothing catches you out.",
+  "Your daily plan is about 40 minutes: questions first, then one drill.",
+  "Set your interview date next, and the plan fits itself to your days.",
+];
+function AddJobLoading({ step, withResume, title, company }: { step: number; withResume: boolean; title?: string; company?: string }) {
+  const [sec, setSec] = useState(0);
+  useEffect(() => { const t = window.setInterval(() => setSec((n) => n + 1), 1000); return () => window.clearInterval(t); }, []);
+  const steps = ["Reading what the role needs", "Building your questions and plan", ...(withResume ? ["Matching your resume to the job"] : [])];
+  // Each step owns a slice of the bar and creeps toward its end, so the bar
+  // never stalls even while the AI is still working.
+  const span = 92 / steps.length;
+  const pct = Math.min(96, span * step + span * (1 - Math.exp(-sec / (step === 0 ? 8 : 5))));
+  const tip = WAIT_TIPS[Math.floor(sec / 6) % WAIT_TIPS.length];
+  const name = (title || "").trim();
   return (
-    <Card>
-      <div className="question">Adding your job{"…"}</div>
-      <ul className="steps" aria-live="polite">
-        {steps.map((s, i) => (
-          <li key={s} className={i <= step ? "step-on" : ""}>{s}{i < step ? " ✓" : i === step ? "…" : ""}</li>
-        ))}
-      </ul>
-    </Card>
+    <div className="ajw" aria-live="polite">
+      <section className="tses ajw-hero">
+        <span className="tses-eyebrow">Setting up your prep</span>
+        <h2>{name ? name : "Your new job"}{company ? <span className="ajw-co"> · {company}</span> : null}</h2>
+        <div className="ajw-bar" role="progressbar" aria-label="Adding your job" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pct)}><i style={{ width: pct + "%" }} /></div>
+        <ol className="ajw-steps">
+          {steps.map((x, i) => (
+            <li key={x} className={i < step ? "done" : i === step ? "now" : ""}>
+              <span className="ajw-dot" aria-hidden="true">{i < step ? "✓" : ""}</span>{x}
+            </li>
+          ))}
+        </ol>
+        <span className="ajw-time">{sec < 25 ? "Usually 15 to 30 seconds" : sec < 60 ? "Almost there, long postings take a little longer" : "Still working. Keep this page open."}</span>
+      </section>
+
+      <section className="card ajw-warm">
+        <span className="field-label">Warm up while you wait</span>
+        <p className="ajw-q">In 30 seconds, out loud: what have you built that is closest to {name ? "this " + name.replace(/^(senior|staff|principal|lead)\s+/i, "") + " role" : "this role"}?</p>
+        <p className="small muted">It{"’"}s the first thing most interviewers ask in some form. Your plan will come back to it.</p>
+      </section>
+
+      <p className="ajw-tip" key={tip}><span aria-hidden="true">{"💡"}</span> {tip}</p>
+    </div>
   );
 }
 

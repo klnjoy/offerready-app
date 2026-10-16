@@ -9,6 +9,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router";
 import { Loading } from "../components/ui";
+import { useAuth } from "../lib/auth";
+import { addJobInBackground, useBgJob } from "../lib/bgAddJob";
 
 type Family = "fde" | "ai" | "data" | "architect" | "platform";
 type Role = { id: string; company: string; title: string; location: string; url: string; posted: string | null; family: Family; region: "us" | "remote"; tags: string[] };
@@ -47,6 +49,9 @@ export default function RolesPage() {
   const [limit, setLimit] = useState(PAGE);
   const [busy, setBusy] = useState("");
   const navigate = useNavigate();
+  const auth = useAuth();
+  const bg = useBgJob();
+  const [addedIds, setAddedIds] = useState<string[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -66,6 +71,9 @@ export default function RolesPage() {
   }, [roles, fam, tech, remote, q]);
   const count = (f: Family | "all") => roles.filter((r) => f === "all" || r.family === f).length;
 
+  /** Prepare: signed in, the job is added in the background while you keep
+   * browsing (a status pill says when it's ready); signed out, Add a job
+   * opens filled in behind sign-in. */
   const prepare = async (r: Role) => {
     setBusy(r.id);
     let desc = "";
@@ -73,14 +81,17 @@ export default function RolesPage() {
       const res = await fetch(import.meta.env.BASE_URL + "roles-desc/" + r.id + ".json");
       if (res.ok) desc = String((await res.json())?.desc || "");
     } catch { /* offline: the posting link still goes through */ }
-    try {
-      sessionStorage.setItem(ANALYZE_PENDING_KEY, JSON.stringify({
-        targetRole: r.title.slice(0, 200),
-        jobDescription: (r.title + " · " + r.company + (r.location ? " · " + r.location : "") + (desc ? "\n\n" + desc : "\n\nPosting: " + r.url)).slice(0, 12000),
-        sourceUrl: r.url.slice(0, 2000), interviewDate: "", company: r.company, at: Date.now(),
-      }));
-    } catch { /* blocked storage: Add a job still opens */ }
+    const jd = (r.title + " · " + r.company + (r.location ? " · " + r.location : "") + (desc ? "\n\n" + desc : "\n\nPosting: " + r.url)).slice(0, 12000);
+    const tok = auth.session ? await auth.getAccessToken() : null;
     setBusy("");
+    if (tok) {
+      setAddedIds((ids) => [...ids, r.id]);
+      void addJobInBackground(tok, { title: r.title.slice(0, 200), company: r.company, jd, url: r.url });
+      return;
+    }
+    try {
+      sessionStorage.setItem(ANALYZE_PENDING_KEY, JSON.stringify({ targetRole: r.title.slice(0, 200), jobDescription: jd, sourceUrl: r.url.slice(0, 2000), interviewDate: "", company: r.company, at: Date.now() }));
+    } catch { /* blocked storage: Add a job still opens */ }
     navigate("/analyze");
   };
 
@@ -93,7 +104,7 @@ export default function RolesPage() {
     <div className="page ro">
       <p className="ro-intro">
         <strong>{roles.length} open roles in the USA</strong> at {new Set(roles.map((r) => r.company)).size} companies · updated {new Date(feed.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
-        {" "}Tap <b>Prepare</b> to add one as your job: resume match, likely questions and a daily plan for it.
+        {" "}Tap <b>Prepare</b> to add one as your job (it keeps going while you browse): resume match, likely questions and a daily plan for it.
       </p>
 
       <div className="ro-chips" role="radiogroup" aria-label="Role">
@@ -121,7 +132,9 @@ export default function RolesPage() {
                 <span className="ro-loc">{r.location || "USA"}{(r.tags || []).length ? <> · {(r.tags || []).slice(0, 3).join(", ")}</> : null}</span>
               </div>
               <div className="ro-actions">
-                <button type="button" className="btn btn-primary btn-small" onClick={() => void prepare(r)} disabled={!!busy}>{busy === r.id ? "Adding…" : "Prepare"}</button>
+                {addedIds.includes(r.id)
+                  ? <span className="ro-added">{bg.state === "busy" && bg.title === r.title.slice(0, 200) ? "Adding…" : "Added ✓"}</span>
+                  : <button type="button" className="btn btn-primary btn-small" onClick={() => void prepare(r)} disabled={!!busy || bg.state === "busy"}>{busy === r.id ? "…" : "Prepare"}</button>}
                 <ExternalLink className="btn btn-ghost btn-small" href={r.url} aria-label={"View and apply: " + r.title + " at " + r.company}>Apply ↗</ExternalLink>
               </div>
             </li>

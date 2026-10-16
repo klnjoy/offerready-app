@@ -4753,3 +4753,39 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 @media (min-width: 900px) { .ro-list { grid-template-columns: 1fr 1fr; } .ro-chips { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; flex-wrap: wrap; } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ro-chips .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; } }
 :root[data-theme="dark"] .ro-chips .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; }
+
+/* Add a job: the wait */
+.ajw { display: grid; gap: 12px; }
+.ajw-hero h2 { font-size: 1.2rem; }
+.ajw-co { font-weight: 600; color: rgba(232, 240, 252, 0.7); }
+.ajw-bar { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); overflow: hidden; margin: 6px 0 4px; }
+.ajw-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #22c07a, #6fe0a9); transition: width 0.9s ease-out; }
+.ajw-steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
+.ajw-steps li { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; color: rgba(232, 240, 252, 0.55); margin: 0; }
+.ajw-steps li.now { color: #fff; font-weight: 650; }
+.ajw-steps li.done { color: rgba(232, 240, 252, 0.85); }
+.ajw-dot { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 0.72rem; font-weight: 800; border: 2px solid rgba(255, 255, 255, 0.25); }
+.ajw-steps li.done .ajw-dot { background: #22c07a; border-color: #22c07a; color: #0c1c38; }
+.ajw-steps li.now .ajw-dot { border-color: #6fe0a9; border-top-color: transparent; animation: ajw-spin 0.9s linear infinite; }
+@keyframes ajw-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ajw-steps li.now .ajw-dot { animation: none; border-top-color: #6fe0a9; } .ajw-bar i { transition: none; } }
+.ajw-time { font-size: 0.8rem; color: rgba(232, 240, 252, 0.65); margin-top: 4px; }
+.ajw-warm { padding: 16px; }
+.ajw-q { margin: 6px 0 4px; font-size: 1.02rem; font-weight: 650; line-height: 1.4; }
+.ajw-tip { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--signal-soft); color: var(--text); font-size: 0.9rem; animation: ajw-in 0.4s ease-out; }
+@keyframes ajw-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Background job status pill (components/BgJobPill) */
+.bgj { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: 24px; width: min(520px, calc(100vw - 24px)); display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 16px; background: var(--ink-950, #0c1c38); color: #f4f8fd; box-shadow: 0 10px 30px rgba(12, 28, 56, 0.35); animation: ajw-in 0.3s ease-out; }
+.has-tb .bgj { bottom: calc(100px + env(safe-area-inset-bottom, 0px)); }
+.bgj-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.bgj-text strong { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bgj-text span { font-size: 0.78rem; color: rgba(232, 240, 252, 0.72); }
+.bgj-spin { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid rgba(255, 255, 255, 0.25); border-top-color: #6fe0a9; animation: ajw-spin 0.9s linear infinite; }
+.bgj-ok, .bgj-err { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 0.85rem; background: #22c07a; color: #0c1c38; }
+.bgj-err { background: #f2b33d; }
+.bgj .btn { flex: none; }
+.bgj-x { flex: none; background: none; border: 0; color: rgba(232, 240, 252, 0.7); font-size: 1.3rem; line-height: 1; padding: 4px 6px; cursor: pointer; }
+.ro-added { display: inline-flex; align-items: center; justify-content: center; min-width: 84px; padding: 6px 10px; font-size: 0.85rem; font-weight: 700; color: var(--signal-600); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bgj { background: #1d2b45; border: 1px solid rgba(255,255,255,0.12); } }
+:root[data-theme="dark"] .bgj { background: #1d2b45; border: 1px solid rgba(255,255,255,0.12); }
