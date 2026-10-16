@@ -302,6 +302,17 @@ export function fillDebrief(token: string, recap: string, job?: { title?: string
   });
 }
 
+export type InterviewerKind = "recruiter" | "hiring_manager" | "peer" | "leader" | "business";
+export interface InterviewerResult { focus: string; questions: { text: string; why: string; tip: string }[] }
+
+/** "Who's interviewing you?": likely questions from one kind of interviewer for this job. */
+export function interviewerQuestions(token: string, interviewer: InterviewerKind, role: string, job?: { title?: string; company?: string; skills?: string[] }) {
+  return call<{ result: InterviewerResult }>("/api/ask", {
+    method: "POST", token,
+    body: { purpose: "interviewer_questions", interviewer, role, context: { surface: "app", page: { title: "Questions for this job", path: "/questions" }, ...(job ? { job } : {}) } },
+  });
+}
+
 export type HelpStreamOutcome =
   | { kind: "done"; extras: HelpExtras }
   | { kind: "aborted"; gotDelta: boolean }
