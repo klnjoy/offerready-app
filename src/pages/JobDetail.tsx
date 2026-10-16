@@ -124,16 +124,44 @@ export default function JobDetailPage({ id }: Record<string, string>) {
       {state.kind === "error" && <Card><p>{state.msg}</p><div className="row"><Link className="btn" to="/jobs">See all jobs</Link></div></Card>}
       {data && (
         <>
-          {added && (
-            <div className="jw-added" role="status">
-              <span className="jw-added-mark" aria-hidden="true">{"✓"}</span>
-              <span>
-                <strong>Job added.</strong>{" "}
-                {data.gap ? "Your resume matches " + (data.gap.match_score || 0) + "%. Your plan is ready below." : fitBusy ? "Your plan is ready below. Comparing your resume with the job… (a few seconds)" : "Your plan is ready below. Add your resume to see how you match."}
-              </span>
-              <button type="button" className="link-btn small" onClick={() => navigate(jobPath(id, tab), { replace: true })} disabled={fitBusy}>Dismiss</button>
-            </div>
-          )}
+          {added && (() => {
+            const g = data.gap;
+            const nGaps = g ? (g.result?.missingSkills || []).length + (g.result?.missingExperience || []).length : 0;
+            const jq = "?job=" + encodeURIComponent(id);
+            return (
+              <section className="jw-added jw-next" role="status" aria-labelledby="jw-next-h">
+                <div className="jw-next-top">
+                  <span className="jw-added-mark" aria-hidden="true">{"✓"}</span>
+                  <p id="jw-next-h">
+                    <strong>Job added.</strong>{" "}
+                    {g ? "Your resume matches " + (g.match_score || 0) + "%." : fitBusy ? "Comparing your resume with the job… (a few seconds)" : "Add your resume to see how you match."}
+                    {" "}Here{"’"}s what to do next:
+                  </p>
+                </div>
+                <ol className="jw-next-steps">
+                  <li>
+                    <Link to={jobPath(id, "resume")}>
+                      <strong>{g ? (nGaps ? "See your " + nGaps + (nGaps === 1 ? " gap" : " gaps") : "See your resume match") : "Add your resume"}</strong>
+                      <span>{g ? "What this job asks for that your resume doesn’t show yet" : "So we can find your gaps for this job"}</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <button type="button" onClick={() => document.querySelector(".tses")?.scrollIntoView({ behavior: "smooth", block: "center" })}>
+                      <strong>Start today{"’"}s session</strong>
+                      <span>Your questions for this job, then practice · about 35 min</span>
+                    </button>
+                  </li>
+                  <li>
+                    <Link to={"/coach" + jq}>
+                      <strong>Prepare your hardest answers</strong>
+                      <span>The AI Coach builds them from your resume</span>
+                    </Link>
+                  </li>
+                </ol>
+                <button type="button" className="link-btn small jw-next-done" onClick={() => navigate(jobPath(id, tab), { replace: true })} disabled={fitBusy}>Got it, hide this</button>
+              </section>
+            );
+          })()}
           <nav className="jw-tabs" aria-label="Job sections">
             {TABS.filter((x) => x.key !== "settings").map((x) => (
               <Link key={x.key} to={jobPath(id, x.key)} className={"jw-tab" + (tab === x.key ? " on" : "")} aria-current={tab === x.key ? "page" : undefined}>

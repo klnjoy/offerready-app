@@ -4729,3 +4729,16 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 :root[data-theme="dark"] .ro-areas .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; }
 .jobs-top-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .aj-roles { margin: 0 0 10px; }
+
+/* "Job added" → what to do next */
+.jw-next { display: block !important; }
+.jw-next-top { display: flex; gap: 12px; align-items: flex-start; }
+.jw-next-top p { margin: 2px 0 0; }
+.jw-next-steps { list-style: none; counter-reset: jwn; margin: 12px 0 6px; padding: 0; display: grid; gap: 8px; }
+.jw-next-steps li { counter-increment: jwn; margin: 0; }
+.jw-next-steps a, .jw-next-steps button { width: 100%; text-align: left; font: inherit; cursor: pointer; display: grid; grid-template-columns: 28px 1fr auto; column-gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); color: var(--text); text-decoration: none; }
+.jw-next-steps a::before, .jw-next-steps button::before { content: counter(jwn); grid-row: span 2; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 750; font-size: 0.85rem; background: var(--signal-soft); color: var(--signal-600); }
+.jw-next-steps a::after, .jw-next-steps button::after { content: "›"; grid-row: 1 / span 2; grid-column: 3; color: var(--text-3); font-size: 1.3rem; }
+.jw-next-steps strong { font-size: 0.95rem; }
+.jw-next-steps span { grid-column: 2; font-size: 0.82rem; color: var(--text-2); }
+.jw-next-done { display: block; margin-left: auto; }
