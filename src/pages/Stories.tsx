@@ -58,6 +58,7 @@ export default function StoriesPage() {
   // ?competency=conflict opens quick capture with that tag.
   useEffect(() => {
     const c = params.get("competency");
+    if (params.get("new") === "1") { openNew("quick"); navigate("/stories", { replace: true }); return; }
     if (c) {
       openNew("quick", [competencyKey(c)]);
       navigate("/stories", { replace: true });

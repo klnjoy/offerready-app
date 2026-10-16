@@ -10,6 +10,7 @@ import { GetAppChip } from "./components/GetAppChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
+import { TabBar } from "./components/TabBar";
 import { JobMenu, JobPager, JobTrail, JobTree, PageToc, useJobNav } from "./components/JobNav";
 import { useJobs } from "./lib/useJobs";
 import { FeedbackDialog, openFeedback } from "./components/Feedback";
@@ -244,7 +245,7 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className={"app" + (signedIn && pathname !== "/" ? " has-tb" : "")}>
       <a className="skip-link" href="#main">Skip to content</a>
       {pathname === "/" || pathname === "/account" ? <LandOnJob /> : null}
       {/* Signed out, every page keeps the home page's header. */}
@@ -295,6 +296,7 @@ export default function App() {
       </main>
 
       {jobNav && jobMenu ? <JobMenu nav={jobNav} jobs={jobs} onClose={() => setJobMenu(false)} /> : null}
+      {signedIn && pathname !== "/" ? <TabBar section={section} /> : null}
       <HelpBot />
       <FeedbackDialog />
 
