@@ -103,6 +103,12 @@ export default function LearnPage() {
         </Link>
       </section>
 
+      <Link className="tdy-group tdy-grow lrn-entry rm-entry" to="/learn/roadmap">
+        <span className="tdy-text"><strong>12-week AI roadmap</strong><span>Week by week: what to learn, what to build, what interviewers ask</span></span>
+        <span className="tdy-pill">New</span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </Link>
+
       <section className="tdy" aria-labelledby="lrn-habit">
         <div className="tdy-head"><h2 id="lrn-habit">Your weekly habit</h2><span className="small muted">10 to 15 minutes</span></div>
         <ol className="lrn-steps">

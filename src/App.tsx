@@ -31,6 +31,7 @@ const PracticeHubPage = lazy(() => import("./pages/PracticeHub"));
 const CopilotPage = lazy(() => import("./pages/Copilot"));
 const PracticePage = lazy(() => import("./pages/Practice"));
 const LearnPage = lazy(() => import("./pages/Learn"));
+const RoadmapPage = lazy(() => import("./pages/Roadmap"));
 const AdminCostsPage = lazy(() => import("./pages/AdminCosts"));
 const MockHubPage = lazy(() => import("./pages/MockHub"));
 const SimulatorPage = lazy(() => import("./pages/Simulator"));
@@ -94,6 +95,7 @@ const ROUTES: Route[] = [
   { path: "/practice", title: "Practice", section: "practice", subtitle: "Four ways to practise. Pick what fits; you don’t need all four. Start with the first if you’re not sure.", component: PracticeHubPage },
   { path: "/admin/costs", title: "AI costs", section: "more", subtitle: "What each AI feature costs, from token counts. Admins only.", component: AdminCostsPage },
   { path: "/learn", title: "Keep up with AI", section: "practice", back: { to: "/practice", label: "Practice" }, subtitle: "News, free courses and the topics interviewers ask about, straight from the companies building the tools.", component: LearnPage },
+  { path: "/learn/roadmap", title: "12-week AI roadmap", section: "practice", back: { to: "/learn", label: "Keep up with AI" }, subtitle: "What to study each week to become an AI engineer or a forward deployed engineer, with the interview questions for each week.", component: RoadmapPage },
   { path: "/practice/bank", title: "Question bank", section: "practice", back: BACK_PRACTICE, subtitle: "Quick reps on any topic: answer and rate yourself, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
   { path: "/questions", title: "Questions for this job", section: "practice", back: BACK_PRACTICE, subtitle: "Likely interview questions written from the job and the gaps in your resume, saved to the job.", component: QuestionsPage },
   { path: "/defend", title: "Trade-off drills", section: "practice", back: BACK_PRACTICE, subtitle: "Make a design call, then hold it while the interviewer pushes back on trade-offs, limits and incidents.", component: DefendPage },
