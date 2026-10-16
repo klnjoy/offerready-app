@@ -4727,3 +4727,5 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .ro-areas .cp-chip.on { background: var(--ink-950, #0c1c38); border-color: var(--ink-950, #0c1c38); color: #fff; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ro-areas .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; } }
 :root[data-theme="dark"] .ro-areas .cp-chip.on { background: #22c07a; border-color: #22c07a; color: #0c1c38; }
+.jobs-top-actions { display: inline-flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.aj-roles { margin: 0 0 10px; }

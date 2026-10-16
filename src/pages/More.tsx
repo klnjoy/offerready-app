@@ -47,6 +47,10 @@ export default function MorePage() {
   const initial = (auth.email || "").trim().charAt(0).toUpperCase() || "•";
 
   const groups: { title: string; rows: Row[] }[] = [
+    { title: "Find your next role", rows: [
+      { icon: ICON.jobs, label: "Open roles", sub: "FDE jobs in the USA, updated daily", to: "/roles" },
+      { icon: ICON.library, label: "12-week AI roadmap", sub: "Learn, build, practise: week by week", to: "/learn/roadmap" },
+    ] },
     { title: "Your jobs", rows: [
       { icon: ICON.jobs, label: "My jobs", sub: "Every job you’re preparing for", to: "/jobs" },
       { icon: ICON.notes, label: "Interview notes", sub: "Jot each question as it’s asked", to: "/notes" + jq },
