@@ -1,26 +1,59 @@
-// Fetch open forward deployed engineer roles from the PUBLIC job-board APIs
-// that companies publish for exactly this purpose (Greenhouse, Ashby, Lever),
-// and write public/roles.json for the app's "Open roles" page.
+// Fetch open US roles for the jobs OfferReady prepares people for (forward
+// deployed, AI / ML, data, architect, platform) from the PUBLIC job-board
+// APIs companies publish for exactly this purpose (Greenhouse, Ashby, Lever).
+// Writes <outDir>/roles.json (a light list for the "Open roles" page) and
+// <outDir>/roles-desc/<id>.json (each posting's text, loaded only when
+// someone taps "Prepare for this role").
 //
 // Runs in the deploy workflow (daily schedule + every deploy). No API keys,
 // no AI calls, no scraping of job sites. A board that fails or returns
 // nothing is skipped; if every board fails, the last published file is kept
 // (see FALLBACK_URL) so the page never goes empty because of a network blip.
 //
-// Usage: node scripts/fetch-roles.mjs [outFile]
+// Usage: node scripts/fetch-roles.mjs [outDir]   (default: public)
 
-import { writeFile, mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
+import { writeFile, mkdir, rm } from "node:fs/promises";
+import { createHash } from "node:crypto";
 
-const OUT = process.argv[2] || "public/roles.json";
+const OUT_DIR = (process.argv[2] || "public").replace(/\/roles\.json$/, "");
+const OUT = OUT_DIR + "/roles.json";
+const DESC_DIR = OUT_DIR + "/roles-desc";
 const FALLBACK_URL = "https://klnjoy.github.io/offerready-app/roles.json";
-const TITLE = /forward[\s-]*deploy|deployed engineer|deployment engineer|deployment strategist/i;
-const MAX_DESC = 8000;
+// Role families, matched on the job title, first match wins. Titles that
+// match none (sales, recruiting, design…) are left out.
+const ENG = /engineer|developer|scientist|architect|\bSRE\b/i;
+const FAMILIES = [
+  ["fde", /forward[\s-]*deploy|deployed engineer|deployment engineer|deployment strategist/i],
+  ["architect", /architect/i],
+  ["ai", /\b(AI|ML|LLM|GenAI|NLP)\b|machine learning|generative|applied scien|research engineer|inference|deep learning|computer vision/i],
+  ["data", /\bdata\b|analytics engineer|\bETL\b|warehouse|\bdbt\b|spark|snowflake|databricks/i],
+  ["platform", /platform engineer|infrastructure|site reliability|\bSRE\b|devops|cloud engineer|reliability engineer/i],
+];
+const family = (t) => (ENG.test(t) ? (FAMILIES.find(([, re]) => re.test(t)) || [null])[0] : null);
+// Technologies people prepare for, tagged from the title and the posting.
+const TAGS = [["Snowflake", /snowflake/i], ["Databricks", /databricks/i], ["dbt", /\bdbt\b/i], ["Spark", /\bspark\b/i], ["Kafka", /\bkafka\b/i], ["LLMs", /\bLLMs?\b|large language model/i], ["AWS", /\bAWS\b/], ["GCP", /\bGCP\b|google cloud/i], ["Azure", /\bazure\b/i]];
+const PER_FAMILY = 400;
+const MAX_DESC = 6000;
 const TIMEOUT_MS = 15000;
 
 // [company name, board type, board slug]. A wrong or retired slug just logs
 // and is skipped, so this list is safe to edit.
 const BOARDS = [
+  ["Snowflake", "greenhouse", "snowflake"],
+  ["dbt Labs", "greenhouse", "dbtlabsinc"],
+  ["Fivetran", "greenhouse", "fivetran"],
+  ["Confluent", "ashby", "confluent"],
+  ["Datadog", "greenhouse", "datadog"],
+  ["Cloudflare", "greenhouse", "cloudflare"],
+  ["Stripe", "greenhouse", "stripe"],
+  ["Airbnb", "greenhouse", "airbnb"],
+  ["Pinterest", "greenhouse", "pinterest"],
+  ["Instacart", "greenhouse", "instacart"],
+  ["Robinhood", "greenhouse", "robinhood"],
+  ["Coinbase", "greenhouse", "coinbase"],
+  ["Figma", "greenhouse", "figma"],
+  ["Notion", "ashby", "notion"],
+  ["Vercel", "greenhouse", "vercel"],
   ["Anthropic", "greenhouse", "anthropic"],
   ["Databricks", "greenhouse", "databricks"],
   ["Scale AI", "greenhouse", "scaleai"],
@@ -96,32 +129,52 @@ const FETCH = {
 };
 
 const roles = []; const sources = []; let ok = 0;
+const id = (url) => createHash("sha1").update(url).digest("hex").slice(0, 12);
 for (const [company, type, slug] of BOARDS) {
   try {
     const all = await FETCH[type](slug);
     ok++;
-    const hits = all.filter((j) => j.title && j.url && TITLE.test(j.title));
-    for (const j of hits) roles.push({ company, title: j.title.trim(), location: j.location.trim(), url: j.url, posted: j.posted, desc: clip(j.desc || ""), source: type, region: region(j.location || "") });
-    sources.push({ company, type, total: all.length, matched: hits.length });
-    console.log(`${company} (${type}/${slug}): ${hits.length} of ${all.length}`);
+    let hits = 0;
+    for (const j of all) {
+      if (!j.title || !j.url) continue;
+      const fam = family(j.title);
+      const reg = region(j.location || "");
+      if (!fam || reg === "intl") continue;
+      const desc = clip(j.desc || "");
+      const hay = j.title + "\n" + desc;
+      roles.push({ id: id(j.url), company, title: j.title.trim(), location: (j.location || "").trim(), url: j.url, posted: j.posted, family: fam, region: reg, tags: TAGS.filter(([, re]) => re.test(hay)).map(([t]) => t), desc });
+      hits++;
+    }
+    sources.push({ company, type, total: all.length, matched: hits });
+    console.log(`${company} (${type}/${slug}): ${hits} of ${all.length}`);
   } catch (e) {
     sources.push({ company, type, error: String(e.message || e).slice(0, 80) });
     console.log(`${company} (${type}/${slug}): skipped, ${e.message || e}`);
   }
 }
 
-let out = { updated: new Date().toISOString(), count: roles.length, roles: roles.sort((a, b) => (b.posted || "").localeCompare(a.posted || "") || a.company.localeCompare(b.company)), sources };
+// Newest first, then keep the newest PER_FAMILY of each family.
+roles.sort((a, b) => (b.posted || "").localeCompare(a.posted || "") || a.company.localeCompare(b.company));
+const perFam = {};
+const kept = roles.filter((r) => (perFam[r.family] = (perFam[r.family] || 0) + 1) <= PER_FAMILY);
+
+let out = { updated: new Date().toISOString(), count: kept.length, roles: kept.map(({ desc, ...r }) => r), sources };
 if (ok === 0) {
   try { const prev = await getJSON(FALLBACK_URL); if (prev && Array.isArray(prev.roles)) { out = prev; console.log("Every board failed; keeping the last published file."); } }
   catch { console.log("Every board failed and there is no published file yet."); }
 }
-await mkdir(dirname(OUT), { recursive: true });
+await mkdir(OUT_DIR, { recursive: true });
 await writeFile(OUT, JSON.stringify(out));
+if (ok > 0) {
+  await rm(DESC_DIR, { recursive: true, force: true });
+  await mkdir(DESC_DIR, { recursive: true });
+  for (const r of kept) await writeFile(`${DESC_DIR}/${r.id}.json`, JSON.stringify({ desc: r.desc }));
+}
 console.log(`Wrote ${out.roles.length} roles to ${OUT}`);
 // A one-line summary as a GitHub Actions notice, so each run shows which
 // boards worked without opening the full log.
 if (process.env.GITHUB_ACTIONS) {
-  const us = out.roles.filter((r) => r.region === "us").length;
-  const line = "US " + us + ", remote " + out.roles.filter((r) => r.region === "remote").length + " · " + sources.map((x) => x.company + ":" + (x.error ? "ERR " + x.error : x.matched + "/" + x.total)).join(", ");
+  const fams = Object.entries(out.roles.reduce((m, r) => ((m[r.family] = (m[r.family] || 0) + 1), m), {})).map(([k, v]) => k + " " + v).join(", ");
+  const line = fams + " · " + sources.map((x) => x.company + ":" + (x.error ? "ERR " + x.error : x.matched + "/" + x.total)).join(", ");
   console.log(`::notice title=Open roles (${out.roles.length})::${line.replace(/[\r\n%]/g, " ")}`);
 }

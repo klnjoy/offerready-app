@@ -423,7 +423,7 @@ function AddJobForm({
 
   return (
     <form className="aj" onSubmit={submit} noValidate>
-      <p className="small muted aj-roles">No posting yet? <Link to="/roles">Browse open forward deployed engineer roles in the USA ›</Link></p>
+      <p className="small muted aj-roles">No posting yet? <Link to="/roles">Browse open AI, data and FDE roles in the USA ›</Link></p>
       <Step n={1} title="The job" sub="Paste a link to the posting, or the description itself.">
         <div className="seg" role="tablist" aria-label="How to add the job">
           <button type="button" role="tab" id="aj-tab-link" aria-selected={tab === "link"} aria-controls="aj-panel" className={"seg-btn" + (tab === "link" ? " on" : "")} onClick={() => { setTab("link"); setNotice(""); }}>Paste a link</button>

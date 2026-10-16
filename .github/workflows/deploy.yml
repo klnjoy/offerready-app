@@ -36,7 +36,7 @@ jobs:
 
       - name: Fetch open forward deployed engineer roles
         # Public job-board APIs only; a failure never blocks the deploy.
-        run: node scripts/fetch-roles.mjs public/roles.json || echo "roles fetch failed; continuing"
+        run: node scripts/fetch-roles.mjs public || echo "roles fetch failed; continuing"
 
       - name: Type-check and build
         run: npm run build

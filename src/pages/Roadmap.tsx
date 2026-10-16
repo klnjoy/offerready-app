@@ -160,7 +160,7 @@ export default function RoadmapPage() {
           <ul className="tdy-group rm-facts">
             <li><strong>The job.</strong> Take a vague customer problem, build working software inside the customer{"’"}s systems, and explain it to people who don{"’"}t write code. Part engineer, part architect, part consultant.</li>
             <li><strong>The interviews.</strong> Discovery questions, practical coding against messy data, a customer scenario design, live debugging, a demo, and behavioral rounds. <ExternalLink href={docsUrl("For/forward-deployed-engineers/index.html")}>How FDE interviews work</ExternalLink></li>
-            <li><strong>Who{"’"}s hiring.</strong> AI labs, data and AI platform companies, and enterprise software firms. Openings change weekly. <Link to="/roles">See open roles, updated daily ›</Link></li>
+            <li><strong>Who{"’"}s hiring.</strong> AI labs, data and AI platform companies, and enterprise software firms. Openings change weekly. <Link to="/roles?family=fde">See open FDE roles, updated daily ›</Link></li>
             <li><strong>Pay.</strong> It varies widely by company, level and location. Treat {"“"}$500K to $1M{"”"} posts as the very top of the market, not the norm.</li>
           </ul>
         </section>

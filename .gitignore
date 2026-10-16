@@ -3,3 +3,4 @@ dist
 .env.local
 *.log
 public/roles.json
+public/roles-desc/
