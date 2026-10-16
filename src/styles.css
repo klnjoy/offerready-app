@@ -4307,3 +4307,22 @@ html, body { overflow-x: clip; }
 .sl-steps li { display: flex; gap: 12px; align-items: flex-start; }
 .sl-steps p { margin: 2px 0 0; color: var(--text-2); }
 .sl-step-n { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 0.85rem; background: var(--signal-soft); color: var(--signal-600); }
+
+/* Skills this job wants (components/SkillPlan.tsx) */
+.skp { display: flex; flex-direction: column; gap: 12px; }
+.skp h2 { margin: 0 0 2px; }
+.skp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.skp-chip { font-size: 0.8rem; font-weight: 650; padding: 4px 10px; border-radius: 999px; border: 1px dashed var(--border-strong); color: var(--text-2); }
+.skp-chip.has { border-style: solid; border-color: transparent; background: var(--signal-soft); color: var(--signal-600); }
+.skp-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.skp-item + .skp-item { border-top: 1px solid var(--border); }
+.skp-head { width: 100%; font: inherit; color: inherit; background: var(--surface); border: 0; display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; text-align: left; flex-wrap: wrap; }
+.skp-name { font-weight: 700; flex: 1; min-width: 0; }
+.skp-chev { color: var(--text-3); font-size: 1.2rem; transition: transform 0.15s; }
+.skp-item.on .skp-chev { transform: rotate(90deg); }
+.skp-body { padding: 0 14px 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
+.skp-body p { margin: 0; font-size: 0.92rem; }
+.skp-body .btn { align-self: flex-start; }
+.skp-succeed summary { cursor: pointer; font-weight: 700; color: var(--signal-600); }
+.skp-succeed ul { margin: 8px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 0.92rem; }
+@media (prefers-reduced-motion: reduce) { .skp-chev { transition: none; } }
