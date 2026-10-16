@@ -6,7 +6,7 @@
  *   signal  #1A9E64  progress + success ONLY (never decoration)
  *   slate   #5B6B85  secondary text
  *   canvas  #F4F6F9  page background; white surfaces sit on it
- * Type: Inter, one family; hierarchy from size + weight, sentence case labels.
+ * Type: Apple devices use the system font (SF Pro), everything else Inter; hierarchy from size + weight, sentence case labels.
  * Signature: the job page, one workspace per job, with one "Do this next".
  * Elevation encodes importance: flat bordered cards by default, a soft
  * shadow only on score panels, the auth card and the hero. */
@@ -85,7 +85,7 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; background: var(--canvas); color: var(--text);
-  font: 400 15.5px/1.6 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 400 15.5px/1.6 -apple-system, BlinkMacSystemFont, Inter, "Segoe UI", Roboto, system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
