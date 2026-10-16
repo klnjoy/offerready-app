@@ -39,6 +39,7 @@ import { CopyButton } from "../components/StreamDraft";
 import { SettingsTab } from "./JobSettings";
 import { ShortlistCheck } from "../components/ShortlistCheck";
 import { jobKeywords } from "../lib/tailor";
+import { Art } from "../components/Art";
 
 type Tab = "overview" | "resume" | "after" | "settings";
 const TABS: { key: Tab; label: string; short?: string }[] = [
@@ -989,7 +990,8 @@ function AfterTab({ jobId, title, company }: { jobId: string; title: string; com
           <span className="small muted">{list.length ? statsLine(stats) : "None logged yet"}</span>
         </div>
         {list.length === 0 ? (
-          <Card>
+          <Card className="empty-card">
+            <Art k="debrief" className="empty-art" />
             <p className="muted">After each interview, write down the questions and how they went. The ones that went badly come back in your plan, and a next round date re-plans up to it.</p>
             <div className="row">
               <Link className="btn btn-primary btn-small" to={"/debrief?job=" + enc(jobId) + "&new=1"}>Log an interview</Link>

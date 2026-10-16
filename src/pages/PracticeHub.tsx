@@ -12,10 +12,12 @@ import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { Icon, type IconName } from "../components/Icon";
 import { IdeaCards } from "../components/IdeaCards";
+import { Art, type ArtKey } from "../components/Art";
 
 interface Mode { key: string; icon: IconName; title: string; when: string; get: string; to: (job: string, topic: string) => string; cta: string; needsJob?: boolean }
 
 const enc = encodeURIComponent;
+const MODE_ART: Record<string, ArtKey> = { questions: "questions", drills: "drill", stories: "stories", bank: "bank" };
 const MODES: Mode[] = [
   { key: "questions", icon: "list", title: "Questions for this job",
     when: "Use it first, to see what this interview will probably ask you.",
@@ -99,10 +101,8 @@ export default function PracticeHubPage() {
           return (
             <li key={m.key} className={"hub-card" + (recommended ? " is-rec" : "")}>
               <Link className="hub-link" to={to} aria-describedby={"hub-" + m.key + "-when"}>
-                <span className="hub-top">
-                  <span className="hub-ico"><Icon name={m.icon} size={22} className="hub-svg" /></span>
-                  {recommended && <span className="hub-rec">{topic ? "Best for " + topic : "Start here"}</span>}
-                </span>
+                <Art k={MODE_ART[m.key] || "questions"} className="hub-art" />
+                {recommended ? <span className="hub-top"><span className="hub-rec">{topic ? "Best for " + topic : "Start here"}</span></span> : null}
                 <span className="hub-title">{m.title}</span>
                 <span className="hub-when" id={"hub-" + m.key + "-when"}>{m.when}</span>
                 <span className="hub-get">{m.get}</span>

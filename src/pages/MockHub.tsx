@@ -7,6 +7,7 @@ import { useJobs } from "../lib/useJobs";
 import { displayJobTitle } from "../lib/roles";
 import { detectSupport } from "../lib/voice";
 import { Icon } from "../components/Icon";
+import { Art } from "../components/Art";
 
 export default function MockHubPage() {
   const support = useMemo(() => detectSupport(), []);
@@ -26,10 +27,8 @@ export default function MockHubPage() {
       <ol className="hub-grid hub-grid-2" aria-label="Kinds of mock interview">
         <li className="hub-card is-rec">
           <Link className="hub-link" to="/interview/voice" aria-describedby="mock-voice-get">
-            <span className="hub-top">
-              <span className="hub-ico"><Icon name="mic" size={22} className="hub-svg" /></span>
-              <span className="hub-rec">Recommended</span>
-            </span>
+            <Art k="mock" className="hub-art" />
+            <span className="hub-top"><span className="hub-rec">Recommended</span></span>
             <span className="hub-title">Voice interview</span>
             <span className="hub-when" id="mock-voice-get">You answer out loud. The interviewer asks follow-ups on what you actually said, then scores your content and delivery: pace, filler words and structure.</span>
             <span className={"hub-support" + (voiceOk ? " is-ok" : " is-warn")}>
@@ -41,9 +40,7 @@ export default function MockHubPage() {
         </li>
         <li className="hub-card">
           <Link className="hub-link" to="/simulator" aria-describedby="mock-text-get">
-            <span className="hub-top">
-              <span className="hub-ico"><Icon name="chat" size={22} className="hub-svg" /></span>
-            </span>
+            <Art k="text" className="hub-art" />
             <span className="hub-title">Text interview <span className="hub-tag">General</span></span>
             <span className="hub-when" id="mock-text-get">General practice, not tied to your job: a mixed loop across areas and levels. Answer, compare with a strong answer, then face the follow-up.</span>
             <span className="hub-support is-ok">Works in any browser. No microphone needed.</span>

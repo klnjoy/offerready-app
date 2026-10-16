@@ -15,6 +15,7 @@ import { useJobs } from "../lib/useJobs";
 import { useAuth } from "../lib/auth";
 import { SignInCard } from "../components/AuthForm";
 import { Card } from "../components/ui";
+import { Art } from "../components/Art";
 
 interface Asked {
   key: string;
@@ -118,7 +119,8 @@ export default function AskedQuestionsPage() {
       </div>
 
       {!total ? (
-        <Card>
+        <Card className="empty-card">
+          <Art k="asked" className="empty-art" />
           <h2 className="aq-empty-h">No interview questions yet</h2>
           <p className="muted">After each real interview, write down what they asked: <strong>Log a round</strong>, or type them into <strong>Interview notes</strong> during the interview and turn the notes into a debrief. They{"’"}re kept here for every job, so you can see what comes up again and practise it.</p>
           <div className="row wrap">

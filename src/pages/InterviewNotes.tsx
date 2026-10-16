@@ -16,6 +16,7 @@ import { useJobs } from "../lib/useJobs";
 import { track } from "../lib/track";
 import { SignInCard } from "../components/AuthForm";
 import { Card, Loading, Muted } from "../components/ui";
+import { Art } from "../components/Art";
 
 export default function InterviewNotesPage() {
   const jobs = useJobs();
@@ -123,7 +124,7 @@ function NotesPad({ initialJob }: { initialJob: string }) {
           <li ref={listEnd} className="inn-end" aria-hidden="true" />
         </ol>
       ) : (
-        <p className="inn-empty">No questions yet. Each one you add shows up here, numbered, with room for a short note.</p>
+        <div className="inn-empty empty-card"><Art k="notes" className="empty-art" /><p>No questions yet. Each one you add shows up here, numbered, with room for a short note.</p></div>
       )}
 
       <label className="inn-other">

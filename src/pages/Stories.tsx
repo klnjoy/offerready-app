@@ -17,6 +17,7 @@ import { PlanGate, UpgradeCard } from "../components/PlanGate";
 import { invalidatePlan } from "../lib/plans";
 import { Card, Muted } from "../components/ui";
 import type { Analysis, JobRow } from "../types";
+import { Art } from "../components/Art";
 
 type Editing = { mode: "quick" | "full"; story: Story } | null;
 
@@ -206,7 +207,8 @@ export default function StoriesPage() {
           <p className="muted small">One library for all your jobs: a story you write once is reused for every job it fits. Eight to ten good stories cover most interviews.</p>
         </div>
         {!stories.length ? (
-          <Card className="sb-empty">
+          <Card className="sb-empty empty-card">
+            <Art k="stories" className="empty-art" />
             <p><strong>No stories yet.</strong> Start with one you tell often: a hard deadline, a disagreement, a mistake you fixed.</p>
             <Muted small>Stories are saved in this browser. Export them as Markdown to keep a copy.</Muted>
             <div className="row"><button type="button" className="btn btn-primary" onClick={() => openNew("quick")}>Capture your first story</button></div>
