@@ -283,7 +283,7 @@ export default function App() {
       </header>
       )}
 
-      <main id="main" className={"main" + (pathname === "/" ? " main-home" : "") + (signedOut && pathname === "/account" ? " main-auth" : "") + (nav ? " main-jn" : "")}>
+      <main id="main" data-jobhome={/^\/jobs\/[^/]+$/.test(pathname) && !/[?&]tab=(?!overview)/.test(search) ? "" : undefined} className={"main" + (pathname === "/" ? " main-home" : "") + (signedOut && pathname === "/account" ? " main-auth" : "") + (nav ? " main-jn" : "")}>
         {nav ? <JobTrail nav={nav} /> : null}
         {nav ? (
           <div className="jn-layout">

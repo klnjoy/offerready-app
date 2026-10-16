@@ -4132,3 +4132,16 @@ html, body { overflow-x: clip; }
 .more-chev { flex: none; color: var(--text-3); font-size: 1.2rem; }
 .more-legal { text-align: center; line-height: 1.8; margin: 0; }
 .more-legal a { color: inherit; }
+
+/* Phones with the tab bar: one header, no duplicate Menu/account (More has them). */
+@media (max-width: 760px) {
+  .has-tb .topbar .menu-btn, .has-tb .topbar .acct, .has-tb .topbar .account-link { display: none; }
+  .has-tb [data-jobhome] .jn-trail { display: none; }
+  .jw-today { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+  .jw-today h1 { margin: 0; font-size: 2rem; }
+  .jw-today-job { position: relative; display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; margin: 0; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 650; font-size: 0.92rem; }
+  .jw-today-job select { appearance: none; -webkit-appearance: none; background: transparent; border: 0; color: inherit; font: inherit; padding: 0 18px 0 0; margin-right: -18px; max-width: 70vw; text-overflow: ellipsis; cursor: pointer; }
+  .jw-today-job svg { pointer-events: none; color: var(--text-2); }
+  .jw-today-job.is-one { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 760px) { .has-tb [data-jobhome] .jw-today { margin-top: -18px; } }
