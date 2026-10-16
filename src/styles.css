@@ -4145,3 +4145,8 @@ html, body { overflow-x: clip; }
   .jw-today-job.is-one { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 @media (max-width: 760px) { .has-tb [data-jobhome] .jw-today { margin-top: -18px; } }
+.tb-back { display: none; }
+@media (max-width: 760px) {
+  .has-tb .tb-back { display: inline-flex; align-items: center; gap: 2px; margin: -6px 0 10px -4px; padding: 6px 10px 6px 4px; font-weight: 650; color: var(--signal-600); text-decoration: none; border-radius: 999px; }
+  .has-tb .tb-back:active { background: var(--signal-soft); }
+}
