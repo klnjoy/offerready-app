@@ -67,6 +67,12 @@ export function LearnCards({ job }: { job?: JobRow }) {
     .map(({ t, hit }) => ({ key: t.slug, art: t.art, tag: (hit ? "In your job · " : "") + t.min + " min read", title: t.title, line: t.line, cta: "Read", href: docsUrl("GenAI-Topics/" + t.slug + "/index.html"), hot: hit }));
 
   return (
-    <Row id="ic-learn" title="Learn AI" sub="Short reads from the study library" cards={learn} />
+    <>
+      <Row id="ic-learn" title="Learn AI" sub="Short reads from the study library" cards={learn} />
+      <Link className="tdy-group tdy-grow lrn-entry" to="/learn">
+        <span className="tdy-text"><strong>Keep up with AI</strong><span>News and free courses from Anthropic, OpenAI, LangChain and more</span></span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </Link>
+    </>
   );
 }
