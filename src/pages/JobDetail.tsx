@@ -175,6 +175,26 @@ function JobHead({ id, title, job, jobs, tab, onSwitch, onRenamed }: {
     if (res && res.status === 200) { onRenamed(nt, c.trim()); setEditing(false); }
     else setErr(res?.body?.error || "Couldn’t rename the job. Please try again.");
   };
+  const phone = useNarrow("(max-width: 760px)");
+  if (phone && tab === "overview" && !editing) {
+    // Phone "Today": what to do today for this job, with the job as a switcher.
+    return (
+      <header className="jw-head jw-today">
+        <h1>Today</h1>
+        {jobs.length > 1 ? (
+          <label className="jw-today-job">
+            <span className="hm-sr">Job</span>
+            <select aria-label="Switch job" value={id} onChange={(e) => onSwitch(e.target.value)}>
+              {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j) + (j.company ? " · " + j.company : "")}</option>)}
+            </select>
+            <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </label>
+        ) : (
+          <p className="jw-today-job is-one">{title}{meta ? " · " + meta : ""}</p>
+        )}
+      </header>
+    );
+  }
   return (
     <header className="jw-head">
       <Link className="back-link" to="/jobs">{"←"} All jobs</Link>
@@ -525,9 +545,9 @@ function Overview({ data }: { data: JobDetail }) {
           <Link to="/dashboard" className="jd-status-item"><b>{r != null ? r + "%" : "—"}</b> ready</Link>
           {date && !passed ? <span className="jd-status-item">{days != null && days > 0 ? <>Interview in <b>{days}</b> {days === 1 ? "day" : "days"}</> : <b>Interview today</b>}</span> : null}
         </p>
-        {!date || passed ? dateCard : null}
         {nextCard}
         {todayCard}
+        {!date || passed ? dateCard : null}
         {everyDay}
         <details className="card jd-more">
           <summary><span>More for this job</span><span className="small muted">Full plan, readiness, interview day, set-up</span></summary>
