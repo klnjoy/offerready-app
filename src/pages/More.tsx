@@ -48,7 +48,7 @@ export default function MorePage() {
 
   const groups: { title: string; rows: Row[] }[] = [
     { title: "Find your next role", rows: [
-      { icon: ICON.jobs, label: "Open roles", sub: "FDE jobs in the USA, updated daily", to: "/roles" },
+      { icon: ICON.jobs, label: "Open roles", sub: "AI, data and FDE jobs in the USA, updated daily", to: "/roles" },
       { icon: ICON.library, label: "12-week AI roadmap", sub: "Learn, build, practise: week by week", to: "/learn/roadmap" },
     ] },
     { title: "Your jobs", rows: [

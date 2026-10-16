@@ -1,33 +1,51 @@
-/* Open forward deployed engineer roles (/roles), refreshed daily from the
- * public job boards AI companies publish (scripts/fetch-roles.mjs writes
- * roles.json at deploy time). "Prepare for this role" opens Add a job with the
- * posting filled in, so the listing turns into prep: questions, resume match
- * and a plan for that exact role. Apply on the company's own site. */
+/* Open roles (/roles): US jobs for the roles OfferReady prepares people for
+ * (forward deployed, AI / ML, data, architect, platform), refreshed daily from
+ * the public job boards companies publish (scripts/fetch-roles.mjs writes
+ * roles.json and roles-desc/<id>.json at deploy time). "Prepare for this role"
+ * adds the posting as your job and checks it against your saved resume, so the
+ * listing turns into prep: gaps, likely questions and a daily plan.
+ * ?family=fde|ai|data|architect|platform picks the starting filter. */
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Link, useNavigate } from "../lib/router";
+import { ExternalLink, Link, useNavigate, useSearchParams } from "../lib/router";
 import { Loading } from "../components/ui";
 
-type Region = "us" | "remote" | "intl";
-type Role = { company: string; title: string; location: string; url: string; posted: string | null; desc: string; source: string; region?: Region };
-const AREAS: { key: "us" | "remote" | "all"; label: string }[] = [{ key: "us", label: "USA" }, { key: "remote", label: "Remote" }, { key: "all", label: "All locations" }];
+type Family = "fde" | "ai" | "data" | "architect" | "platform";
+type Role = { id: string; company: string; title: string; location: string; url: string; posted: string | null; family: Family; region: "us" | "remote"; tags: string[] };
 type Feed = { updated: string; count: number; roles: Role[] };
+
+const FAMILIES: { key: Family | "all"; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "ai", label: "AI / ML engineer" },
+  { key: "data", label: "Data engineer" },
+  { key: "fde", label: "Forward deployed" },
+  { key: "architect", label: "Architect" },
+  { key: "platform", label: "Platform / SRE" },
+];
+const TECH = ["Snowflake", "Databricks", "dbt", "Spark", "Kafka", "LLMs"];
 
 /** Analyze's pending-job key: signed in, the job is added and analysed right
  * away (JD + your saved resume → resume match, questions, plan); signed out,
  * the form waits filled in behind sign-in. */
 const ANALYZE_PENDING_KEY = "offerready.analyze.pending.v1";
+const PAGE = 40;
 
 function ago(d: string | null): string {
   if (!d) return "";
   const days = Math.floor((Date.now() - Date.parse(d + "T00:00:00Z")) / 86400000);
-  return days <= 0 ? "Posted today" : days === 1 ? "Posted yesterday" : days < 30 ? "Posted " + days + " days ago" : days < 60 ? "Posted a month ago" : "Posted " + Math.floor(days / 30) + " months ago";
+  return days <= 0 ? "Today" : days === 1 ? "Yesterday" : days < 30 ? days + "d ago" : days < 60 ? "1 mo ago" : Math.floor(days / 30) + " mo ago";
 }
 
 export default function RolesPage() {
+  const params = useSearchParams();
+  const startFam = params.get("family") as Family | null;
   const [feed, setFeed] = useState<Feed | null | "none">(null);
+  const [fam, setFam] = useState<Family | "all">(startFam && FAMILIES.some((f) => f.key === startFam) ? startFam : "all");
+  const [tech, setTech] = useState("");
+  const [remote, setRemote] = useState(false);
   const [q, setQ] = useState("");
-  const [area, setArea] = useState<"us" | "remote" | "all">("us");
+  const [limit, setLimit] = useState(PAGE);
+  const [busy, setBusy] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -38,75 +56,86 @@ export default function RolesPage() {
       .catch(() => { if (alive) setFeed("none"); });
     return () => { alive = false; };
   }, []);
+  useEffect(() => setLimit(PAGE), [fam, tech, remote, q]);
 
-  const inArea = (r: Role, a: "us" | "remote" | "all") => a === "all" || (r.region || "intl") === a;
+  const roles = feed && feed !== "none" ? feed.roles.filter((r) => r.family) : [];
   const shown = useMemo(() => {
-    if (!feed || feed === "none") return [];
     const t = q.trim().toLowerCase();
-    return feed.roles.filter((r) => inArea(r, area) && (!t || (r.company + " " + r.title + " " + r.location).toLowerCase().includes(t)));
-  }, [feed, q, area]); // eslint-disable-line react-hooks/exhaustive-deps
+    return roles.filter((r) => (fam === "all" || r.family === fam) && (!tech || (r.tags || []).includes(tech)) && (!remote || r.region === "remote" || /remote/i.test(r.location))
+      && (!t || (r.company + " " + r.title + " " + r.location).toLowerCase().includes(t)));
+  }, [roles, fam, tech, remote, q]);
+  const count = (f: Family | "all") => roles.filter((r) => f === "all" || r.family === f).length;
 
-  const prepare = (r: Role) => {
+  const prepare = async (r: Role) => {
+    setBusy(r.id);
+    let desc = "";
+    try {
+      const res = await fetch(import.meta.env.BASE_URL + "roles-desc/" + r.id + ".json");
+      if (res.ok) desc = String((await res.json())?.desc || "");
+    } catch { /* offline: the posting link still goes through */ }
     try {
       sessionStorage.setItem(ANALYZE_PENDING_KEY, JSON.stringify({
         targetRole: r.title.slice(0, 200),
-        jobDescription: (r.title + " · " + r.company + (r.location ? " · " + r.location : "") + "\n\n" + r.desc).slice(0, 12000),
+        jobDescription: (r.title + " · " + r.company + (r.location ? " · " + r.location : "") + (desc ? "\n\n" + desc : "\n\nPosting: " + r.url)).slice(0, 12000),
         sourceUrl: r.url.slice(0, 2000), interviewDate: "", company: r.company, at: Date.now(),
       }));
     } catch { /* blocked storage: Add a job still opens */ }
+    setBusy("");
     navigate("/analyze");
   };
 
   if (feed === null) return <div className="page"><Loading /></div>;
-  const companies = feed === "none" ? 0 : new Set(feed.roles.map((r) => r.company)).size;
+  if (feed === "none" || !roles.length) return (
+    <div className="page ro"><p className="muted">The list is being set up and appears after the next daily update.</p></div>
+  );
 
   return (
     <div className="page ro">
-      <p className="small muted ro-meta">
-        {feed === "none" ? "The list is being set up and appears after the next daily update." :
-          feed.roles.filter((r) => r.region === "us").length + " in the USA, " + feed.roles.length + " worldwide, at " + companies + " companies · updated " + new Date(feed.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+      <p className="ro-intro">
+        <strong>{roles.length} open roles in the USA</strong> at {new Set(roles.map((r) => r.company)).size} companies · updated {new Date(feed.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}.
+        {" "}Tap <b>Prepare</b> to add one as your job: resume match, likely questions and a daily plan for it.
       </p>
 
-      {feed !== "none" && feed.roles.length > 0 && (
-        <div className="ro-areas" role="radiogroup" aria-label="Location">
-          {AREAS.map((a) => (
-            <button key={a.key} type="button" role="radio" aria-checked={area === a.key} className={"cp-chip" + (area === a.key ? " on" : "")} onClick={() => setArea(a.key)}>
-              {a.label} ({feed.roles.filter((r) => inArea(r, a.key)).length})
-            </button>
-          ))}
-        </div>
-      )}
-      {feed !== "none" && feed.roles.length > 0 && (
-        <input className="input" type="search" placeholder="Filter by company, title or place" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter roles" />
-      )}
+      <div className="ro-chips" role="radiogroup" aria-label="Role">
+        {FAMILIES.map((f) => (
+          <button key={f.key} type="button" role="radio" aria-checked={fam === f.key} className={"cp-chip" + (fam === f.key ? " on" : "")} onClick={() => setFam(f.key)}>
+            {f.label} <span className="ro-n">{count(f.key)}</span>
+          </button>
+        ))}
+      </div>
+      <div className="ro-chips ro-chips-2" aria-label="Narrow down">
+        {TECH.map((t) => (
+          <button key={t} type="button" aria-pressed={tech === t} className={"cp-chip" + (tech === t ? " on" : "")} onClick={() => setTech(tech === t ? "" : t)}>{t}</button>
+        ))}
+        <button type="button" aria-pressed={remote} className={"cp-chip" + (remote ? " on" : "")} onClick={() => setRemote(!remote)}>Remote</button>
+      </div>
+      <input className="input ro-search" type="search" placeholder="Search company, title or city" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search roles" />
 
-      {feed !== "none" && shown.length > 0 ? (
+      {shown.length ? (
         <ul className="ro-list">
-          {shown.map((r) => (
-            <li key={r.url} className="ro-card">
-              <div className="ro-top">
-                <span className="ro-co">{r.company}</span>
-                {r.posted && <span className="small muted">{ago(r.posted)}</span>}
+          {shown.slice(0, limit).map((r) => (
+            <li key={r.id} className="ro-card">
+              <div className="ro-main">
+                <span className="ro-co">{r.company}<em>{r.posted ? " · " + ago(r.posted) : ""}</em></span>
+                <strong className="ro-title">{r.title}</strong>
+                <span className="ro-loc">{r.location || "USA"}{(r.tags || []).length ? <> · {(r.tags || []).slice(0, 3).join(", ")}</> : null}</span>
               </div>
-              <strong className="ro-title">{r.title}</strong>
-              {r.location && <span className="small muted">{r.location}</span>}
-              <span className="small muted ro-what">Adds it as your job: resume match, likely questions and a daily practice plan.</span>
               <div className="ro-actions">
-                <button type="button" className="btn btn-primary btn-small" onClick={() => prepare(r)} disabled={!r.desc}>Prepare for this role</button>
-                <ExternalLink className="btn btn-ghost btn-small" href={r.url}>View and apply ↗</ExternalLink>
+                <button type="button" className="btn btn-primary btn-small" onClick={() => void prepare(r)} disabled={!!busy}>{busy === r.id ? "Adding…" : "Prepare"}</button>
+                <ExternalLink className="btn btn-ghost btn-small" href={r.url} aria-label={"View and apply: " + r.title + " at " + r.company}>Apply ↗</ExternalLink>
               </div>
             </li>
           ))}
         </ul>
-      ) : feed !== "none" ? (
-        <p className="muted">{q ? "No roles match that filter." : "No open roles right now. The list updates every day."}</p>
-      ) : null}
+      ) : <p className="muted">No roles match. Try another filter.</p>}
+      {shown.length > limit && (
+        <button type="button" className="btn ro-more" onClick={() => setLimit((n) => n + PAGE)}>Show more ({shown.length - limit} left)</button>
+      )}
 
-      <div className="ro-how">
-        <strong>How this works</strong>
-        <span>We check the public job boards of AI companies once a day for forward deployed engineer roles. {"“"}Prepare for this role{"”"} adds the posting as your job and checks it against your saved resume, so you get the gaps, the likely questions and a daily practice plan for that exact role. Always apply on the company{"’"}s own site.</span>
-        <Link to="/learn/roadmap">See the 12-week roadmap ›</Link>
-      </div>
+      <p className="small muted ro-how">
+        From companies{"’"} own public job boards, checked once a day. Always apply on the company{"’"}s site.
+        {" "}New to AI roles? <Link to="/learn/roadmap">See the 12-week roadmap</Link>.
+      </p>
     </div>
   );
 }
