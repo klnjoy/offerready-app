@@ -4150,3 +4150,9 @@ html, body { overflow-x: clip; }
   .has-tb .tb-back { display: inline-flex; align-items: center; gap: 2px; margin: -6px 0 10px -4px; padding: 6px 10px 6px 4px; font-weight: 650; color: var(--signal-600); text-decoration: none; border-radius: 999px; }
   .has-tb .tb-back:active { background: var(--signal-soft); }
 }
+/* Phone header plan button (components/PlanChip.tsx) */
+.plan-chip { display: none; }
+@media (max-width: 760px) {
+  .has-tb .plan-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 999px; background: #22c07a; color: var(--ink-950); font-weight: 750; font-size: 0.9rem; text-decoration: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(34, 192, 122, 0.3); }
+  .has-tb .plan-chip.is-pro { background: transparent; color: #22c07a; border: 1px solid rgba(34, 192, 122, 0.55); box-shadow: none; padding: 4px 12px; min-height: 30px; font-size: 0.8rem; letter-spacing: 0.04em; }
+}
