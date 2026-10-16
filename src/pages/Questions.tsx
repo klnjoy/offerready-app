@@ -362,6 +362,7 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
                 </button>
                 {isOpen && (
                   <div className="qw-body">
+                    <p className="small qw-coachme">Stuck? <Link to={"/coach?" + (jobId ? "job=" + encodeURIComponent(jobId) + "&" : "") + "ask=1&q=" + encodeURIComponent(q.prompt)}>See an answer built from your resume</Link>, then come back and say it your way.</p>
                     <AnswerCoach prompt={q.prompt} model={q.model_answer} signals={q.signals} topic={String(q.category || "")} jobId={jobId} jobTitle={title} autoFocus onResult={(score, how) => onResult(q, score, how)} />
                   </div>
                 )}

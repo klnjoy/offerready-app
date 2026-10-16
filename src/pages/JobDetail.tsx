@@ -589,23 +589,6 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           {viewDate !== today ? <button type="button" className="link-btn small" onClick={() => setSel(today)}>Back to today</button> : null}
         </section>
     );
-    const gapsEl = (
-      <>
-        {derived.gaps.length > 0 && (
-          <section className="tdy" aria-labelledby="tdy-gap-h">
-            <div className="tdy-head">
-              <h2 id="tdy-gap-h">Gaps to close</h2>
-              <span className="small muted">{derived.gaps.length} from the job vs your resume</span>
-            </div>
-            <ul className="tdy-gaps">
-              {derived.gaps.slice(0, 6).map((g) => (
-                <li key={g}><Link to={"/practice/bank?topic=" + enc(g) + "&job=" + enc(jobId)}>{g}</Link></li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </>
-    );
     const interviewsRow = (
       <Link className="tdy-grow" to={jobPath(jobId, "after")}>
         <span className="tdy-text"><strong>Your interviews</strong><span>{dStats.rounds > 0 ? statsLine(dStats) + (dStats.bad ? " · " + dStats.bad + " to revisit" : "") : "Notes during each round, then how it went"}</span></span>
@@ -637,7 +620,6 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           {statsEl}
           {weekEl}
           {planEl}
-          {gapsEl}
           <section className="tdy" aria-labelledby="tdy-job-h">
             <div className="tdy-head"><h2 id="tdy-job-h" className="hm-sr">This job</h2></div>
             <div className="tdy-group">
@@ -705,7 +687,6 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           <aside className="tdw-side" aria-label="This job at a glance">
             {!date || passed ? dateCard : null}
             {weekEl}
-            {gapsEl}
             <div className="tdy-group">
               {interviewsRow}
               {detailsRow(date && !passed ? dateCard : null)}
