@@ -603,12 +603,18 @@ export function importJobUrl(token: string | null, url: string) {
 export type CopilotMode = "answer" | "example" | "star" | "tradeoff" | "design" | "followups" | "improve";
 export type CopilotSource = "resume" | "story" | "you" | "general" | "suggestion";
 
+export type CopilotRefine = "shorter" | "numbers" | "star" | "technical" | "example";
+
 export interface CopilotResult {
   question_type: "technical" | "behavioral" | "system_design" | "leadership" | "general";
   headline: string;
   outline: { point: string; source: CopilotSource; quote: string }[];
   example: { title: string; source: "resume" | "story" | "none"; quote: string; how_to_use: string } | null;
   improved_answer: string;
+  /** The 30-second version (Coach v2; may be empty from older servers). */
+  short_answer?: string;
+  /** Three things to remember when saying it. */
+  key_points?: string[];
   followups: string[];
   gaps: string[];
   /** Numbers in the answer that aren't in your resume, stories or draft. */
@@ -621,6 +627,10 @@ export interface CopilotResult {
 export function copilot(token: string | null, p: {
   mode: CopilotMode; question: string; jobTitle?: string; requirements?: string[]; gaps?: string[];
   resume?: string; stories?: string[]; draft?: string;
+  /** One-tap change to the previous answer (Coach v2). */
+  refine?: CopilotRefine; previous?: string;
+  /** The earlier question and answer when this one is a follow-up. */
+  thread?: { question: string; answer: string };
 }) {
   return call<{ ok: boolean; result: CopilotResult }>("/api/ai", { method: "POST", token, body: { action: "copilot", ...p } });
 }
