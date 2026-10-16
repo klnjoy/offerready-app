@@ -41,6 +41,7 @@ const TailorPage = lazy(() => import("./pages/Tailor"));
 const DebriefPage = lazy(() => import("./pages/Debrief"));
 const OffersPage = lazy(() => import("./pages/Offers"));
 const AskedQuestionsPage = lazy(() => import("./pages/AskedQuestions"));
+const MorePage = lazy(() => import("./pages/More"));
 const TodayRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.TodayRedirect })));
 const FitRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.FitRedirect })));
 const InterviewNotesPage = lazy(() => import("./pages/InterviewNotes"));
@@ -52,7 +53,7 @@ const GetAppPage = lazy(() => import("./pages/GetApp"));
 const StudioRedirect = lazy(() => import("./pages/Redirects").then((m) => ({ default: m.StudioRedirect })));
 
 /** The four top-nav sections (plus the account menu = five items). */
-type Section = "jobs" | "practice" | "copilot" | "mock" | "readiness";
+type Section = "jobs" | "practice" | "copilot" | "mock" | "readiness" | "more";
 
 interface Route {
   path: string;
@@ -97,6 +98,7 @@ const ROUTES: Route[] = [
   { path: "/simulator", title: "Text interview", section: "mock", back: BACK_MOCK, subtitle: "A mixed loop of questions. Answer, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
   { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", component: AccountPage },
+  { path: "/more", title: "More", section: "more", component: MorePage },
   { path: "/pricing", title: "Pricing", component: PricingPage },
   { path: "/demo", title: "OfferReady in one minute", subtitle: "Every feature in nine short chapters, with where to find each one. Sample data.", component: DemoPage },
   { path: "/try", title: "Try a sample question", subtitle: "See the answer the AI Interview Coach builds, from a sample resume. No account needed.", component: TryPage },

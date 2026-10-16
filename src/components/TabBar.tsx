@@ -7,7 +7,7 @@ import { getActiveJob } from "../lib/readiness";
 import { Link, useLocation } from "../lib/router";
 import { openHelp } from "./HelpBot";
 
-type Tab = "today" | "practice" | "coach" | "progress";
+type Tab = "today" | "practice" | "coach" | "progress" | "more";
 
 const I = (d: ReactNode) => (
   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{d}</svg>
@@ -17,6 +17,7 @@ const ICONS: Record<Tab, ReactNode> = {
   practice: I(<><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>),
   coach: I(<><path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10Z" /><path d="M8.5 10.5h7" /></>),
   progress: I(<><path d="M5 20V13M10 20V8M15 20v-5M20 20V5" /></>),
+  more: I(<><circle cx="5.5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="18.5" cy="12" r="1.3" /></>),
 };
 
 export function TabBar({ section }: { section?: string }) {
@@ -36,12 +37,13 @@ export function TabBar({ section }: { section?: string }) {
   const job = getActiveJob();
   const jq = job ? "?job=" + encodeURIComponent(job) : "";
   const cur: Tab | null = section === "jobs" ? "today" : section === "practice" || section === "mock" ? "practice"
-    : section === "copilot" ? "coach" : section === "readiness" ? "progress" : null;
+    : section === "copilot" ? "coach" : section === "readiness" ? "progress" : section === "more" ? "more" : null;
   const tabs: { key: Tab; label: string; to: string }[] = [
     { key: "today", label: "Today", to: job ? "/jobs/" + encodeURIComponent(job) : "/jobs" },
     { key: "practice", label: "Practice", to: "/practice" },
     { key: "coach", label: "Coach", to: "/coach" + jq },
     { key: "progress", label: "Progress", to: "/dashboard" + jq },
+    { key: "more", label: "More", to: "/more" },
   ];
   const actions: { label: string; sub: string; to?: string; run?: () => void }[] = [
     { label: "Add a job", sub: "Paste a job link or description", to: "/analyze" },
