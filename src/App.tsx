@@ -7,6 +7,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { HelpBot } from "./components/HelpBot";
 import { LandOnJob } from "./components/LandOnJob";
 import { GetAppChip } from "./components/GetAppChip";
+import { PlanChip } from "./components/PlanChip";
 import { UsageAlert } from "./components/UsageAlert";
 import { MarketingHeader } from "./components/MarketingHeader";
 import { PracticeTabs } from "./components/PracticeTabs";
@@ -274,6 +275,7 @@ export default function App() {
               <span className="add-job-long">Add a job</span><span className="add-job-short" aria-hidden="true">Add</span>
             </Link>
             <SyncIndicator />
+            <PlanChip />
             <AccountMenu pathname={pathname} />
             {jobNav ? (
               <button type="button" className="menu-btn" aria-expanded={jobMenu} aria-controls="jn-drawer" onClick={() => setJobMenu(true)}>Menu</button>
