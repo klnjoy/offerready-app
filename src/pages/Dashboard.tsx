@@ -304,6 +304,16 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
       <p className="print-only rd-print-head">OfferReady readiness report · {title}{detail.job.company ? " · " + detail.job.company : ""} · {formatDay(today, { month: "long", day: "numeric", year: "numeric" })}</p>
 
       {jobs.length > 1 ? <JobPicker jobs={jobs} current={detail.job.id} onSwitch={onSwitch} back={{ to: "/dashboard", label: "All jobs (" + jobs.length + ")" }} /> : null}
+      {/* Phones: the job as a switcher, like Today. */}
+      {jobs.length > 1 ? (
+        <label className="jw-today-job rd-job-chip">
+          <span className="hm-sr">Job</span>
+          <select aria-label="Switch job" value={detail.job.id} onChange={(e) => onSwitch(e.target.value)}>
+            {jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j) + (j.company ? " · " + j.company : "")}</option>)}
+          </select>
+          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </label>
+      ) : null}
 
       {/* 1. The answer */}
       <section className={"card rd-hero rd-tone-" + v.tone} aria-labelledby="rd-q">

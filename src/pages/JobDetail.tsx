@@ -565,7 +565,13 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
         </p>
         {nextCard}
         {todayCard}
-        {!date || passed ? dateCard : null}
+        {phone && (!date || passed) ? (
+          <button type="button" className="td-date-nudge" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>
+            <span><strong>{passed ? "Set your next interview date" : "Add your interview date"}</strong><span className="small muted">Your plan fits the days you have</span></span>
+            <span className="td-date-nudge-cta">Set</span>
+          </button>
+        ) : !date || passed ? dateCard : null}
         {everyDay}
         <details className="card jd-more">
           <summary><span>More for this job</span><span className="small muted">Full plan, readiness, interview day, set-up</span></summary>
