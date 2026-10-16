@@ -336,6 +336,8 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
   const v = verdictFor(m.score);
   const days = daysUntil(date, today);
   const fresh = !m.points.length && !m.hasGap;
+  const tried = m.areas.filter((x) => x.score != null);
+  const untried = m.areas.filter((x) => x.score == null);
 
   return (
     <div className="rd-stack">
@@ -371,6 +373,11 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
             <p className="rd-verdict-line">{v.line}</p>
           </div>
         </div>
+        <ul className="rd2-parts" aria-label="What makes up your score">
+          {m.parts.map((p) => (
+            <li key={p.key}><b>{p.points}</b><span>/{p.weight}</span> {p.key === "match" ? "Resume match" : p.key === "quality" ? "Answer scores" : "Questions practised"}</li>
+          ))}
+        </ul>
         <div className="rd2-hero-foot">
           {m.points.length >= 2 ? <Spark points={m.points} /> : <span className="small muted">Your trend appears after two practice sessions.</span>}
           <span className="rd2-int">
@@ -387,20 +394,30 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
       {/* 2. Where am I weak? */}
       <section className="rd2" aria-labelledby="rd2-areas-h">
         <div className="pl-head"><h2 id="rd2-areas-h">Where you stand</h2><span className="small muted">Average score by area</span></div>
-        <ul className="tdy-group rd2-areas">
-          {m.areas.map((x) => (
-            <li key={x.key} className="rd2-area">
-              <div className="rd2-area-top">
-                <strong>{x.label}</strong>
-                <span className="rd2-area-num">{x.score != null ? x.score + "%" : "Not tried"}<em>{x.n ? " · " + x.n + (x.n === 1 ? " answer" : " answers") : ""}</em></span>
-              </div>
-              <div className={"rd2-bar" + (x.score == null ? " is-none" : x.score >= 70 ? " is-good" : x.score >= 50 ? " is-mid" : " is-weak")} aria-hidden="true">
-                <span style={{ width: (x.score ?? 0) + "%" }} /><i style={{ left: READY_LINE + "%" }} />
-              </div>
-            </li>
-          ))}
-        </ul>
-        <p className="small muted rd2-note">The line marks the ready bar ({READY_LINE}%). <Link to={"/questions" + m.jobQ}>Practise questions for this job</Link></p>
+        {tried.length > 0 ? (
+          <ul className="tdy-group rd2-areas">
+            {tried.map((x) => (
+              <li key={x.key} className="rd2-area">
+                <div className="rd2-area-top">
+                  <strong>{x.label}</strong>
+                  <span className="rd2-area-num">{x.score + "%"}<em>{" · " + x.n + (x.n === 1 ? " answer" : " answers")}</em></span>
+                </div>
+                <div className={"rd2-bar" + (x.score! >= 70 ? " is-good" : x.score! >= 50 ? " is-mid" : " is-weak")} aria-hidden="true">
+                  <span style={{ width: (x.score ?? 0) + "%" }} /><i style={{ left: READY_LINE + "%" }} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="small muted">No scored answers yet, so there{"’"}s nothing to compare. <Link to={"/questions" + m.jobQ}>Answer your first question</Link>.</p>
+        )}
+        {untried.length > 0 && tried.length > 0 && (
+          <Link className="rd2-untried" to={"/questions" + m.jobQ}>
+            <span><strong>Not tried yet:</strong> {untried.map((x) => x.label).join(", ")}</span>
+            <span className="rd2-untried-cta">Try one ›</span>
+          </Link>
+        )}
+        {tried.length > 0 && <p className="small muted rd2-note">The line on each bar is the ready mark ({READY_LINE}%).</p>}
       </section>
 
       {/* 3. Am I getting better? */}
@@ -437,7 +454,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
               <Link className="tdy-grow" to={t.to}>
                 <span className="rd-todo-n" aria-hidden="true">{i + 1}</span>
                 <span className="tdy-text"><strong>{t.title}</strong><span className="rd-todo-why">{t.why}</span></span>
-                <span className="tdy-pill">+{t.gain}</span>
+                <span className="tdy-pill" title="Estimated points this can add">+{t.gain} pts</span>
                 <span className="tdy-chev" aria-hidden="true">›</span>
               </Link>
             </li>
@@ -483,6 +500,16 @@ function Spark({ points }: { points: { at: number; score: number }[] }) {
   const y = (v: number) => H - 3 - (v / 100) * (H - 6);
   const d = ps.map((p, i) => (i ? "L" : "M") + x(p.at).toFixed(1) + " " + y(p.score).toFixed(1)).join(" ");
   const first = ps[0].score, last = ps[ps.length - 1].score, diff = last - first;
+  const day = (t: number) => new Date(t).toDateString();
+  const oneDay = day(t0) === day(ps[ps.length - 1].at);
+  const change = diff > 0 ? "▲ " + diff : diff < 0 ? "▼ " + Math.abs(diff) : "No change";
+  // All on one day: a line would be meaningless, so just say what changed today.
+  if (oneDay) return (
+    <span className="rd2-spark">
+      <span className={"rd2-spark-d" + (diff > 0 ? " up" : diff < 0 ? " down" : "")}>{change} <em>today</em></span>
+      <span className="small muted">Your trend line starts after practice on a second day.</span>
+    </span>
+  );
   return (
     <span className="rd2-spark">
       <svg viewBox={"0 0 " + W + " " + H} width={W} height={H} role="img" aria-label={"Readiness went from " + first + " to " + last + " over " + ps.length + " sessions"}>
@@ -490,7 +517,7 @@ function Spark({ points }: { points: { at: number; score: number }[] }) {
         <path d={d} className="rd2-spark-line" />
         <circle cx={x(ps[ps.length - 1].at)} cy={y(last)} r="3" className="rd2-spark-dot" />
       </svg>
-      <span className={"rd2-spark-d" + (diff > 0 ? " up" : diff < 0 ? " down" : "")}>{diff > 0 ? "▲ " + diff : diff < 0 ? "▼ " + Math.abs(diff) : "No change"} <em>since {shortDay(new Date(t0).toISOString().slice(0, 10))}</em></span>
+      <span className={"rd2-spark-d" + (diff > 0 ? " up" : diff < 0 ? " down" : "")}>{change} <em>since {shortDay(new Date(t0).toISOString().slice(0, 10))}</em></span>
     </span>
   );
 }
