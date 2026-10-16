@@ -7,6 +7,9 @@ name: Deploy app to GitHub Pages
 on:
   push:
     branches: [main]
+  # Daily rebuild so the open-roles list (scripts/fetch-roles.mjs) stays fresh.
+  schedule:
+    - cron: "23 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -30,6 +33,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+
+      - name: Fetch open forward deployed engineer roles
+        # Public job-board APIs only; a failure never blocks the deploy.
+        run: node scripts/fetch-roles.mjs public/roles.json || echo "roles fetch failed; continuing"
 
       - name: Type-check and build
         run: npm run build
