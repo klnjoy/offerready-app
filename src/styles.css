@@ -4229,3 +4229,22 @@ html, body { overflow-x: clip; }
 .empty-card .row { justify-content: center; }
 .empty-art { display: block; width: 100%; max-width: 360px; aspect-ratio: 2 / 1; height: auto; border-radius: 16px; }
 .inn-empty.empty-card p { margin: 0; }
+
+/* Phones: calmer Today and Progress */
+.td-date-nudge { display: none; }
+.rd-job-chip { display: none !important; }
+@media (max-width: 760px) {
+  .td-date-nudge { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; color: var(--text); padding: 12px 14px; border-radius: 16px; border: 1px dashed var(--border-strong); background: var(--surface); cursor: pointer; }
+  .td-date-nudge > svg { flex: none; color: #f2b84b; }
+  .td-date-nudge > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+  .td-date-nudge-cta { flex: none; font-weight: 700; color: var(--signal-600); padding: 6px 14px; border-radius: 999px; background: var(--signal-soft); }
+  /* Tab roots and the job's Today: no breadcrumb or prev/next (the tab bar does that). */
+  .has-tb [data-tabroot] .jn-trail, .has-tb [data-jobhome] .jn-pager, .has-tb [data-tabroot] .jn-pager { display: none; }
+  .has-tb [data-tabroot] .page-head p { display: none; }
+  /* Progress: job chip instead of the search box, Export beside the title */
+  .has-tb .rd-switch { display: none; }
+  .has-tb .rd-job-chip { display: inline-flex !important; margin: -4px 0 4px; }
+  .has-tb .jn-body { position: relative; }
+  .has-tb [data-tabroot] .rd-export { position: absolute; top: 2px; right: 0; margin: 0; }
+}
+@media (max-width: 760px) { .has-tb [data-tabroot] .page-head { margin-top: -14px; } }
