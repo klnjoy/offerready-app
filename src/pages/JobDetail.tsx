@@ -601,17 +601,13 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           </section>
         )}
         <ul className="tdy-links" aria-label="More for this job">
-          <li><Link to={"/practice?job=" + enc(jobId)}><span>Practise every day</span><span className="small muted">Questions, drills, stories, mocks</span></Link></li>
           <li><Link to={jobPath(jobId, "resume")}><span>Resume match</span><span className="small muted">{data.gap ? (data.gap.match_score || 0) + "% match" : "Check your fit"}</span></Link></li>
-          <li><Link to={"/notes?job=" + enc(jobId)}><span>Interview day</span><span className="small muted">Notes during the interview, then a debrief</span></Link></li>
         </ul>
         <details className="card jd-more">
-          <summary><span>Full plan and job details</span><span className="small muted">Every day to your interview, readiness, set-up</span></summary>
+          <summary><span>Full plan and job details</span><span className="small muted">Every day to your interview, role guide, set-up</span></summary>
           <div className="jd-more-body">
             {date && !passed ? dateCard : null}
             {planCard}
-            {readinessCard}
-            {interviewDay}
             {roleGuide}
             {setupCard}
             {aboutCard}

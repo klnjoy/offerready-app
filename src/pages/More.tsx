@@ -1,14 +1,10 @@
-/* "More" (the phone tab bar's last tab): who you are and how you're doing at
- * the top (streak, jobs, stories), then everything that isn't a main tab,
- * grouped by what you're trying to do. */
+/* "More" (the phone tab bar's last tab): who you are at the top (jobs and
+ * stories saved), then only what isn't already on another tab. Practice
+ * owns stories, the question bank and mocks; Today owns the streak. */
 
 import type { ReactNode } from "react";
 import { DOCS_BASE } from "../config";
 import { useAuth } from "../lib/auth";
-import { localDay } from "../lib/interviewDates";
-import { allDoneDays } from "../lib/planProgress";
-import { streakDays } from "../lib/prepPlan";
-import { getHistory } from "../lib/progressStore";
 import { getActiveJob } from "../lib/readiness";
 import { ExternalLink, Link, useNavigate } from "../lib/router";
 import { loadStories } from "../lib/stories";
@@ -21,10 +17,7 @@ const ic = (d: ReactNode) => (
 );
 const ICON = {
   jobs: ic(<><rect x="3.5" y="7" width="17" height="12.5" rx="2.5" /><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7M3.5 12.5h17" /></>),
-  stories: ic(<><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15Z" /><path d="M9 7.5h7M9 11h5" /></>),
   asked: ic(<><path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10Z" /><path d="M10 9a2 2 0 1 1 2.5 1.9c-.4.2-.5.5-.5.9M12 13.5v.1" /></>),
-  bank: ic(<><path d="M12 3 3 8l9 5 9-5-9-5Z" /><path d="M3 13l9 5 9-5" /></>),
-  mock: ic(<><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></>),
   notes: ic(<><path d="M9 6.5h11M9 12h11M9 17.5h11" /><circle cx="4.8" cy="6.5" r="1.1" /><circle cx="4.8" cy="12" r="1.1" /><circle cx="4.8" cy="17.5" r="1.1" /></>),
   debrief: ic(<><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M8.5 14.5l2 2 4-4" /></>),
   offers: ic(<><path d="M4 12h16M12 4v16" /><rect x="3.5" y="3.5" width="17" height="17" rx="3" /></>),
@@ -47,22 +40,13 @@ export default function MorePage() {
   const job = getActiveJob();
   const jq = job ? "?job=" + encodeURIComponent(job) : "";
 
-  const today = localDay();
-  const days = new Set<string>(allDoneDays());
-  for (const h of getHistory()) { const d = h && h.when ? new Date(h.when) : null; if (d && !isNaN(d.getTime())) days.add(localDay(d)); }
-  const streak = streakDays([...days], today);
   const nJobs = jobs.status === "ready" ? jobs.jobs.length : null;
   const nStories = loadStories().length;
   const initial = (auth.email || "").trim().charAt(0).toUpperCase() || "•";
 
   const groups: { title: string; rows: Row[] }[] = [
-    { title: "Your preparation", rows: [
+    { title: "Your jobs", rows: [
       { icon: ICON.jobs, label: "My jobs", sub: "Every job you’re preparing for", to: "/jobs" },
-      { icon: ICON.stories, label: "Your stories", sub: "STAR stories for behavioral rounds", to: "/stories" },
-      { icon: ICON.bank, label: "Question bank", sub: "Quick reps on any topic", to: "/practice/bank" },
-      { icon: ICON.mock, label: "Mock interview", sub: "Voice or text, start to finish", to: "/mock" },
-    ] },
-    { title: "Interview day and after", rows: [
       { icon: ICON.notes, label: "Interview notes", sub: "Jot each question as it’s asked", to: "/notes" + jq },
       { icon: ICON.debrief, label: "Debriefs", sub: "Log a round and see past ones", to: "/debrief" + jq },
       { icon: ICON.asked, label: "Questions you were asked", sub: "From all your real interviews", to: "/asked" + jq },
@@ -85,12 +69,12 @@ export default function MorePage() {
   return (
     <div className="page more">
       <section className="more-head" aria-label="Your summary">
-        <div className="more-stat"><span>Streak</span><strong>{streak}</strong><em>{streak === 1 ? "day" : "days"}</em></div>
+        <div className="more-stat"><span>Jobs</span><strong>{nJobs ?? "–"}</strong><em>saved</em></div>
         <div className="more-me">
           <span className="avatar avatar-lg more-avatar" aria-hidden="true">{initial}</span>
           <span className="more-email">{auth.email || "Not signed in"}</span>
         </div>
-        <div className="more-stat"><span>Jobs</span><strong>{nJobs ?? "–"}</strong><em>{nStories} {nStories === 1 ? "story" : "stories"}</em></div>
+        <div className="more-stat"><span>Stories</span><strong>{nStories}</strong><em>written</em></div>
       </section>
 
       {groups.map((g) => (

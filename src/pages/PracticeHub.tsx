@@ -1,5 +1,6 @@
-/* Practice: one hub for the four ways to practise, each saying when to use
- * it. The active job is preselected (and can be switched here); a gap from
+/* Practice: one list of the five ways to practise, each saying when to use
+ * it and where you are with it (Next, progress, Done), then Learn AI reads.
+ * Each way appears once; the suggested next one is marked in the list. The active job is preselected (and can be switched here); a gap from
  * the job page arrives as ?topic= and is carried into the modes.
  *
  * Old links: /practice?mode=… (the question bank's modes) redirect to
@@ -10,31 +11,25 @@ import { setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
-import { Icon, type IconName } from "../components/Icon";
-import { IdeaCards } from "../components/IdeaCards";
+import { usePracticePath, type StepKey } from "../lib/practicePath";
+import { weakTopicScores } from "../lib/progressStore";
+import { LearnCards } from "../components/IdeaCards";
 import { Art, type ArtKey } from "../components/Art";
 
-interface Mode { key: string; icon: IconName; title: string; when: string; get: string; to: (job: string, topic: string) => string; cta: string; needsJob?: boolean }
+interface Mode { key: StepKey | "bank"; art: ArtKey; title: string; when: string; to: (job: string, topic: string) => string }
 
 const enc = encodeURIComponent;
-const MODE_ART: Record<string, ArtKey> = { questions: "questions", drills: "drill", stories: "stories", bank: "bank" };
 const MODES: Mode[] = [
-  { key: "questions", icon: "list", title: "Questions for this job",
-    when: "Use it first, to see what this interview will probably ask you.",
-    get: "Likely questions written from the job and your gaps, saved to the job.",
-    to: (j) => "/questions" + (j ? "?job=" + enc(j) : ""), cta: "Open questions", needsJob: true },
-  { key: "drills", icon: "shield", title: "Trade-off drills",
-    when: "Use it when you need to explain why you chose a design and hold your ground when the interviewer pushes back.",
-    get: "Real scenarios with follow-ups on trade-offs, constraints and incidents.",
-    to: (j) => "/defend" + (j ? "?job=" + enc(j) : ""), cta: "Start a drill" },
-  { key: "stories", icon: "book", title: "Your stories",
-    when: "Use it before behavioral rounds, for every “Tell me about a time when…” question.",
-    get: "Your STAR stories, matched to what the job asks for, so nothing is left uncovered.",
-    to: () => "/stories", cta: "Open your stories" },
-  { key: "bank", icon: "layers", title: "Question bank",
-    when: "Use it for quick daily reps on any topic, with or without a job.",
-    get: "Broad drills, flashcards and timed exams by topic. Scores find your weak areas.",
-    to: (_j, t) => "/practice/bank" + (t ? "?topic=" + enc(t) : ""), cta: "Open the bank" },
+  { key: "questions", art: "questions", title: "Questions for this job", when: "What this interview will probably ask you",
+    to: (j) => "/questions" + (j ? "?job=" + enc(j) : "") },
+  { key: "drill", art: "drill", title: "Trade-off drills", when: "Defend a design call when the interviewer pushes back",
+    to: (j) => "/defend" + (j ? "?job=" + enc(j) : "") },
+  { key: "stories", art: "stories", title: "Your stories", when: "STAR stories for “Tell me about a time…”",
+    to: () => "/stories" },
+  { key: "mock", art: "mock", title: "Mock interview", when: "The full interview, by voice or text",
+    to: () => "/mock" },
+  { key: "bank", art: "bank", title: "Question bank", when: "Quick reps on any topic, with or without a job",
+    to: (_j, t) => "/practice/bank" + (t ? "?topic=" + enc(t) : "") },
 ];
 
 export default function PracticeHubPage() {
@@ -59,6 +54,10 @@ export default function PracticeHubPage() {
   }, [jobs.status, jobs.activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const job = jobs.jobs.find((j) => j.id === jobId);
+  const path = usePracticePath(jobId);
+  const next = path.find((x) => !x.done);
+  const doneN = path.filter((x) => x.done).length;
+  const weak = Object.entries(weakTopicScores()).filter((w) => w[1] < 70).sort((a, b) => a[1] - b[1])[0];
   const pick = (id: string) => { setJobId(id); setActiveJob(id); };
 
   return (
@@ -91,35 +90,46 @@ export default function PracticeHubPage() {
         </div>
       )}
 
-      <IdeaCards jobId={jobId} job={job} />
-
-      <h2 className="hub-all-h">All ways to practise</h2>
-      <ol className="hub-grid" aria-label="Ways to practise">
-        {MODES.map((m, i) => {
-          const to = m.to(jobId, topic);
-          const recommended = topic ? m.key === "bank" : i === 0 && !!jobId;
-          return (
-            <li key={m.key} className={"hub-card" + (recommended ? " is-rec" : "")}>
-              <Link className="hub-link" to={to} aria-describedby={"hub-" + m.key + "-when"}>
-                <Art k={MODE_ART[m.key] || "questions"} className="hub-art" />
-                {recommended ? <span className="hub-top"><span className="hub-rec">{topic ? "Best for " + topic : "Start here"}</span></span> : null}
-                <span className="hub-title">{m.title}</span>
-                <span className="hub-when" id={"hub-" + m.key + "-when"}>{m.when}</span>
-                <span className="hub-get">{m.get}</span>
-                <span className="hub-cta">{m.cta} <Icon name="arrow" size={16} className="hub-svg" /></span>
-              </Link>
-            </li>
-          );
-        })}
-      </ol>
-      <section className="hub-mock-note" aria-labelledby="hub-mock-h">
-        <h2 id="hub-mock-h">You don{"’"}t need all four before a mock interview</h2>
-        <p>
-          A mock is open any time. The quickest useful route: <strong>practise 5 questions for this job</strong> and <strong>one trade-off drill</strong>, then do a mock.
-          Use stories when you have behavioral rounds, and the question bank for extra reps.
-        </p>
-        <div className="row"><Link className="btn" to="/mock">Go to mock interview {"→"}</Link></div>
+      <section className="pl" aria-labelledby="pl-h">
+        <div className="pl-head">
+          <h2 id="pl-h">Ways to practise</h2>
+          {jobId ? <span className="small muted">{doneN} of 4 steps done</span> : null}
+        </div>
+        <ul className="pl-list">
+          {MODES.map((m) => {
+            const step = path.find((x) => x.key === m.key);
+            const isNext = !topic && !!jobId && !!next && next.key === m.key;
+            const isFocus = !!topic && m.key === "bank";
+            let to = m.to(jobId, topic);
+            let status = "";
+            let tone = "";
+            if (step && jobId) {
+              status = step.done ? "Done" : isNext ? "Next" + (step.progress ? " · " + step.progress : "") : "Step " + step.n + (step.progress ? " · " + step.progress : "");
+              tone = step.done ? "done" : isNext ? "next" : "";
+            } else if (m.key === "bank") {
+              if (isFocus) { status = "Best for " + topic; tone = "next"; }
+              else if (weak) { status = "Weakest: " + weak[0] + " " + Math.round(weak[1]) + "%"; tone = "warn"; to = "/practice/bank?topic=" + enc(weak[0]) + (jobId ? "&job=" + enc(jobId) : ""); }
+              else status = "Any time";
+            }
+            return (
+              <li key={m.key} className={"pl-item" + (isNext || isFocus ? " is-next" : "")}>
+                <Link className="pl-row" to={to}>
+                  <Art k={m.art} className="pl-art" />
+                  <span className="pl-text">
+                    <strong>{m.title}</strong>
+                    <span className="pl-when">{m.when}</span>
+                    {status ? <span className={"pl-status" + (tone ? " is-" + tone : "")}>{tone === "done" ? "✓ " : ""}{status}</span> : null}
+                  </span>
+                  <span className="pl-chev" aria-hidden="true">›</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="small muted pl-tip">You don{"’"}t need every step before a mock. Five questions for this job and one drill is a good start.</p>
       </section>
+
+      <LearnCards job={job} />
     </div>
   );
 }

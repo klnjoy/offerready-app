@@ -1,13 +1,10 @@
-/* Practice tab: two swipeable rows of cards with our own illustrations.
- *   For you  – the next practice steps for the job you're on.
- *   Learn AI – short reads from the study library, ones your job mentions first.
+/* Practice tab: "Learn AI", a swipeable row of short reads from the study
+ * library, the ones your job mentions first. (Your practice steps are the
+ * list above it on the Practice page, so they aren't repeated here.)
  * The art is inline SVG in the brand colours (no stock photos). */
 
 import { docsUrl } from "../config";
 import { ExternalLink, Link } from "../lib/router";
-import { stepHref, usePracticePath } from "../lib/practicePath";
-import { weakTopicScores } from "../lib/progressStore";
-import { loadStories } from "../lib/stories";
 import type { JobRow } from "../types";
 import { Art, type ArtKey } from "./Art";
 
@@ -15,6 +12,7 @@ import { Art, type ArtKey } from "./Art";
 // Cards
 
 interface Card { key: string; art: ArtKey; tag: string; title: string; line: string; cta: string; to?: string; href?: string; hot?: boolean }
+
 
 function Row({ id, title, sub, cards }: { id: string; title: string; sub: string; cards: Card[] }) {
   if (!cards.length) return null;
@@ -48,8 +46,6 @@ function Row({ id, title, sub, cards }: { id: string; title: string; sub: string
   );
 }
 
-const STEP_ART: Record<string, ArtKey> = { questions: "questions", drill: "drill", stories: "stories", mock: "mock" };
-
 /** Short reads in the study library, with words that tie them to a job. */
 const TOPICS: { slug: string; art: ArtKey; title: string; line: string; min: number; words: RegExp }[] = [
   { slug: "llm-fundamentals", art: "llm", title: "How LLMs work", line: "Tokens, context windows and temperature, in plain words.", min: 8, words: /\b(llm|gpt|genai|generative|language model|ai)\b/i },
@@ -62,23 +58,7 @@ const TOPICS: { slug: string; art: ArtKey; title: string; line: string; min: num
   { slug: "llmops", art: "ops", title: "LLMOps and deployment", line: "Ship models: serving, cost, latency and rollbacks.", min: 9, words: /\b(llmops|mlops|deploy|serving|kubernetes|production)\b/i },
 ];
 
-export function IdeaCards({ jobId, job }: { jobId: string; job?: JobRow }) {
-  const path = usePracticePath(jobId);
-  const jq = jobId ? "?job=" + encodeURIComponent(jobId) : "";
-
-  // For you: the steps still open (next first), the weakest topic, a mock.
-  const forYou: Card[] = [];
-  const open = path.filter((s) => !s.done);
-  open.forEach((s, i) => forYou.push({
-    key: s.key, art: STEP_ART[s.key] || "questions", tag: (i === 0 ? "Next · " : "") + "Step " + s.n + (s.progress ? " · " + s.progress : ""),
-    title: s.label, line: s.goal.charAt(0).toUpperCase() + s.goal.slice(1) + ".", cta: i === 0 ? "Start" : "Open", to: stepHref(s, jobId), hot: i === 0,
-  }));
-  const weak = Object.entries(weakTopicScores()).sort((a, b) => a[1] - b[1])[0];
-  if (weak && weak[1] < 70) forYou.push({ key: "weak", art: "bank", tag: "Weakest topic · " + Math.round(weak[1]) + "%", title: "Practise " + weak[0], line: "Quick reps on the topic you score lowest on.", cta: "Practise it", to: "/practice/bank?topic=" + encodeURIComponent(weak[0]) + (jobId ? "&job=" + encodeURIComponent(jobId) : "") });
-  if (!loadStories().length) forYou.push({ key: "story1", art: "stories", tag: "Behavioral", title: "Write your first story", line: "One STAR story covers many “Tell me about a time…” questions.", cta: "Start", to: "/stories?new=1" });
-  if (!open.some((s) => s.key === "mock")) forYou.push({ key: "mock", art: "mock", tag: "Any time", title: "Run another mock", line: "Rehearse out loud, closer to the day.", cta: "Open mocks", to: "/mock" });
-  forYou.push({ key: "coach", art: "questions", tag: "Any time", title: "Ask the AI Coach", line: "Any question, answered from your resume and stories.", cta: "Ask", to: "/coach" + jq });
-
+export function LearnCards({ job }: { job?: JobRow }) {
   // Learn AI: topics the job mentions first.
   const text = [job?.title, ...(job?.analysis?.coreSkills || []).map((k) => (typeof k === "string" ? k : (k as { name?: string })?.name || "")), ...(job?.analysis?.technologies || [])].join(" ");
   const learn: Card[] = TOPICS
@@ -87,9 +67,6 @@ export function IdeaCards({ jobId, job }: { jobId: string; job?: JobRow }) {
     .map(({ t, hit }) => ({ key: t.slug, art: t.art, tag: (hit ? "In your job · " : "") + t.min + " min read", title: t.title, line: t.line, cta: "Read", href: docsUrl("GenAI-Topics/" + t.slug + "/index.html"), hot: hit }));
 
   return (
-    <>
-      <Row id="ic-you" title="For you" sub="Your next steps for this job" cards={forYou} />
-      <Row id="ic-learn" title="Learn AI" sub="Short reads from the study library" cards={learn} />
-    </>
+    <Row id="ic-learn" title="Learn AI" sub="Short reads from the study library" cards={learn} />
   );
 }
