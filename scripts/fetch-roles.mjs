@@ -55,6 +55,13 @@ const plain = (html) => decode(decode(String(html || "")) // Greenhouse escapes 
   .replace(/<[^>]+>/g, ""))
   .replace(/[ \t]+/g, " ").replace(/\n\s*\n\s*\n+/g, "\n\n").trim();
 const clip = (s) => (s.length > MAX_DESC ? s.slice(0, MAX_DESC).replace(/\s+\S*$/, "") + " …" : s);
+// Where a role is: "us" (a US city or state, or remote in the US), "remote"
+// (remote with no country) or "intl". The app shows US roles first.
+const US_STATES = "AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC";
+const US_RE = new RegExp(`\\b(United States|USA|U\\.S\\.|US|(${US_STATES}))\\b|San Francisco|New York|NYC|Seattle|Bellevue|Austin|Boston|Chicago|Denver|Los Angeles|Palo Alto|Mountain View|Sunnyvale|San Jose|Menlo Park|Washington|Atlanta|Dallas|Houston|Miami|Pittsburgh|Philadelphia|San Diego|Portland|Salt Lake|Raleigh|Arlington|McLean|Reston|Tysons`);
+const INTL_RE = /\b(London|UK|United Kingdom|Canada|Toronto|Vancouver|Montreal|India|Bengaluru|Bangalore|Hyderabad|Pune|Paris|France|Berlin|Munich|Germany|Amsterdam|Netherlands|Dublin|Ireland|Zurich|Switzerland|Madrid|Spain|Stockholm|Copenhagen|Tokyo|Japan|Seoul|Korea|Singapore|Sydney|Melbourne|Australia|Tel Aviv|Israel|Sao Paulo|Brazil|Mexico|Warsaw|Poland|Milan|Italy|Lisbon|Dubai|EMEA|APAC|Europe)\b/i;
+const region = (loc) => (US_RE.test(loc) ? "us" : INTL_RE.test(loc) ? "intl" : /remote|anywhere/i.test(loc) ? "remote" : loc ? "intl" : "remote");
+
 const day = (v) => { const t = typeof v === "number" ? v : Date.parse(v || ""); return Number.isFinite(t) ? new Date(t).toISOString().slice(0, 10) : null; };
 
 async function getJSON(url) {
@@ -94,7 +101,7 @@ for (const [company, type, slug] of BOARDS) {
     const all = await FETCH[type](slug);
     ok++;
     const hits = all.filter((j) => j.title && j.url && TITLE.test(j.title));
-    for (const j of hits) roles.push({ company, title: j.title.trim(), location: j.location.trim(), url: j.url, posted: j.posted, desc: clip(j.desc || ""), source: type });
+    for (const j of hits) roles.push({ company, title: j.title.trim(), location: j.location.trim(), url: j.url, posted: j.posted, desc: clip(j.desc || ""), source: type, region: region(j.location || "") });
     sources.push({ company, type, total: all.length, matched: hits.length });
     console.log(`${company} (${type}/${slug}): ${hits.length} of ${all.length}`);
   } catch (e) {
@@ -114,6 +121,7 @@ console.log(`Wrote ${out.roles.length} roles to ${OUT}`);
 // A one-line summary as a GitHub Actions notice, so each run shows which
 // boards worked without opening the full log.
 if (process.env.GITHUB_ACTIONS) {
-  const line = sources.map((x) => x.company + ":" + (x.error ? "ERR " + x.error : x.matched + "/" + x.total)).join(", ");
+  const us = out.roles.filter((r) => r.region === "us").length;
+  const line = "US " + us + ", remote " + out.roles.filter((r) => r.region === "remote").length + " · " + sources.map((x) => x.company + ":" + (x.error ? "ERR " + x.error : x.matched + "/" + x.total)).join(", ");
   console.log(`::notice title=Open roles (${out.roles.length})::${line.replace(/[\r\n%]/g, " ")}`);
 }

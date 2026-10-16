@@ -8,7 +8,9 @@ import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Link, useNavigate } from "../lib/router";
 import { Loading } from "../components/ui";
 
-type Role = { company: string; title: string; location: string; url: string; posted: string | null; desc: string; source: string };
+type Region = "us" | "remote" | "intl";
+type Role = { company: string; title: string; location: string; url: string; posted: string | null; desc: string; source: string; region?: Region };
+const AREAS: { key: "us" | "remote" | "all"; label: string }[] = [{ key: "us", label: "USA" }, { key: "remote", label: "Remote" }, { key: "all", label: "All locations" }];
 type Feed = { updated: string; count: number; roles: Role[] };
 
 /** Analyze's pending-job key: signed in, the job is added and analysed right
@@ -25,6 +27,7 @@ function ago(d: string | null): string {
 export default function RolesPage() {
   const [feed, setFeed] = useState<Feed | null | "none">(null);
   const [q, setQ] = useState("");
+  const [area, setArea] = useState<"us" | "remote" | "all">("us");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,11 +39,12 @@ export default function RolesPage() {
     return () => { alive = false; };
   }, []);
 
+  const inArea = (r: Role, a: "us" | "remote" | "all") => a === "all" || (r.region || "intl") === a;
   const shown = useMemo(() => {
     if (!feed || feed === "none") return [];
     const t = q.trim().toLowerCase();
-    return t ? feed.roles.filter((r) => (r.company + " " + r.title + " " + r.location).toLowerCase().includes(t)) : feed.roles;
-  }, [feed, q]);
+    return feed.roles.filter((r) => inArea(r, area) && (!t || (r.company + " " + r.title + " " + r.location).toLowerCase().includes(t)));
+  }, [feed, q, area]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const prepare = (r: Role) => {
     try {
@@ -60,9 +64,18 @@ export default function RolesPage() {
     <div className="page ro">
       <p className="small muted ro-meta">
         {feed === "none" ? "The list is being set up and appears after the next daily update." :
-          feed.roles.length + " roles at " + companies + " companies · updated " + new Date(feed.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          feed.roles.filter((r) => r.region === "us").length + " in the USA, " + feed.roles.length + " worldwide, at " + companies + " companies · updated " + new Date(feed.updated).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
       </p>
 
+      {feed !== "none" && feed.roles.length > 0 && (
+        <div className="ro-areas" role="radiogroup" aria-label="Location">
+          {AREAS.map((a) => (
+            <button key={a.key} type="button" role="radio" aria-checked={area === a.key} className={"cp-chip" + (area === a.key ? " on" : "")} onClick={() => setArea(a.key)}>
+              {a.label} ({feed.roles.filter((r) => inArea(r, a.key)).length})
+            </button>
+          ))}
+        </div>
+      )}
       {feed !== "none" && feed.roles.length > 0 && (
         <input className="input" type="search" placeholder="Filter by company, title or place" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Filter roles" />
       )}
