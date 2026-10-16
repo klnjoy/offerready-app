@@ -43,6 +43,14 @@ const TOPICS: { key: string; art: ArtKey; title: string; why: string; ask: strin
       { name: "LangGraph docs", by: "LangChain", line: "Graphs, state, memory and human-in-the-loop for agents.", href: "https://docs.langchain.com/oss/python/langgraph/overview" },
       { name: "OpenAI Cookbook", by: "OpenAI", line: "Worked examples: tool calling, agents, evals.", href: "https://cookbook.openai.com/" },
     ] },
+  { key: "cost", art: "ops", title: "Cost and token efficiency", why: "Teams now ask how you keep an LLM feature cheap and fast at scale, not just whether it works.",
+    ask: "How would you cut the cost of an LLM feature in half without hurting quality?",
+    links: [
+      { name: "Prompt caching", by: "Claude docs", line: "Reuse a long, repeated prompt prefix for a fraction of the cost and latency.", href: "https://docs.claude.com/en/docs/build-with-claude/prompt-caching" },
+      { name: "Token counting", by: "Claude docs", line: "Count tokens before you send, to budget and trim.", href: "https://docs.claude.com/en/docs/build-with-claude/token-counting" },
+      { name: "Batch processing", by: "Claude docs", line: "Run non-urgent jobs in bulk at a lower price.", href: "https://docs.claude.com/en/docs/build-with-claude/batch-processing" },
+      { name: "Prompt caching", by: "OpenAI docs", line: "How OpenAI caches repeated prompt prefixes automatically.", href: "https://developers.openai.com/docs/guides/prompt-caching" },
+    ] },
   { key: "mcp", art: "mcp", title: "MCP", why: "The open standard for connecting AI apps to tools and data. Comes up in agent interviews.",
     ask: "What is the Model Context Protocol and what problem does it solve?",
     links: [
