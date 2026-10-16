@@ -334,45 +334,39 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
                 <span>{formatDay(date, { weekday: "short", month: "short", day: "numeric" })}</span>
               </span>
             </div>
-          ) : (
-            <div className="rd-count rd-count-none">
-              <span className="rd-count-text"><strong>No interview date yet</strong><span>Add it to see if you{"’"}ll be ready in time.</span></span>
-              <Link className="btn btn-small" to={"/jobs/" + encodeURIComponent(detail.job.id)}>Set the date</Link>
-            </div>
-          )}
+          ) : null}
         </div>
       </section>
 
       {fresh && <HowItStarts jobQ={m.jobQ} />}
 
       {/* 2. Forecast */}
-      <ForecastCard f={m.forecast} interviewDate={date} today={today} />
+      <ForecastCard f={m.forecast} interviewDate={date} today={today} jobId={detail.job.id} />
 
-      {/* 3. Breakdown */}
-      <Breakdown parts={m.parts} score={m.score} />
-
-      {/* 6. This week (kept high: it's what to do) */}
-      <section className="card rd-week" aria-labelledby="rd-week-h">
-        <div className="rd-sec-head">
+      {/* 3. What to do this week: the biggest gains, one tap each */}
+      <section className="rd-week2" aria-labelledby="rd-week-h">
+        <div className="pl-head">
           <h2 id="rd-week-h">Your top 3 this week</h2>
-          <p className="muted small">The biggest score gains first. Points are estimates.</p>
+          <span className="small muted">Biggest gains first</span>
         </div>
-        <ol className="rd-todo">
+        <ol className="tdy-group rd-todo2">
           {m.top.map((t, i) => (
-            <li key={t.to} className="rd-todo-item">
-              <span className="rd-todo-n" aria-hidden="true">{i + 1}</span>
-              <div className="rd-todo-body">
-                <strong>{t.title}</strong>
-                <span className="muted small">{t.why}</span>
-              </div>
-              <div className="rd-todo-act">
-                <Link className="btn btn-small" to={t.to} aria-label={t.cta + ": " + t.title}>{t.cta}</Link>
-                <span className="rd-gain">up to +{t.gain} points</span>
-              </div>
+            <li key={t.to}>
+              <Link className="tdy-grow" to={t.to}>
+                <span className="rd-todo-n" aria-hidden="true">{i + 1}</span>
+                <span className="tdy-text"><strong>{t.title}</strong><span className="rd-todo-why">{t.why}</span></span>
+                <span className="tdy-pill">+{t.gain}</span>
+                <span className="tdy-chev" aria-hidden="true">›</span>
+              </Link>
             </li>
           ))}
         </ol>
+        <p className="small muted rd-todo-note">Points are estimates of how much each one can add.</p>
       </section>
+
+
+      {/* 4. Breakdown */}
+      <Breakdown parts={m.parts} score={m.score} />
 
       {/* 4. Skills heatmap */}
       <Heatmap skills={m.skills} jobId={detail.job.id} hasGap={m.hasGap} />
@@ -432,7 +426,7 @@ function HowItStarts({ jobQ }: { jobQ: string }) {
 }
 
 // ---- 2. Forecast ----
-function ForecastCard({ f, interviewDate, today }: { f: Forecast; interviewDate: string; today: string }) {
+function ForecastCard({ f, interviewDate, today, jobId }: { f: Forecast; interviewDate: string; today: string; jobId: string }) {
   const tone = f.status === "on-track" || f.status === "reached" ? "good" : f.status === "late" || f.status === "stalled" || f.status === "far" ? "warn" : "locked";
   const dti = f.daysToInterview;
   const showStrip = f.readyDate && f.daysToReady != null;
@@ -451,6 +445,7 @@ function ForecastCard({ f, interviewDate, today }: { f: Forecast; interviewDate:
           <span className="muted small">{f.used} of 2 sessions</span>
         </div>
       )}
+      {!interviewDate ? <div className="row no-print"><Link className="btn btn-small" to={"/jobs/" + encodeURIComponent(jobId)}>Set your interview date</Link></div> : null}
     </section>
   );
 }
@@ -511,7 +506,6 @@ function Breakdown({ parts, score }: { parts: Part[]; score: number }) {
               </div>
               <span className="muted small">{p.line} <span className="rd-part-status">{p.status}.</span></span>
             </div>
-            <Link className="btn btn-small rd-part-go" to={p.action.to}>{p.action.label}</Link>
           </li>
         ))}
       </ul>

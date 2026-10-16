@@ -87,7 +87,7 @@ const ROUTES: Route[] = [
   { path: "/debrief", title: "Interview debrief", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Write down each round while it’s fresh. Questions that went badly come back in your plan.", component: DebriefPage },
   { path: "/asked", title: "Questions you were asked", section: "jobs", subtitle: "Every question from your real interviews, kept for next time. See what comes up again, and practise the ones that went badly.", component: AskedQuestionsPage },
   { path: "/offers", title: "Compare offers", section: "jobs", back: { to: "@job:after", label: "Your job" }, subtitle: "Put your offers side by side on year-1 and yearly pay, then plan how to negotiate.", component: OffersPage },
-  { path: "/coach", title: "AI Interview Coach", section: "copilot", subtitle: "Ask any interview question. Get an answer built from your resume and stories, for the job you’re preparing for. For practice, never during a live interview.", component: CopilotPage },
+  { path: "/coach", title: "AI Interview Coach", section: "copilot", subtitle: "Answers built from your resume and stories, for your job. Practice only, never during a live interview.", component: CopilotPage },
   { path: "/studio", title: "AI Interview Coach", section: "copilot", component: StudioRedirect },
   { path: "/practice", title: "Practice", section: "practice", subtitle: "Four ways to practise. Pick what fits; you don’t need all four. Start with the first if you’re not sure.", component: PracticeHubPage },
   { path: "/practice/bank", title: "Question bank", section: "practice", back: BACK_PRACTICE, subtitle: "Quick reps on any topic: answer and rate yourself, flashcards, a timed exam, or your weakest topics.", component: PracticePage },
