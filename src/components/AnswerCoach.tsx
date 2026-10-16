@@ -92,12 +92,20 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
   };
 
   /** Keep this graded attempt and answer again; the next grade is compared with it. */
-  const retry = () => {
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+  const [refText, setRefText] = useState("");
+  const retry = (reference?: string) => {
     if (!fb) return;
     setAttempts((xs) => [...xs, { answer: gradedText, fb }]);
-    setFb(null); setNote(""); setShown(false); setSecs(null);
+    // Keep your own words and edit in the fixes. A stronger version stays on
+    // screen as a reference only: grading copied text would teach nothing.
+    setRefText(typeof reference === "string" ? reference : "");
+    setFb(null); setNote(""); setShown(false); setSecs(null); setImprove(null);
     track("answer_retried", { n: attempts.length + 2 });
+    window.setTimeout(() => { taRef.current?.focus(); taRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }); }, 50);
   };
+  const lastFixes = !fb && attempts.length ? (attempts[attempts.length - 1].fb.criteria || []).filter((c) => c.rating <= 1)
+    .sort((x, y) => (y.weight || 0) * (0.75 - [0, 0.35][y.rating]) - (x.weight || 0) * (0.75 - [0, 0.35][x.rating])).slice(0, 3) : [];
 
   /** Ask the Copilot to improve this draft from your resume and stories. */
   const improveIt = async () => {
@@ -123,7 +131,7 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
 
   const followUp = () => {
     if (!fb?.followup) return;
-    setQ(fb.followup); setAnswer(""); setFb(null); setNote(""); setShown(false); setSecs(null); setAttempts([]); setImprove(null);
+    setQ(fb.followup); setAnswer(""); setFb(null); setNote(""); setShown(false); setSecs(null); setAttempts([]); setImprove(null); setRefText("");
   };
 
   const fmt = (s: number) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
@@ -148,7 +156,19 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
           </span>
         )}
       </div>
-      <textarea className="input textarea" rows={5} aria-label={isFollowup ? "Your answer to the follow-up" : "Your answer"} autoFocus={autoFocus}
+      {!fb && refText && (
+        <details className="coach-ref">
+          <summary>Stronger version (for reference)</summary>
+          <p>{refText}</p>
+        </details>
+      )}
+      {lastFixes.length > 0 && (
+        <div className="coach-todo">
+          <span className="field-label">Add these, then get feedback again</span>
+          <ul>{lastFixes.map((c) => <li key={c.id}><strong>{c.label}</strong>{c.note ? ": " + c.note : ""}</li>)}</ul>
+        </div>
+      )}
+      <textarea ref={taRef} className="input textarea" rows={5} aria-label={isFollowup ? "Your answer to the follow-up" : "Your answer"} autoFocus={autoFocus}
         placeholder={"Your answer: situation or approach, the key decision, the trade-off, the result…"}
         value={answer} onChange={(e) => setAnswer(e.target.value)} />
       <div className="row wrap">
@@ -163,37 +183,38 @@ export function AnswerCoach({ prompt, model, signals, topic, onResult, autoFocus
       {limit && <UpgradeCard feature="ai_grading" message={limit} />}
       {fb && attempts.length > 0 && <Compare before={attempts[attempts.length - 1].fb} after={fb} tries={attempts.length + 1} />}
       {fb && (
-        <FeedbackView f={fb}>
+        <FeedbackView f={fb} actions={
+          <>
+            <div className="fb-btns">
+              <button type="button" className="btn btn-primary" onClick={() => retry()}>Try again <span aria-hidden="true">↻</span></button>
+              <button type="button" className="btn" disabled={!!improve?.busy} onClick={improveIt}>{improve?.busy ? "Writing it…" : "Show me a stronger version"}</button>
+              <button type="button" className="btn btn-ghost" disabled={saved} onClick={() => saveIt(gradedText, typeof fb.score === "number" ? fb.score : null)}>{saved ? "Saved ✓" : "Save"}</button>
+            </div>
+            {improve && !improve.busy && (improve.text || improve.note) && (
+              <div className="coach-improve">
+                <div className="field-label">Your answer, made stronger</div>
+                <p className="small muted coach-improve-src">Built only from what you wrote, your resume and your stories. Nothing made up.</p>
+                {improve.text && <p className="coach-improve-text">{improve.text}</p>}
+                {improve.unverified.length > 0 && <p className="cp-warn">Check these numbers: <strong>{improve.unverified.join(", ")}</strong>. They aren{"’"}t in your material.</p>}
+                {improve.note && <p className="small muted">{improve.note}</p>}
+                {improve.text && (
+                  <div className="row wrap">
+                    <button type="button" className="btn btn-small btn-primary" onClick={() => retry(improve.text)}>Now say it in your words</button>
+                    <button type="button" className="btn btn-small btn-ghost" onClick={() => saveIt(improve.text, null)}>Save this version</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        }>
           {fb.followup && (
             <div className="fb-followup">
               <div className="field-label">The interviewer would ask next</div>
               <p>{fb.followup}</p>
-              <button type="button" className="btn btn-small" onClick={followUp}>Answer the follow-up</button>
+              <button type="button" className="btn btn-small btn-ghost" onClick={followUp}>Answer the follow-up</button>
             </div>
           )}
-          <div className="coach-next">
-            <span className="field-label">Make it stronger</span>
-            <div className="row wrap">
-              <button type="button" className="btn btn-small btn-primary" onClick={retry}>Try again and compare</button>
-              <button type="button" className="btn btn-small" disabled={!!improve?.busy} onClick={improveIt}>{improve?.busy ? "Improving…" : "Improve with AI Coach"}</button>
-              <button type="button" className="btn btn-small btn-ghost" disabled={saved} onClick={() => saveIt(gradedText, typeof fb.score === "number" ? fb.score : null)}>{saved ? "Saved" : "Save this answer"}</button>
-            </div>
-          </div>
         </FeedbackView>
-      )}
-      {improve && !improve.busy && (improve.text || improve.note) && (
-        <div className="coach-improve">
-          <div className="field-label">A stronger version (from your resume and stories)</div>
-          {improve.text && <p>{improve.text}</p>}
-          {improve.unverified.length > 0 && <p className="cp-warn">Check these numbers: <strong>{improve.unverified.join(", ")}</strong>. They aren{"’"}t in your material.</p>}
-          {improve.note && <p className="small muted">{improve.note}</p>}
-          {improve.text && (
-            <div className="row wrap">
-              <button type="button" className="btn btn-small btn-primary" onClick={retry} disabled={!fb}>Now answer again in your words</button>
-              <button type="button" className="btn btn-small btn-ghost" onClick={() => saveIt(improve.text, null)}>Save this version</button>
-            </div>
-          )}
-        </div>
       )}
       {shown && hasModel && (
         <div className="model">
@@ -234,8 +255,12 @@ function Compare({ before, after, tries }: { before: AnswerFeedback; after: Answ
   return (
     <div className={"coach-compare " + (d > 0 ? "up" : d < 0 ? "down" : "same")} role="status">
       <div className="coach-compare-head">
-        <strong>Attempt {tries} vs attempt {tries - 1}:</strong> {b}% {"→"} {a}% <span className="coach-delta">({d > 0 ? "+" : ""}{d})</span>
+        <span className="coach-compare-k">Attempt {tries}</span>
+        <span className="coach-compare-nums"><s>{b}</s> {"→"} <b>{a}</b></span>
+        <span className="coach-delta">{d > 0 ? "▲ +" + d : d < 0 ? "▼ " + d : "No change"}</span>
       </div>
+      <div className="coach-compare-bar" aria-hidden="true"><span className="was" style={{ width: b + "%" }} /><span className="now" style={{ width: a + "%" }} /></div>
+      {d > 0 ? <p className="small coach-compare-msg">{d >= 15 ? "Big jump. That’s the version to remember." : "Better. Keep going: one more pass on the fixes below."}</p> : null}
       {rows.length > 0 ? (
         <ul>{rows.map((r) => <li key={r.label}>{r.label}: {RATING_WORD[r.from!]} {"→"} <b>{RATING_WORD[r.to]}</b></li>)}</ul>
       ) : <p className="small muted">{d === 0 ? "No criterion changed. Use the feedback below to add what was missing." : ""}</p>}
