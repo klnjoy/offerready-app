@@ -600,19 +600,29 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
             </ul>
           </section>
         )}
-        <ul className="tdy-links" aria-label="More for this job">
-          <li><Link to={jobPath(jobId, "resume")}><span>Resume match</span><span className="small muted">{data.gap ? (data.gap.match_score || 0) + "% match" : "Check your fit"}</span></Link></li>
-        </ul>
-        <details className="card jd-more">
-          <summary><span>Full plan and job details</span><span className="small muted">Every day to your interview, role guide, set-up</span></summary>
-          <div className="jd-more-body">
-            {date && !passed ? dateCard : null}
-            {planCard}
-            {roleGuide}
-            {setupCard}
-            {aboutCard}
+        <section className="tdy" aria-labelledby="tdy-job-h">
+          <div className="tdy-head"><h2 id="tdy-job-h">This job</h2></div>
+          <div className="tdy-group">
+            <Link className="tdy-grow" to={jobPath(jobId, "resume")}>
+              <span className="tdy-text"><strong>Resume match</strong><span>Shortlist check and skills to add</span></span>
+              <span className="tdy-pill">{data.gap ? (data.gap.match_score || 0) + "%" : "Check"}</span>
+              <span className="tdy-chev" aria-hidden="true">›</span>
+            </Link>
+            <details className="tdy-gdet">
+              <summary className="tdy-grow">
+                <span className="tdy-text"><strong>Full plan and job details</strong><span>Every day to your interview, role guide, set-up</span></span>
+                <span className="tdy-chev tdy-chev-d" aria-hidden="true">›</span>
+              </summary>
+              <div className="jd-more-body">
+                {date && !passed ? dateCard : null}
+                {planCard}
+                {roleGuide}
+                {setupCard}
+                {aboutCard}
+              </div>
+            </details>
           </div>
-        </details>
+        </section>
       </>
     );
   }
@@ -836,9 +846,9 @@ const KIND_ICON: Record<string, ReactNode> = {
   setup: <path d="M14.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5L14.5 3ZM9 13l2 2 4-4" />,
   study: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5v-15ZM9 7.5h7M9 11h5" />,
   review: <path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" />,
-  drill: <path d="M12 4v15M6 7h12M6 7l-3 6h6zM18 7l-3 6h6zM9 20h6" />,
-  story: <path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10ZM8.5 9.5h7M8.5 12.5h4" />,
-  defend: <path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6L12 3Z" />,
+  drill: <path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10ZM10 9a2 2 0 1 1 2.6 1.9c-.4.2-.6.5-.6 1M12 13.5v.1" />,
+  story: <path d="m12 3.5 2.4 5 5.4.7-4 3.8 1 5.4L12 15.8l-4.8 2.6 1-5.4-4-3.8 5.4-.7L12 3.5Z" />,
+  defend: <path d="M12 4v15M6 7h12M6 7l-3 6h6zM18 7l-3 6h6zM9 20h6" />,
   mock: <path d="M9 3h6v11H9zM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" />,
   light: <path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.3 6.3 4.9 4.9M19.1 19.1l-1.4-1.4M17.7 6.3l1.4-1.4M4.9 19.1l1.4-1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" />,
 };

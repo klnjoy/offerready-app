@@ -182,11 +182,25 @@ export default function CopilotPage() {
             ) : (
               <p className="small">No saved job yet. <Link to="/analyze">Add a job</Link> so answers fit the role. You can still ask general questions.</p>
             )}
-            <ul className="cp-ctx-list">
-              <li className={resume ? "ok" : ""}>{resume ? "Using your saved resume" : <>No resume yet. <Link to={jobId ? "/jobs/" + encodeURIComponent(jobId) + "?tab=resume" : "/account"}>Add it</Link> for answers from your real experience.</>}</li>
-              <li className={stories.length ? "ok" : ""}>{stories.length ? stories.length + (stories.length === 1 ? " story" : " stories") + " available" : <>No STAR stories yet. <Link to="/stories">Add one</Link> for behavioral answers.</>}</li>
-              {gaps.length > 0 && <li>Gaps to cover: {gaps.slice(0, 3).join(", ")}</li>}
-            </ul>
+            <span className="field-label">What the coach uses</span>
+            <div className="tdy-group cp-uses">
+              <Link className="tdy-grow" to={jobId ? "/jobs/" + encodeURIComponent(jobId) + "?tab=resume" : "/account"}>
+                <span className="tdy-text"><strong>Your resume</strong><span>{resume ? "Answers use your real experience" : "Add it for answers from your experience"}</span></span>
+                <span className={"tdy-pill" + (resume ? "" : " is-warn")}>{resume ? "✓ Saved" : "Add"}</span>
+                <span className="tdy-chev" aria-hidden="true">›</span>
+              </Link>
+              <Link className="tdy-grow" to="/stories">
+                <span className="tdy-text"><strong>Your stories</strong><span>{stories.length ? "Used for behavioral answers" : "Add one for behavioral answers"}</span></span>
+                <span className={"tdy-pill" + (stories.length ? "" : " is-warn")}>{stories.length ? "✓ " + stories.length : "Add"}</span>
+                <span className="tdy-chev" aria-hidden="true">›</span>
+              </Link>
+              {gaps.length > 0 && (
+                <div className="tdy-grow">
+                  <span className="tdy-text"><strong>Gaps to cover</strong><span className="cp-gaps-line">{gaps.slice(0, 3).join(", ")}</span></span>
+                  <span className="tdy-pill is-warn">{gaps.length}</span>
+                </div>
+              )}
+            </div>
             <p className="small muted">Practice tool. It only uses your own material and never invents experience. <Link to="/demo#coach">See how it works</Link></p>
           </aside>
 
