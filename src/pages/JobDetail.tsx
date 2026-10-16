@@ -17,7 +17,7 @@ import { useDebriefs } from "../lib/debriefStore";
 import { countdownLabel, daysUntil, formatDay, localDay, useInterviewDate } from "../lib/interviewDates";
 import { allDoneDays, ensurePlanState, setTaskDone, type JobPlanState } from "../lib/planProgress";
 import { usePlan, invalidatePlan } from "../lib/plans";
-import { addDays, buildPrepPlan, carryOver, doneThisWeek, planToIcs, streakDays, type PlanTask, type PrepPlan } from "../lib/prepPlan";
+import { addDays, buildPrepPlan, carryOver, planToIcs, streakDays, type PlanTask, type PrepPlan } from "../lib/prepPlan";
 import { getHistory, weakTopicScores } from "../lib/progressStore";
 import { band, clearActiveJob, getActiveJob, setActiveJob, weightedOverall } from "../lib/readiness";
 import { displayJobTitle, roleGuideFor } from "../lib/roles";
@@ -32,7 +32,6 @@ import { FitDetails, gapRowToResult, resultToGapRow, topGaps } from "../componen
 import { RESUME_PRIVACY, ResumeField } from "../components/ResumeField";
 import { Card, Chips, Disclaimer, Loading, Muted } from "../components/ui";
 import type { JobDetail, JobRow } from "../types";
-import { stepHref, usePracticePath } from "../lib/practicePath";
 import { jobsChanged } from "../components/JobNav";
 import { deleteTailoredResume, downloadText, useTailoredResume } from "../lib/tailoredResume";
 import { CopyButton } from "../components/StreamDraft";
@@ -44,10 +43,10 @@ import { Art } from "../components/Art";
 
 type Tab = "overview" | "resume" | "after" | "settings";
 const TABS: { key: Tab; label: string; short?: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "resume", label: "Resume match", short: "Resume" },
-  { key: "after", label: "After the interview", short: "After" },
-  { key: "settings", label: "Settings" },
+  { key: "overview", label: "Today" },
+  { key: "resume", label: "Resume match" },
+  { key: "after", label: "Interviews" },
+  { key: "settings", label: "Job settings" },
 ];
 
 type State = { kind: "loading" } | { kind: "signedout" } | { kind: "error"; msg: string } | { kind: "ready"; data: JobDetail };
@@ -136,7 +135,7 @@ export default function JobDetailPage({ id }: Record<string, string>) {
             </div>
           )}
           <nav className="jw-tabs" aria-label="Job sections">
-            {TABS.map((x) => (
+            {TABS.filter((x) => x.key !== "settings").map((x) => (
               <Link key={x.key} to={jobPath(id, x.key)} className={"jw-tab" + (tab === x.key ? " on" : "")} aria-current={tab === x.key ? "page" : undefined}>
                 {x.short ? <><span className="jw-tab-long">{x.label}</span><span className="jw-tab-short" aria-hidden="true">{x.short}</span></> : x.label}
               </Link>
@@ -180,6 +179,15 @@ function JobHead({ id, title, job, jobs, tab, onSwitch, onRenamed }: {
   const phone = useNarrow("(max-width: 760px)");
   // Phone "Today": the header (with the calendar) is drawn by Overview.
   if (phone && tab === "overview" && !editing) return null;
+  if (phone && !editing) {
+    return (
+      <header className="jw-head jw-sub">
+        <Link className="back-link" to={jobPath(id)}>{"‹"} Today</Link>
+        <h1>{TABS.find((x) => x.key === tab)?.label}</h1>
+        <p className="muted small jw-sub-job">{title}{meta ? " · " + meta : ""}</p>
+      </header>
+    );
+  }
   return (
     <header className="jw-head">
       <Link className="back-link" to="/jobs">{"←"} All jobs</Link>
@@ -200,7 +208,7 @@ function JobHead({ id, title, job, jobs, tab, onSwitch, onRenamed }: {
             </form>
           ) : (
             <>
-              <h1>{title} <button type="button" className="link-btn small jw-rename-btn" onClick={start} disabled={!job}>Rename</button></h1>
+              <h1>{title} <button type="button" className="link-btn small jw-rename-btn" onClick={start} disabled={!job}>Rename</button> <Link className="link-btn small jw-gear" to={jobPath(id, "settings")} aria-label="Job settings" title="Job settings">⚙︎ Settings</Link></h1>
               {meta && <p className="muted">{meta}</p>}
             </>
           )}
@@ -245,40 +253,6 @@ export function nextBestAction(s: {
   return { label: "Raise your readiness", why: "Today’s plan is done. One more practice round moves the score.", to: "/practice" + jobQ, cta: "Practise" };
 }
 
-/** What you come back to every day for this job: the practice tools, already
- * pointed at this job. */
-function EveryDay({ jobId, practised, mockDone }: { jobId: string; practised: number; mockDone: boolean }) {
-  const path = usePracticePath(jobId);
-  const next = path.find((x) => !x.done);
-  const detail: Record<string, string> = {
-    questions: practised ? practised + " answered so far" : "Written from this job",
-    drill: "Hold a call under push-back",
-    stories: "STAR stories for the behavioral round",
-    mock: mockDone ? "Done this week" : "Voice, with follow-ups",
-  };
-  return (
-    <section className="card jd-daily" aria-labelledby="jd-daily-h">
-      <div className="jd-daily-head">
-        <h2 id="jd-daily-h">Every day</h2>
-        <span className="small muted">{next ? "Suggested order. Skip any step you don’t need." : "All four done. Repeat the ones you’re weakest at."}</span>
-      </div>
-      <ol className="jd-daily-grid">
-        {path.map((x) => (
-          <li key={x.key} className={(x.done ? "done" : "") + (next && next.key === x.key ? " next" : "")}>
-            <Link to={stepHref(x, jobId)}>
-              <span className="jd-daily-n" aria-hidden="true">{x.done ? "✓" : x.n}</span>
-              <strong>{x.label}{x.done ? <span className="hm-sr"> (done)</span> : null}</strong>
-              <span className="small muted">{detail[x.key]}</span>
-              {next && next.key === x.key ? <span className="jd-daily-tag">Next</span> : null}
-            </Link>
-          </li>
-        ))}
-      </ol>
-      <p className="small muted jd-daily-any">Any time: <Link to="/coach">AI Interview Coach</Link> · <Link to="/practice/bank">Question bank</Link></p>
-    </section>
-  );
-}
-
 /** One-time setup for this job. Open until it's done, then folded away. */
 function SetupOnce({ jobId, hasResume, hasFit, hasDate, children }: { jobId: string; hasResume: boolean; hasFit: boolean; hasDate: boolean; children?: ReactNode }) {
   const steps = [
@@ -318,7 +292,6 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
   const [state, setState] = useState<JobPlanState>(() => ensurePlanState(jobId, date, today));
   const [doneDays, setDoneDays] = useState<string[]>(allDoneDays);
   const [showAll, setShowAll] = useState(false);
-  const narrow = useNarrow();
   const phone = useNarrow("(max-width: 760px)");
   // Phone Today: the day shown (today unless picked on the calendar).
   const [sel, setSel] = useState(today);
@@ -377,7 +350,7 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
   const logTo = "/debrief?job=" + enc(jobId) + "&new=1";
 
   const { prep } = derived;
-  const viewDate = phone ? sel : today;
+  const viewDate = sel;
   const todayDay = prep.days.find((d) => d.date === viewDate);
   const tasks = todayDay ? todayDay.tasks : [];
   const catchUp = viewDate === today ? carryOver(prep, today, state.done) : [];
@@ -416,57 +389,6 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           <p>{next.why}</p>
           <div className="row"><Link className="btn btn-primary" to={next.to}>{next.cta} {"→"}</Link></div>
         </section>
-  );
-  const everyDay = <EveryDay jobId={jobId} practised={derived.practised} mockDone={derived.mockRecent} />;
-  const todayCard = (
-      <section className="card td-tasks" aria-labelledby="td-tasks-h">
-        <div className="td-sec-head">
-          <div>
-            <h2 id="td-tasks-h">{viewDate === today ? "Your plan for today" : "Your plan for " + formatDay(viewDate, { weekday: "long", month: "short", day: "numeric" })}</h2>
-            <p className="muted small">
-              {todayDay ? "Day " + (todayDay.index + 1) + " of " + prep.totalDays + (todayDay.type === "mock" ? " · mock day" : todayDay.type === "light" ? " · light day" : "") : viewDate === date ? "Interview day" : viewDate === today ? "No tasks for today" : "No tasks this day"}
-              {" · "}{doneToday}/{tasks.length} done
-            </p>
-          </div>
-          {tasks.length > 0 && <span className="td-ring" aria-hidden="true" style={{ background: "conic-gradient(var(--signal) " + Math.round((doneToday / tasks.length) * 100) + "%, var(--border) 0)" }}><span>{doneToday}/{tasks.length}</span></span>}
-        </div>
-        {(prep.defaulted || passed) && (
-          <div className="td-note">
-            {passed ? <>Your interview date has passed. <Link to={logTo}>Log how it went</Link>, or set the next date to re-plan.</> : "This is a 14-day plan. Set your interview date and the plan fits the days you have."}
-          </div>
-        )}
-        <ul className="td-list">
-          {tasks.map((t) => <TaskItem key={t.id} t={t} jobId={jobId} done={!!state.done[t.id]} onToggle={toggle} />)}
-        </ul>
-        {catchUp.length > 0 && (
-          <>
-            <h3 className="td-sub">Catch up from earlier days</h3>
-            <ul className="td-list">
-              {catchUp.map((t) => <TaskItem key={t.id} t={t} jobId={jobId} done={!!state.done[t.id]} onToggle={toggle} />)}
-            </ul>
-          </>
-        )}
-        {tasks.length > 0 && doneToday === tasks.length && <p className="td-alldone">{viewDate === today ? "Today’s plan is done. Nice work." : "All done for this day."}</p>}
-        {viewDate !== today ? <button type="button" className="link-btn small" onClick={() => setSel(today)}>Back to today</button> : null}
-      </section>
-  );
-  const readinessCard = <ReadinessMini readiness={derived.readiness} streak={streak} week={doneThisWeek(doneDays, today)} />;
-  const interviewDay = (
-      <section className="card jd-iday" aria-labelledby="jd-iday-h">
-        <h2 id="jd-iday-h">Interview day</h2>
-        <p className="muted small">Type each question as it{"’"}s asked, then turn your notes into a debrief. Questions that went badly come back in your plan.</p>
-        <div className="row">
-          <Link className="btn" to={"/notes?job=" + enc(jobId)}>Interview notes</Link>
-          <Link className="btn btn-ghost" to={logTo}>Log a round</Link>
-        </div>
-        {dStats.rounds > 0 && (
-          <div className="td-debrief" role="status">
-            <span className="td-debrief-mark" aria-hidden="true">{dStats.rounds}</span>
-            <span className="td-debrief-text">{statsLine(dStats)}{dStats.bad ? " · " + dStats.bad + " to revisit" : ""}</span>
-            <Link className="btn btn-small" to={jobPath(jobId, "after")}>Rounds</Link>
-          </div>
-        )}
-      </section>
   );
   const planCard = (
       <section className="card td-plan" aria-labelledby="td-plan-h">
@@ -528,8 +450,9 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
   );
   const aboutCard = <AboutJob data={data} />;
 
-  if (narrow || phone) {
-    // Phone: only what to do now; the rest is one tap away.
+  {
+    // Today: what to do now; the rest is one tap away. Phone and computer
+    // share the pieces; the computer lays them out in two columns.
     const r = derived.readiness;
     // Readiness change over the last 7 days, from saved snapshots.
     const weekAgoT = Date.now() - 7 * 86400000;
@@ -571,32 +494,40 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
         ) : (
           <p className="jw-today-job is-one">{title}{data.job.company ? " · " + data.job.company : ""}</p>
         )}
+        <Link className="jw-gear-btn" to={jobPath(jobId, "settings")} aria-label="Job settings" title="Job settings">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" /></svg>
+        </Link>
       </header>
     ) : null;
-    return (
+    const openDate = () => {
+      if (phone) { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+      const el = document.getElementById("td-date-input") || document.querySelector<HTMLElement>(".td-date-card input");
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "center" }); el.focus(); }
+    };
+    const sessionEl = (
       <>
-        {head}
         {unlogged || !data.gap || !derived.hasAnalysis ? nextCard : (
           <TodaySession tasks={tasks} done={state.done} jobId={jobId}
             isToday={viewDate === today} label={viewDate === today ? "Today’s session" : "Session for " + formatDay(viewDate, { weekday: "short", month: "short", day: "numeric" })}
             interviewToday={viewDate === date} />
         )}
-
-        {!date ? (
-          <button type="button" className="tdy-date-cta" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-            <span className="tdy-date-ico" aria-hidden="true">📅</span>
-            <span className="tdy-text"><strong>When is your interview?</strong><span>Your plan assumes 2 weeks. Add the date to fit it to your days.</span></span>
-            <span className="tdy-chev" aria-hidden="true">›</span>
-          </button>
-        ) : null}
-
+      </>
+    );
+    const dateCta = !date ? (
+      <button type="button" className="tdy-date-cta" onClick={openDate}>
+        <span className="tdy-date-ico" aria-hidden="true">📅</span>
+        <span className="tdy-text"><strong>When is your interview?</strong><span>Your plan assumes 2 weeks. Add the date to fit it to your days.</span></span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </button>
+    ) : null;
+    const statsEl = (
         <div className="tdy-stats">
           <Link to={"/dashboard?job=" + enc(jobId)} className="tdy-stat">
             <span>Ready</span><strong>{r != null ? r + "%" : "—"}</strong>
             {delta != null && delta !== 0 ? <em className={delta > 0 ? "tdy-up" : "tdy-down"}>{(delta > 0 ? "▲ " + delta : "▼ " + Math.abs(delta)) + " · " + deltaWhy}</em> : <em>goal 80%</em>}
           </Link>
           {date && !passed ? (
-            <button type="button" className="tdy-stat" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            <button type="button" className="tdy-stat" onClick={openDate}>
               <span>Interview</span>{days === 0 ? <strong className="tdy-hot">Today</strong> : <><strong>{days}</strong><em>{days === 1 ? "day left" : "days left"}</em></>}
             </button>
           ) : (
@@ -608,7 +539,8 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
             <span>Resume</span><strong>{data.gap ? (data.gap.match_score || 0) + "%" : "—"}</strong><em>{data.gap ? "match" : "add yours"}</em>
           </Link>
         </div>
-
+    );
+    const weekEl = (
         <section className="tdy tdy-week" aria-labelledby="tdy-wk-h">
           <div className="tdy-head">
             <h2 id="tdy-wk-h">This week</h2>
@@ -630,7 +562,8 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
             })}
           </ol>
         </section>
-
+    );
+    const planEl = (
         <section className="tdy" aria-labelledby="tdy-h">
           <div className="tdy-head">
             <h2 id="tdy-h">{viewDate === today ? "Today’s plan" : "Plan for " + formatDay(viewDate, { weekday: "short", month: "short", day: "numeric" })}</h2>
@@ -655,7 +588,9 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
           )}
           {viewDate !== today ? <button type="button" className="link-btn small" onClick={() => setSel(today)}>Back to today</button> : null}
         </section>
-
+    );
+    const gapsEl = (
+      <>
         {derived.gaps.length > 0 && (
           <section className="tdy" aria-labelledby="tdy-gap-h">
             <div className="tdy-head">
@@ -669,45 +604,72 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
             </ul>
           </section>
         )}
-
-        <section className="tdy" aria-labelledby="tdy-job-h">
-          <div className="tdy-head"><h2 id="tdy-job-h" className="hm-sr">This job</h2></div>
-          <div className="tdy-group">
-            <details className="tdy-gdet">
-              <summary className="tdy-grow">
-                <span className="tdy-text"><strong>Full plan and job details</strong><span>Every day to your interview, role guide, set-up</span></span>
-                <span className="tdy-chev tdy-chev-d" aria-hidden="true">›</span>
-              </summary>
-              <div className="jd-more-body">
-                {date && !passed ? dateCard : null}
-                {planCard}
-                {roleGuide}
-                {setupCard}
-                {aboutCard}
-              </div>
-            </details>
-          </div>
-        </section>
       </>
     );
-  }
+    const interviewsRow = (
+      <Link className="tdy-grow" to={jobPath(jobId, "after")}>
+        <span className="tdy-text"><strong>Your interviews</strong><span>{dStats.rounds > 0 ? statsLine(dStats) + (dStats.bad ? " · " + dStats.bad + " to revisit" : "") : "Notes during each round, then how it went"}</span></span>
+        <span className="tdy-pill">{dStats.rounds > 0 ? dStats.rounds + (dStats.rounds === 1 ? " round" : " rounds") : "Log a round"}</span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </Link>
+    );
+    const detailsRow = (extra: ReactNode) => (
+      <details className="tdy-gdet">
+        <summary className="tdy-grow">
+          <span className="tdy-text"><strong>Full plan and job details</strong><span>Every day to your interview, set-up, about this job</span></span>
+          <span className="tdy-chev tdy-chev-d" aria-hidden="true">›</span>
+        </summary>
+        <div className="jd-more-body">
+          {extra}
+          {planCard}
+          {setupCard}
+          {aboutCard}
+        </div>
+      </details>
+    );
 
-  return (
-    <>
-      <div className="td-top">
-        {dateCard}
-        {nextCard}
+    if (phone) {
+      return (
+        <>
+          {head}
+          {sessionEl}
+          {dateCta}
+          {statsEl}
+          {weekEl}
+          {planEl}
+          {gapsEl}
+          <section className="tdy" aria-labelledby="tdy-job-h">
+            <div className="tdy-head"><h2 id="tdy-job-h" className="hm-sr">This job</h2></div>
+            <div className="tdy-group">
+              {interviewsRow}
+              {detailsRow(<>{date && !passed ? dateCard : null}{roleGuide}</>)}
+            </div>
+          </section>
+        </>
+      );
+    }
+
+    // Computer: the same pieces, in two columns.
+    return (
+      <div className="tdw">
+        <div className="tdw-main">
+          {sessionEl}
+          {planEl}
+          {weekEl}
+          <div className="tdy-group">
+            {interviewsRow}
+            {detailsRow(null)}
+          </div>
+        </div>
+        <aside className="tdw-side" aria-label="This job at a glance">
+          {statsEl}
+          {dateCard}
+          {gapsEl}
+          {roleGuide}
+        </aside>
       </div>
-      {everyDay}
-      {todayCard}
-      {readinessCard}
-      {interviewDay}
-      {planCard}
-      {roleGuide}
-      {setupCard}
-      {aboutCard}
-    </>
-  );
+    );
+  }
 }
 
 
@@ -786,36 +748,6 @@ function useNarrow(q = "(max-width: 640px)"): boolean {
     return () => mq.removeEventListener?.("change", on);
   }, [q]);
   return m;
-}
-
-function ReadinessMini({ readiness, streak, week }: { readiness: number | null; streak: number; week: number }) {
-  const pct = readiness ?? 0;
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  return (
-    <section className="card jw-ready" aria-labelledby="jw-ready-h">
-      <div className="td-sec-head">
-        <div>
-          <h2 id="jw-ready-h">Readiness</h2>
-          <p className="muted small">Resume match, practice and preparation, in one score.</p>
-        </div>
-        <Link className="small" to="/dashboard">Details</Link>
-      </div>
-      <div className="jw-ready-row">
-        <div className={"jw-ring band-" + band(pct)} role="img" aria-label={readiness != null ? "Readiness " + pct + " percent" : "No readiness score yet"}>
-          <svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true">
-            <circle cx="32" cy="32" r={r} fill="none" stroke="var(--border)" strokeWidth="6" />
-            {readiness != null && <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct / 100)} transform="rotate(-90 32 32)" />}
-          </svg>
-          <span className="jw-ring-num">{readiness != null ? pct + "%" : "—"}</span>
-        </div>
-        <dl className="jw-facts">
-          <div><dt>Streak</dt><dd>{streak} {streak === 1 ? "day" : "days"}</dd></div>
-          <div><dt>Tasks this week</dt><dd>{week}</dd></div>
-        </dl>
-      </div>
-    </section>
-  );
 }
 
 function FitMini({ data }: { data: JobDetail }) {
@@ -975,22 +907,6 @@ function TodayRow({ t, jobId, done, onToggle }: { t: PlanTask; jobId: string; do
       <button type="button" className="tdy-check" aria-pressed={done} aria-label={(done ? "Mark not done: " : "Mark done: ") + t.title} onClick={() => onToggle(t, !done)}>
         {done ? <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M5 10.5l3.2 3.2L15 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg> : null}
       </button>
-    </li>
-  );
-}
-
-function TaskItem({ t, jobId, done, onToggle }: { t: PlanTask; jobId: string; done: boolean; onToggle(t: PlanTask, on: boolean): void }) {
-  return (
-    <li className={"td-task" + (done ? " is-done" : "")}>
-      <label className="td-check">
-        <input type="checkbox" checked={done} onChange={(e) => onToggle(t, e.target.checked)} aria-label={"Mark done: " + t.title} />
-        <span className="td-box" aria-hidden="true" />
-      </label>
-      <div className="td-task-body">
-        <Link className="td-task-title" to={resolveTo(t.to, jobId)}>{t.title}</Link>
-        {t.detail && <span className="td-task-detail">{t.detail}</span>}
-      </div>
-      <span className={"td-kind td-kind-" + t.kind}>{t.minutes} min</span>
     </li>
   );
 }
