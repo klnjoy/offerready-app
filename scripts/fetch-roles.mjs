@@ -111,3 +111,9 @@ if (ok === 0) {
 await mkdir(dirname(OUT), { recursive: true });
 await writeFile(OUT, JSON.stringify(out));
 console.log(`Wrote ${out.roles.length} roles to ${OUT}`);
+// A one-line summary as a GitHub Actions notice, so each run shows which
+// boards worked without opening the full log.
+if (process.env.GITHUB_ACTIONS) {
+  const line = sources.map((x) => x.company + ":" + (x.error ? "ERR " + x.error : x.matched + "/" + x.total)).join(", ");
+  console.log(`::notice title=Open roles (${out.roles.length})::${line.replace(/[\r\n%]/g, " ")}`);
+}
