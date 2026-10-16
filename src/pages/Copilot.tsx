@@ -10,9 +10,9 @@
  *
  * Practice only: no live-interview mode, no hidden overlay. */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
-import type { CopilotMode, CopilotResult, CopilotSource } from "../lib/api";
+import type { CopilotRefine, CopilotResult, CopilotSource } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { deleteAnswer, saveAnswer, storyText, useAnswers } from "../lib/answerLibrary";
 import { invalidatePlan } from "../lib/plans";
@@ -27,20 +27,22 @@ import { useJobs } from "../lib/useJobs";
 import { AnswerCoach } from "../components/AnswerCoach";
 import { SignInCard } from "../components/AuthForm";
 import { CoachTour } from "../components/CoachTour";
-import { JobPicker } from "../components/JobPicker";
 import { UpgradeCard } from "../components/PlanGate";
 import { CopyButton } from "../components/StreamDraft";
 import { Card, Loading, Muted } from "../components/ui";
 import type { Analysis, GapRow, GeneratedQuestion } from "../types";
 
-const MODES: { key: CopilotMode; label: string; short: string; hint: string }[] = [
-  { key: "answer", label: "Build my answer", short: "Answer", hint: "A speakable answer from your experience." },
-  { key: "example", label: "Find my best example", short: "Best example", hint: "The strongest real project to use." },
-  { key: "star", label: "STAR it", short: "STAR", hint: "Situation, task, action, result." },
-  { key: "tradeoff", label: "Explain the trade-off", short: "Trade-off", hint: "Options, what you give up, when it flips." },
-  { key: "design", label: "System design outline", short: "Design", hint: "Requirements to cost, in order." },
-  { key: "followups", label: "Likely follow-ups", short: "Follow-ups", hint: "What they’ll ask next, and how to handle it." },
+/** One-tap changes after an answer (no mode to pick before asking). */
+const REFINES: { key: CopilotRefine; label: string }[] = [
+  { key: "shorter", label: "Shorter" },
+  { key: "numbers", label: "Add numbers" },
+  { key: "star", label: "STAR format" },
+  { key: "technical", label: "More technical" },
+  { key: "example", label: "Different example" },
 ];
+const REFINE_DONE: Record<CopilotRefine, string> = {
+  shorter: "Shorter version", numbers: "With numbers", star: "STAR version", technical: "More technical", example: "Different example",
+};
 
 const SOURCE_LABEL: Record<CopilotSource, string> = {
   resume: "Your resume",
@@ -50,12 +52,17 @@ const SOURCE_LABEL: Record<CopilotSource, string> = {
   suggestion: "Suggestion: only if true for you",
 };
 
-type Run =
-  | { kind: "idle" }
-  | { kind: "busy" }
-  | { kind: "error"; msg: string }
-  | { kind: "limit"; msg: string }
-  | { kind: "done"; result: CopilotResult; mode: CopilotMode; question: string };
+type Turn = {
+  id: number;
+  question: string;
+  /** Set when this turn is a follow-up to the turn before it. */
+  followup?: boolean;
+  state: "busy" | "done" | "error" | "limit";
+  result?: CopilotResult;
+  /** The refinement that produced the current result, if any. */
+  refined?: CopilotRefine;
+  msg?: string;
+};
 
 export default function CopilotPage() {
   const auth = useAuth();
@@ -68,10 +75,9 @@ export default function CopilotPage() {
   const params = useSearchParams();
   // ?q= prefills a question (from "Questions you were asked").
   const [question, setQuestion] = useState(() => (params.get("q") || "").slice(0, 600));
-  const [run, setRun] = useState<Run>({ kind: "idle" });
-  const [practise, setPractise] = useState(false);
-  const [savedMsg, setSavedMsg] = useState("");
-  const [mode, setMode] = useState<CopilotMode>("answer");
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const nextId = useRef(1);
+  const endRef = useRef<HTMLDivElement | null>(null);
 
   const wantJob = params.get("job") || "";
   useEffect(() => {
@@ -83,7 +89,7 @@ export default function CopilotPage() {
   // Switching job from the menu follows here too.
   useEffect(() => onStorageWrite((k) => {
     if (k !== KEYS.activeJob) return;
-    setTimeout(() => { const a = getActiveJob(); if (a) { setJobId((cur) => (cur === a ? cur : a)); setRun({ kind: "idle" }); } }, 0);
+    setTimeout(() => { const a = getActiveJob(); if (a) { setJobId((cur) => (cur === a ? cur : a)); setTurns([]); } }, 0);
   }), []);
 
   useEffect(() => {
@@ -110,27 +116,46 @@ export default function CopilotPage() {
   const gaps = useMemo(() => [...(detail?.gap?.result?.missingSkills || []), ...(detail?.gap?.result?.missingExperience || [])].slice(0, 8), [detail]);
   const stories = useMemo(() => loadStories().filter((s) => !s.jobIds.length || s.jobIds.includes(jobId)), [jobId, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const suggested = (detail?.questions || []).slice(0, 6).map((q) => q.prompt);
+  const busy = turns.some((t) => t.state === "busy");
 
-  const ask = async (mode: CopilotMode, q = question, draft = "") => {
-    const text = q.trim();
-    if (text.length < 8) { setRun({ kind: "error", msg: "Type the interview question first (a full sentence works best)." }); return; }
-    setRun({ kind: "busy" });
-    setPractise(false);
-    setSavedMsg("");
+  /** Ask the coach. A new question starts a turn; a refinement or follow-up
+   * builds on the latest answer, so the thread reads like a conversation. */
+  const ask = async (opts: { q?: string; refine?: CopilotRefine; turnId?: number; followup?: boolean } = {}) => {
+    const base = opts.turnId != null ? turns.find((t) => t.id === opts.turnId) : null;
+    const text = (opts.q ?? base?.question ?? question).trim();
+    if (text.length < 8) { setTurns((ts) => [...ts.filter((t) => t.state !== "error" || t.result), { id: nextId.current++, question: text, state: "error", msg: "Type the interview question first (a full sentence works best)." }]); return; }
+    const prevAnswer = base?.result ? (base.result.improved_answer || "") : "";
+    const last = [...turns].reverse().find((t) => t.state === "done" && t.result);
+    const thread = opts.followup && last?.result ? { question: last.question, answer: last.result.short_answer || last.result.improved_answer } : undefined;
+    const id = base ? base.id : nextId.current++;
+    setTurns((ts): Turn[] => {
+      const kept = ts.filter((t) => t.state !== "error" || !!t.result);
+      return base
+        ? kept.map((t): Turn => (t.id === id ? { ...t, state: "busy" } : t))
+        : [...(opts.followup ? kept : []), { id, question: text, followup: !!opts.followup, state: "busy" as const }].slice(-6);
+    });
+    if (!base) { setQuestion(""); window.setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60); }
     const tok = await auth.getAccessToken();
     const res = await api.copilot(tok, {
-      mode, question: text, jobTitle: title, requirements, gaps,
-      resume: resume?.text || "", stories: stories.slice(0, 8).map(storyText), draft,
+      mode: "answer", question: text, jobTitle: title, requirements, gaps,
+      resume: resume?.text || "", stories: stories.slice(0, 8).map(storyText),
+      ...(opts.refine ? { refine: opts.refine, previous: prevAnswer } : {}),
+      ...(thread ? { thread } : {}),
     });
+    const patch = (p: Partial<Turn>) => setTurns((ts) => ts.map((t) => (t.id === id ? { ...t, ...p } : t)));
     if (res.status === 200 && res.body?.result) {
       invalidatePlan();
-      track("copilot_used", { mode });
-      setRun({ kind: "done", result: res.body.result, mode, question: text });
-    } else if (res.status === 403) setRun({ kind: "limit", msg: res.body?.error || "You’ve used your AI coaching for now." });
-    else if (res.status === 401) setRun({ kind: "error", msg: "Your session expired. Sign in again and retry." });
-    else if (res.status === 503) setRun({ kind: "error", msg: "The AI Interview Coach isn’t switched on for this site yet." });
-    else if (res.status === 0) setRun({ kind: "error", msg: "Couldn’t reach the AI Interview Coach. Check your connection and try again." });
-    else setRun({ kind: "error", msg: res.body?.error || "The AI Interview Coach couldn’t build an answer this time. Please try again." });
+      track("copilot_used", { mode: opts.refine || (opts.followup ? "followup" : "answer") });
+      patch({ state: "done", result: res.body.result, refined: opts.refine, msg: undefined });
+    } else {
+      const msg = res.status === 403 ? res.body?.error || "You’ve used your AI coaching for now."
+        : res.status === 401 ? "Your session expired. Sign in again and retry."
+        : res.status === 503 ? "The AI Interview Coach isn’t switched on for this site yet."
+        : res.status === 0 ? "Couldn’t reach the AI Interview Coach. Check your connection and try again."
+        : res.body?.error || "The AI Interview Coach couldn’t build an answer this time. Please try again.";
+      // A failed refinement keeps the answer you had.
+      patch(base?.result ? { state: "done", msg } : { state: res.status === 403 ? "limit" : "error", msg });
+    }
   };
 
   if (jobs.status === "loading") return <div className="page"><Loading /></div>;
@@ -161,155 +186,175 @@ export default function CopilotPage() {
       </div>
 
       {tab === "library" ? (
-        <Library onPractise={(q) => { setQuestion(q); setTab("copilot"); setRun({ kind: "idle" }); }} />
+        <Library onPractise={(q) => { setTab("copilot"); setTurns([]); void ask({ q }); }} />
       ) : (
-        <div className="cp-grid">
-          <aside className="card cp-context" aria-labelledby="cp-ctx-h">
-            <h2 id="cp-ctx-h">Your context</h2>
+        <div className="cp2">
+          <div className="cp2-ctx" aria-label="What the coach uses">
+            <span className="cp2-ctx-k">Using</span>
             {jobs.status === "ready" && jobs.jobs.length > 0 ? (
-              <>
-                {jobs.jobs.length > 1 ? (
-                  <JobPicker jobs={jobs.jobs} current={jobId} onSwitch={(id) => { setJobId(id); setActiveJob(id); setRun({ kind: "idle" }); }}
-                    label={<><span className="job-banner-label">Job</span> <strong>{title}</strong></>} />
-                ) : <p><span className="job-banner-label">Job</span> <strong>{title}</strong>{job?.company ? " · " + job.company : ""}</p>}
-                {requirements.length > 0 && (
-                  <div className="cp-ctx-block">
-                    <span className="field-label">What the role needs</span>
-                    <div className="chips">{requirements.map((r) => <span key={r} className="chip">{r}</span>)}</div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="small">No saved job yet. <Link to="/analyze">Add a job</Link> so answers fit the role. You can still ask general questions.</p>
-            )}
-            <span className="field-label">What the coach uses</span>
-            <div className="tdy-group cp-uses">
-              <Link className="tdy-grow" to={jobId ? "/jobs/" + encodeURIComponent(jobId) + "?tab=resume" : "/account"}>
-                <span className="tdy-text"><strong>Your resume</strong><span>{resume ? "Answers use your real experience" : "Add it for answers from your experience"}</span></span>
-                <span className={"tdy-pill" + (resume ? "" : " is-warn")}>{resume ? "✓ Saved" : "Add"}</span>
-                <span className="tdy-chev" aria-hidden="true">›</span>
-              </Link>
-              <Link className="tdy-grow" to="/stories">
-                <span className="tdy-text"><strong>Your stories</strong><span>{stories.length ? "Used for behavioral answers" : "Add one for behavioral answers"}</span></span>
-                <span className={"tdy-pill" + (stories.length ? "" : " is-warn")}>{stories.length ? "✓ " + stories.length : "Add"}</span>
-                <span className="tdy-chev" aria-hidden="true">›</span>
-              </Link>
-              {gaps.length > 0 && (
-                <div className="tdy-grow">
-                  <span className="tdy-text"><strong>Gaps to cover</strong><span className="cp-gaps-line">{gaps.slice(0, 3).join(", ")}</span></span>
-                  <span className="tdy-pill is-warn">{gaps.length}</span>
-                </div>
-              )}
-            </div>
-            <p className="small muted">Practice tool. It only uses your own material and never invents experience. <Link to="/demo#coach">See how it works</Link></p>
-          </aside>
+              jobs.jobs.length > 1 ? (
+                <label className="cp2-chip cp2-job">
+                  <span className="hm-sr">Job</span>
+                  <select value={jobId} onChange={(e) => { setJobId(e.target.value); setActiveJob(e.target.value); setTurns([]); }} aria-label="Job">
+                    {jobs.jobs.map((j) => <option key={j.id} value={j.id}>{displayJobTitle(j)}</option>)}
+                  </select>
+                </label>
+              ) : <span className="cp2-chip">{title}</span>
+            ) : <Link className="cp2-chip is-warn" to="/analyze">Add a job</Link>}
+            <Link className={"cp2-chip" + (resume ? " is-ok" : " is-warn")} to={jobId ? "/jobs/" + encodeURIComponent(jobId) + "?tab=resume" : "/account"}>{resume ? "✓ Resume" : "+ Add resume"}</Link>
+            <Link className={"cp2-chip" + (stories.length ? " is-ok" : " is-warn")} to="/stories">{stories.length ? "✓ " + stories.length + (stories.length === 1 ? " story" : " stories") : "+ Add a story"}</Link>
+            {gaps.length > 0 && <span className="cp2-chip" title={gaps.join(", ")}>{gaps.length} {gaps.length === 1 ? "gap" : "gaps"} to cover</span>}
+          </div>
 
-          <section className="cp-main">
-            <Card className="cp-ask">
-              <label className="field-label" htmlFor="cp-q">Interview question</label>
-              <textarea id="cp-q" className="input textarea" rows={3} value={question} placeholder="e.g. Why did you choose RAG instead of fine-tuning?"
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void ask(mode); } }} />
-              {suggested.length > 0 && !question && (
-                <div className="cp-suggest">
-                  <span className="small muted">Try one from this job:</span>
-                  <div className="cp-suggest-track">
-                    {suggested.map((q) => <button key={q} type="button" className="cp-chip" onClick={() => setQuestion(q)}>{q.length > 90 ? q.slice(0, 88) + "…" : q}</button>)}
-                  </div>
-                </div>
-              )}
-              <div className="cp-mode-pick" role="radiogroup" aria-label="What should the coach do?">
-                {MODES.map((m) => (
-                  <button key={m.key} type="button" role="radio" aria-checked={mode === m.key} className={"cp-mode" + (mode === m.key ? " on" : "")} title={m.hint} onClick={() => setMode(m.key)}>
-                    {m.short}
-                  </button>
-                ))}
-              </div>
-              <p className="small muted cp-mode-hint">{MODES.find((m) => m.key === mode)?.hint}</p>
-              <button type="button" className="btn btn-primary cp-go" disabled={run.kind === "busy"} onClick={() => ask(mode)}>
-                {run.kind === "busy" ? "Building…" : "Ask the coach"}
-              </button>
-            </Card>
+          <form className="cp2-ask" onSubmit={(e) => { e.preventDefault(); void ask({ q: question, followup: false }); }}>
+            <label className="hm-sr" htmlFor="cp-q">Ask any interview question</label>
+            <textarea id="cp-q" className="input" rows={2} value={question} placeholder="Ask any interview question…"
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void ask({ q: question }); } }} />
+            <button type="submit" className="btn btn-primary cp2-go" disabled={busy || question.trim().length < 8}>{busy ? "…" : "Ask"}</button>
+          </form>
 
-            {run.kind === "busy" && <Loading>Building from your resume and stories{"…"}</Loading>}
-            {run.kind === "error" && <p className="error" role="alert">{run.msg}</p>}
-            {run.kind === "limit" && <UpgradeCard feature="ai_grading" message={run.msg} />}
-            {run.kind === "done" && (
-              <ResultView r={run.result} onFollowup={(q) => { setQuestion(q); void ask("answer", q); }} >
-                <div className="row wrap cp-actions">
-                  <button type="button" className="btn btn-primary" onClick={() => setPractise(true)}>Practise this question</button>
-                  <button type="button" className="btn" onClick={() => {
-                    saveAnswer({ jobId, jobTitle: title, question: run.question, answer: run.result.improved_answer, score: null, source: "copilot" });
-                    setSavedMsg("Saved to Your answers.");
-                  }} disabled={!run.result.improved_answer}>Save to my answers</button>
-                  <button type="button" className="btn btn-ghost" onClick={() => ask("improve", run.question, run.result.improved_answer)}>Make it more concise</button>
-                  <button type="button" className="btn btn-ghost" onClick={() => ask("followups", run.question, run.result.improved_answer)}>Challenge it</button>
-                  {run.result.improved_answer && <CopyButton text={run.result.improved_answer} label="Copy" className="btn btn-ghost" />}
-                </div>
-                {savedMsg && <p className="hint" role="status">{savedMsg}</p>}
-              </ResultView>
-            )}
-            {run.kind === "done" && practise && (
-              <Card className="cp-practise">
-                <h2>Practise it in your own words</h2>
-                <p className="small muted">Say it out loud, type the gist, get scored. Then improve and try again to see what changed.</p>
-                <AnswerCoach prompt={run.question} model={run.result.improved_answer} topic={run.result.question_type} jobId={jobId} jobTitle={title} autoFocus />
-              </Card>
-            )}
-          </section>
+          {turns.length === 0 && (
+            <section className="tdy" aria-labelledby="cp2-qs-h">
+              <div className="tdy-head"><h2 id="cp2-qs-h">Questions for this job</h2><span className="small muted">Tap one for an answer</span></div>
+              {suggested.length > 0 ? (
+                <ul className="tdy-group cp2-qs">
+                  {suggested.map((q) => (
+                    <li key={q}>
+                      <button type="button" className="tdy-grow" onClick={() => void ask({ q })}>
+                        <span className="tdy-text"><strong className="cp2-q">{q}</strong></span>
+                        <span className="tdy-chev" aria-hidden="true">›</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="small muted">{jobId ? <>No questions for this job yet. <Link to={"/questions?job=" + encodeURIComponent(jobId)}>Get your interview questions</Link>, or ask your own above.</> : "Ask your own question above."}</p>
+              )}
+              <p className="small muted cp2-note">Practice only, never during a live interview. The coach builds from your resume and stories and never invents experience. <Link to="/demo#coach">How it works</Link></p>
+            </section>
+          )}
+
+          <div ref={endRef} />
+          {turns.map((t, i) => (
+            <TurnView key={t.id} t={t} isLast={i === turns.length - 1} jobId={jobId} title={title} busy={busy}
+              onRefine={(r) => void ask({ turnId: t.id, refine: r })}
+              onFollowup={(q) => void ask({ q, followup: true })}
+              onRetry={() => void ask({ turnId: t.id })} />
+          ))}
+          {turns.length > 0 && !busy && (
+            <button type="button" className="link-btn small cp2-new" onClick={() => { setTurns([]); setQuestion(""); }}>Start a new question</button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function ResultView({ r, onFollowup, children }: { r: CopilotResult; onFollowup(q: string): void; children?: ReactNode }) {
+/** One question and its answer, with refinements, practice and follow-ups. */
+function TurnView({ t, isLast, jobId, title, busy, onRefine, onFollowup, onRetry }: {
+  t: Turn; isLast: boolean; jobId: string; title: string; busy: boolean;
+  onRefine(r: CopilotRefine): void; onFollowup(q: string): void; onRetry(): void;
+}) {
+  const [len, setLen] = useState<"short" | "full">("short");
+  const [practise, setPractise] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const r = t.result;
+  useEffect(() => { setSaved(false); setPractise(false); }, [r]);
+  const shown = r ? (len === "short" && r.short_answer ? r.short_answer : r.improved_answer) : "";
   return (
-    <Card className="cp-result">
-      {r.headline && <p className="cp-headline">{r.headline}</p>}
-      {r.outline.length > 0 && (
-        <>
-          <div className="field-label">Answer outline</div>
-          <ol className="cp-outline">
-            {r.outline.map((o, i) => (
-              <li key={i}>
-                <span>{o.point}</span>
-                <span className={"cp-src cp-src-" + o.source}>{SOURCE_LABEL[o.source]}</span>
-                {o.quote && <span className="cp-quote">{"“"}{o.quote}{"”"}</span>}
-              </li>
+    <article className={"cp2-turn" + (t.followup ? " is-follow" : "")} aria-busy={t.state === "busy"}>
+      <p className="cp2-turn-q">{t.followup ? <span className="cp2-tag">Follow-up</span> : null}{t.question}</p>
+      {t.state === "busy" && !r && <Loading>Building from your resume and stories{"…"}</Loading>}
+      {t.state === "error" && <p className="error" role="alert">{t.msg} <button type="button" className="link-btn" onClick={onRetry}>Try again</button></p>}
+      {t.state === "limit" && <UpgradeCard feature="ai_grading" message={t.msg || ""} />}
+      {r && (
+        <ResultView r={r} len={len} onLen={setLen} shown={shown} refined={t.refined} busy={t.state === "busy"}>
+          {t.msg && <p className="error small" role="alert">{t.msg}</p>}
+          <div className="cp2-refine" role="group" aria-label="Change this answer">
+            {REFINES.map((x) => (
+              <button key={x.key} type="button" className={"cp-chip" + (t.refined === x.key ? " on" : "")} disabled={busy} onClick={() => onRefine(x.key)}>{x.label}</button>
             ))}
-          </ol>
-        </>
-      )}
-      {r.example && (
-        <div className={"cp-example" + (r.example.source === "none" ? " none" : "")}>
-          <div className="field-label">{r.example.source === "none" ? "No matching example in your material" : "Your best example"}</div>
-          <strong>{r.example.title}</strong>
-          {r.example.quote && <p className="cp-quote">{"“"}{r.example.quote}{"”"} <span className="small muted">({r.example.source === "story" ? "your story" : "your resume"})</span></p>}
-          {r.example.how_to_use && <p className="small">{r.example.how_to_use}</p>}
-        </div>
-      )}
-      {r.improved_answer && (
-        <div className="cp-answer">
-          <div className="field-label">Say it like this</div>
-          <p>{r.improved_answer}</p>
-          {r.unverified.length > 0 && (
-            <p className="cp-warn">Check these numbers: <strong>{r.unverified.join(", ")}</strong>. They aren{"’"}t in your resume, stories or draft. Use your real figures or cut them.</p>
+          </div>
+          <div className="cp2-actions">
+            <button type="button" className="btn btn-primary" onClick={() => setPractise((v) => !v)} aria-expanded={practise}>{practise ? "Hide practice" : "Practise saying it"}</button>
+            <button type="button" className="btn" disabled={saved || !r.improved_answer} onClick={() => { saveAnswer({ jobId, jobTitle: title, question: t.question, answer: r.improved_answer, score: null, source: "copilot" }); setSaved(true); }}>{saved ? "Saved ✓" : "Save"}</button>
+            {shown && <CopyButton text={shown} label="Copy" className="btn btn-ghost" />}
+          </div>
+          {practise && (
+            <div className="cp-practise">
+              <p className="small muted">Say it out loud in your own words, type the gist, and get scored. The coach{"’"}s answer stays hidden unless you open {"“"}Show strong answer{"”"}.</p>
+              <AnswerCoach prompt={t.question} model={r.improved_answer} topic={r.question_type} jobId={jobId} jobTitle={title} autoFocus />
+            </div>
           )}
-          {/\[[^\]]+\]/.test(r.improved_answer) && <p className="small muted">Replace anything in [brackets] with your real detail.</p>}
+          {isLast && r.followups.length > 0 && (
+            <div className="cp2-next">
+              <span className="field-label">They{"’"}ll likely ask next</span>
+              <div className="cp2-next-list">
+                {r.followups.slice(0, 3).map((f) => <button key={f} type="button" className="cp-chip" disabled={busy} onClick={() => onFollowup(f)}>{f}</button>)}
+              </div>
+            </div>
+          )}
+        </ResultView>
+      )}
+    </article>
+  );
+}
+
+function ResultView({ r, len, onLen, shown, refined, busy, children }: {
+  r: CopilotResult; len: "short" | "full"; onLen(l: "short" | "full"): void; shown: string; refined?: CopilotRefine; busy?: boolean; children?: ReactNode;
+}) {
+  const hasShort = !!r.short_answer;
+  return (
+    <Card className={"cp-result cp2-result" + (busy ? " is-busy" : "")}>
+      {refined && <span className="cp2-tag cp2-tag-ok">{REFINE_DONE[refined]}</span>}
+      {r.headline && <p className="cp-headline">{r.headline}</p>}
+      {hasShort && (
+        <div className="cp2-len" role="tablist" aria-label="Answer length">
+          <button type="button" role="tab" aria-selected={len === "short"} className={len === "short" ? "on" : ""} onClick={() => onLen("short")}>30 seconds</button>
+          <button type="button" role="tab" aria-selected={len === "full"} className={len === "full" ? "on" : ""} onClick={() => onLen("full")}>Full answer</button>
         </div>
       )}
-      {r.gaps.length > 0 && (
-        <div className="cp-gaps">
-          <div className="field-label">Prepare or verify</div>
-          <ul>{r.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
+      {shown && <p className="cp2-say">{shown}</p>}
+      {r.unverified.length > 0 && (
+        <p className="cp-warn">Check these numbers: <strong>{r.unverified.join(", ")}</strong>. They aren{"’"}t in your resume or stories. Use your real figures or cut them.</p>
+      )}
+      {/\[[^\]]+\]/.test(shown) && <p className="small muted">Replace anything in [brackets] with your real detail.</p>}
+      {(r.key_points || []).length > 0 && (
+        <div className="cp2-keys">
+          <span className="field-label">Remember</span>
+          <ol>{r.key_points!.map((k, i) => <li key={i}>{k}</li>)}</ol>
         </div>
       )}
-      {r.followups.length > 0 && (
-        <div className="cp-followups">
-          <div className="field-label">They{"’"}ll likely ask next</div>
-          <ul>{r.followups.map((f, i) => <li key={i}><button type="button" className="link-btn" onClick={() => onFollowup(f)}>{f}</button></li>)}</ul>
-        </div>
+      {(r.outline.length > 0 || r.example || r.gaps.length > 0) && (
+        <details className="cp2-src">
+          <summary>Where this comes from{r.outline.length ? " · " + r.outline.filter((o) => o.source === "resume" || o.source === "story").length + " from your material" : ""}</summary>
+          {r.example && (
+            <div className={"cp-example" + (r.example.source === "none" ? " none" : "")}>
+              <div className="field-label">{r.example.source === "none" ? "No matching example in your material" : "Your best example"}</div>
+              <strong>{r.example.title}</strong>
+              {r.example.quote && <p className="cp-quote">{"“"}{r.example.quote}{"”"} <span className="small muted">({r.example.source === "story" ? "your story" : "your resume"})</span></p>}
+              {r.example.how_to_use && <p className="small">{r.example.how_to_use}</p>}
+            </div>
+          )}
+          {r.outline.length > 0 && (
+            <ol className="cp-outline">
+              {r.outline.map((o, i) => (
+                <li key={i}>
+                  <span>{o.point}</span>
+                  <span className={"cp-src cp-src-" + o.source}>{SOURCE_LABEL[o.source]}</span>
+                  {o.quote && <span className="cp-quote">{"“"}{o.quote}{"”"}</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+          {r.gaps.length > 0 && (
+            <div className="cp-gaps">
+              <div className="field-label">Prepare or verify</div>
+              <ul>{r.gaps.map((g, i) => <li key={i}>{g}</li>)}</ul>
+            </div>
+          )}
+        </details>
       )}
       {!r.has_resume && <p className="small muted">Tip: add your resume and the coach will build from your real projects instead of general advice.</p>}
       {children}
