@@ -11,6 +11,7 @@ import { displayJobTitle } from "../lib/roles";
 import { Link, useNavigate, useSearchParams } from "../lib/router";
 import { useJobs } from "../lib/useJobs";
 import { Icon, type IconName } from "../components/Icon";
+import { IdeaCards } from "../components/IdeaCards";
 
 interface Mode { key: string; icon: IconName; title: string; when: string; get: string; to: (job: string, topic: string) => string; cta: string; needsJob?: boolean }
 
@@ -88,6 +89,9 @@ export default function PracticeHubPage() {
         </div>
       )}
 
+      <IdeaCards jobId={jobId} job={job} />
+
+      <h2 className="hub-all-h">All ways to practise</h2>
       <ol className="hub-grid" aria-label="Ways to practise">
         {MODES.map((m, i) => {
           const to = m.to(jobId, topic);
