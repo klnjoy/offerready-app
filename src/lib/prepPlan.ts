@@ -27,9 +27,15 @@
  *     reviews +2 and +5 days later. They are placed before gap study so a
  *     short plan to the next round still covers them; with only a light day
  *     left, the first one becomes a light re-read.
- *  7. Every non-light day is topped up to at least 3 tasks with question
- *     drills and flashcards, and capped at 5 (overflow moves to the next
- *     day that has room, never onto the light day).
+ *  7. Every work day starts with practice: "Answer 3 questions for this
+ *     job" is placed first. Each day has a time budget (~40 min; a mock day
+ *     is the mock), so tasks that don't fit move to the next day with room
+ *     (never onto the light day). Short days are topped up with flashcards.
+ *  8. Gaps are of two kinds. A skill or tool (dbt, Kafka) gets "Study".
+ *     Missing experience ("direct experience leading teams", "5+ years of
+ *     …") can't be studied: it gets "Prepare your answer", which opens the
+ *     AI Coach on the likely question so you shape an honest answer from
+ *     your closest real example.
  */
 
 export type TaskKind = "setup" | "study" | "review" | "drill" | "story" | "defend" | "mock" | "light";
@@ -85,7 +91,26 @@ export interface PrepPlan {
 }
 
 const MAX_DAYS = 90;
-const MIN_PER_DAY = 3;
+/** Minutes of planned work per day: short enough to do every day. */
+export const DAY_BUDGET = 40;
+
+/** True for a gap that is about experience rather than a skill to learn. */
+export function isExperienceGap(g: string): boolean {
+  const t = String(g || "").trim();
+  if (!t) return false;
+  if (/\b(experience|experienced|years?|yrs|track record|background in|exposure to|proven|demonstrated|hands-on|ownership|owned|leading|led|managing|managed|management of|people manager|mentor(ing)?|stakeholder)\b/i.test(t)) return true;
+  return t.split(/\s+/).length >= 6;
+}
+
+/** "Direct experience leading engineering teams" → "leading engineering teams". */
+export function experienceTopic(g: string): string {
+  const t = String(g || "").trim()
+    .replace(/^(\d+\+?\s*(years?|yrs)\s*(of)?\s*)/i, "")
+    .replace(/^(direct|proven|demonstrated|strong|solid|specific|deep|extensive|prior|relevant|hands-on)\s+/i, "")
+    .replace(/^(experience|background|track record|exposure)\s+(with|in|of|leading|building|managing)?\s*/i, (_m, _a, b) => (b && /leading|building|managing/i.test(b) ? b.toLowerCase() + " " : ""))
+    .replace(/\s*\(([^)]*)\)\s*$/, " ($1)");
+  return t || String(g).trim();
+}
 const WEAK_BELOW = 70;
 
 // ---- date helpers (UTC math on calendar days) ----
@@ -118,7 +143,7 @@ export function mockDayIndexes(total: number): number[] {
 
 export function buildPrepPlan(input: PlanInput): PrepPlan {
   const start = input.start;
-  const maxPer = Math.max(MIN_PER_DAY, input.maxPerDay || 5);
+  const maxPer = Math.max(3, input.maxPerDay || 5);
   const dated = validDay(input.interviewDate) && diffDays(start, input.interviewDate) > 0;
   const total = dated ? Math.min(MAX_DAYS, diffDays(start, input.interviewDate as string)) : input.defaultDays || 14;
   const end = dated ? (input.interviewDate as string) : addDays(start, total);
@@ -142,11 +167,14 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
 
   /** Put a task on day i, or the next day with room (never the light day,
    * unless it is a light task). Returns the day used, or -1 if dropped. */
+  const mins = (d: number) => days[d].tasks.reduce((n, t) => n + t.minutes, 0);
   const place = (i: number, build: (day: number) => PlanTask, allowLight = false): number => {
     for (let d = Math.max(0, i); d < total; d++) {
       if (days[d].type === "light" && !allowLight) continue;
       if (days[d].tasks.length >= maxPer) continue;
       const t = build(d);
+      // Keep each day short (light days are short by design; one task always fits).
+      if (days[d].type !== "light" && days[d].tasks.length && mins(d) + t.minutes > DAY_BUDGET) continue;
       if (days[d].tasks.some((x) => x.id === t.id)) return d;
       days[d].tasks.push(t);
       return d;
@@ -163,12 +191,20 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   if (!input.hasFit) place(0, (d) => mk(d, "setup", "fit", { title: "Add your resume to see your match", detail: "See how your resume matches this job and the gaps to close first.", to: "/fit", minutes: 10 }), true);
   if (!input.questionCount) place(0, (d) => mk(d, "setup", "questions", { title: "Get your interview questions", detail: "Questions written for this job and its gaps.", to: "/questions" + jobQ, minutes: 5 }), true);
 
+  // 1b. Practice first: every work day opens with questions for this job.
+  days.forEach((day) => {
+    if (day.type !== "work") return;
+    if (!day.tasks.some((t) => t.kind === "setup" && t.id.endsWith(":questions"))) {
+      day.tasks.push(mk(day.index, "drill", "questions", { title: "Answer 3 questions for this job", detail: "Out loud, about two minutes each. Then read the feedback.", to: "/questions" + jobQ, minutes: 15 }));
+    }
+  });
+
   // 2. Mock days.
   mockDays.forEach((m, k) => {
     const voice = k === mockDays.length - 1 && mockDays.length > 1;
     place(m, (d) => mk(d, "mock", voice ? "voice" : "text", voice
-      ? { title: "Voice mock interview", detail: "Full run, out loud. The interviewer follows up on what you say.", to: "/interview/voice", minutes: 40 }
-      : { title: "Mock interview", detail: "A mixed loop across areas. Answer out loud, then compare with a strong answer.", to: "/simulator", minutes: 35 }));
+      ? { title: "Voice mock interview", detail: "Full run, out loud. The interviewer follows up on what you say.", to: "/interview/voice", minutes: 30 }
+      : { title: "Mock interview", detail: "A mixed loop across areas. Answer out loud, then compare with a strong answer.", to: "/simulator", minutes: 30 }));
     place(m, (d) => mk(d, "review", "mock-" + k, { title: "Rewrite your weakest mock answer", detail: "Pick the answer you liked least and tighten it to two minutes.", to: "/practice/bank", minutes: 15 }));
   });
 
@@ -176,8 +212,8 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   const light = lightIdx >= 0 ? lightIdx : total === 1 ? 0 : -1;
   if (light >= 0) {
     const gap0 = uniq(input.gaps)[0];
-    place(light, (d) => mk(d, "light", "stories", { title: "Skim your stories", detail: "Re-read your top stories. Say each opening line out loud once.", to: "/stories", minutes: 15 }), true);
-    place(light, (d) => mk(d, "light", "gaps", { title: gap0 ? "Light review: " + gap0 : "Light review of your gaps", detail: "Notes only. No new material today.", to: job ? "/jobs/" + job : "/jobs", minutes: 15 }), true);
+    place(light, (d) => mk(d, "light", "stories", { title: "Skim your stories", detail: "Re-read your top stories. Say each opening line out loud once.", to: "/stories", minutes: 10 }), true);
+    place(light, (d) => mk(d, "light", "gaps", { title: gap0 ? "Light review: " + (isExperienceGap(gap0) ? experienceTopic(gap0) : gap0) : "Light review of your gaps", detail: "Notes only. No new material today.", to: job ? "/jobs/" + job : "/jobs", minutes: 10 }), true);
     place(light, (d) => mk(d, "light", "logistics", { title: "Logistics and rest", detail: "Confirm time, link or address, and who you meet. Then stop and rest.", to: job ? "/jobs/" + job : "/jobs", minutes: 10 }), true);
   }
 
@@ -186,7 +222,7 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   // 4. First Defend scenario on the next work day.
   if (!input.hasDefend && total > 1) {
     const target = workDays.find((i) => i >= 1) ?? 0;
-    place(target, (d) => mk(d, "defend", "first", { title: "Trade-off drill: defend one decision", detail: "Make the call, then hold it while the interviewer pushes back.", to: "/defend" + jobQ, minutes: 20 }));
+    place(target, (d) => mk(d, "defend", "first", { title: "Trade-off drill: defend one decision", detail: "Make the call, then hold it while the interviewer pushes back.", to: "/defend" + jobQ, minutes: 15 }));
   }
 
   // 4b. Questions that went badly in a real interview: revisit first.
@@ -215,7 +251,13 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
   if (workDays.length) {
     gaps.forEach((g, k) => {
       const at = workDays[k % workDays.length];
-      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "Read the notes, then explain it out loud in two minutes.", to: "/practice?topic=" + encodeURIComponent(g) + (job ? "&job=" + job : ""), minutes: 30 }));
+      if (isExperienceGap(g)) {
+        const topic = experienceTopic(g);
+        const q = "Tell me about your experience " + (/^(leading|building|managing|working|running|owning)\b/i.test(topic) ? topic : "with " + topic) + ".";
+        place(at, (d) => mk(d, "story", "prep-" + g, { title: "Prepare your answer: " + topic, detail: "They’ll likely ask about this. Use your closest real example and say it honestly in two minutes.", to: "/coach?" + (job ? "job=" + job + "&" : "") + "q=" + encodeURIComponent(q), minutes: 15 }));
+        return;
+      }
+      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "Learn the basics, then explain it out loud in two minutes.", to: "/practice?topic=" + encodeURIComponent(g) + (job ? "&job=" + job : ""), minutes: 15 }));
       if (used < 0) return;
       [2, 5, 10].forEach((off) => {
         const r = used + off;
@@ -231,7 +273,7 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
     [0, 3, 7, 14].forEach((off) => {
       const r = (j % 3) + off;
       if (r >= total || (lightIdx >= 0 && r >= lightIdx)) return;
-      place(r, (d) => mk(d, "review", "topic-" + t.topic, { title: "Weak area: " + t.topic, detail: "You averaged " + Math.round(t.score) + "% here. Run Weak areas mode in the question bank.", to: "/practice/bank?mode=weak", minutes: 15 }));
+      place(r, (d) => mk(d, "review", "topic-" + t.topic, { title: "Weak area: " + t.topic, detail: "You averaged " + Math.round(t.score) + "% here. Run Weak areas mode in the question bank.", to: "/practice/bank?mode=weak", minutes: 10 }));
     });
   });
 
@@ -244,26 +286,22 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
     const at = 2 * (sg.length - 1) + 1 < workDays.length
       ? workDays[2 * k + 1]
       : workDays[Math.min(workDays.length - 1, Math.floor(((k + 0.5) * workDays.length) / sg.length))];
-    place(at, (d) => mk(d, "story", c, { title: "Write a STAR story: " + c, detail: "Situation, task, what you did, the result and a number.", to: "/stories?competency=" + encodeURIComponent(c), minutes: 20 }));
+    place(at, (d) => mk(d, "story", c, { title: "Write a STAR story: " + c, detail: "Situation, task, what you did, the result and a number.", to: "/stories?competency=" + encodeURIComponent(c), minutes: 15 }));
   });
 
-  // 8. Top up to the daily minimum.
+  // 8. Top up short work days with quick recall.
   for (const day of days) {
-    if (day.type === "light") continue;
-    const fill: [string, Omit<PlanTask, "id" | "kind">][] = [
-      ["questions", { title: "Answer 3 questions out loud", detail: "From your job's question set. Time each answer.", to: "/questions" + jobQ, minutes: 15 }],
-      ["flashcards", { title: "Flashcards: 10 cards", detail: "Quick recall on your role's topics.", to: "/practice/bank?mode=flashcard", minutes: 10 }],
-      ["why", { title: "Trade-off drill", detail: "One more scenario. Keep asking yourself why.", to: "/defend" + jobQ, minutes: 15 }],
-    ];
-    for (const [s, t] of fill) {
-      if (day.tasks.length >= MIN_PER_DAY) break;
-      if (!day.tasks.some((x) => x.id === day.date + ":drill:" + s)) day.tasks.push(mk(day.index, "drill", s, t));
+    if (day.type !== "work") continue;
+    if (mins(day.index) <= DAY_BUDGET - 10 && day.tasks.length < maxPer) {
+      day.tasks.push(mk(day.index, "drill", "flashcards", { title: "Flashcards: 10 cards", detail: "Quick recall on your role's topics.", to: "/practice/bank?mode=flashcard", minutes: 10 }));
     }
   }
 
   // Order inside a day: setup, mock, study, defend, story, review, drill, light.
+  // Practice first: setup, then the day's questions, then the rest.
   const order: TaskKind[] = ["setup", "mock", "study", "defend", "story", "review", "drill", "light"];
-  days.forEach((d) => d.tasks.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind)));
+  const rank = (t: PlanTask) => (t.kind === "drill" ? (t.id.endsWith(":questions") ? 1.5 : 7.5) : order.indexOf(t.kind));
+  days.forEach((d) => d.tasks.sort((a, b) => rank(a) - rank(b)));
 
   return { start, end, defaulted: !dated, totalDays: total, mockDays, days };
 }

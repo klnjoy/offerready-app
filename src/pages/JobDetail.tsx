@@ -536,6 +536,9 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
     const older = data.progress.find((p) => p.recorded_at && Date.parse(p.recorded_at) <= weekAgoT && p.overall_readiness != null)
       || [...data.progress].reverse().find((p) => p.overall_readiness != null);
     const delta = r != null && older && older.overall_readiness != null && data.progress.length > 1 ? Math.round(r - older.overall_readiness) : null;
+    // What moved it: more practice, or the resume match.
+    const latestP = data.progress[0];
+    const deltaWhy = delta ? ((latestP?.questions_practiced || 0) > (older?.questions_practiced || 0) ? "practice" : "resume") : "";
     const doneSet = new Set(doneDays);
     const dow0 = (new Date(today + "T12:00:00Z").getUTCDay() + 6) % 7;
     const week = Array.from({ length: 7 }, (_, i) => {
@@ -574,24 +577,32 @@ function Overview({ data, jobs = [], onSwitch }: { data: JobDetail; jobs?: JobRo
       <>
         {head}
         {unlogged || !data.gap || !derived.hasAnalysis ? nextCard : (
-          <TodaySession tasks={viewDate === today ? [...tasks, ...catchUp] : tasks} done={state.done} jobId={jobId}
+          <TodaySession tasks={tasks} done={state.done} jobId={jobId}
             isToday={viewDate === today} label={viewDate === today ? "Today’s session" : "Session for " + formatDay(viewDate, { weekday: "short", month: "short", day: "numeric" })}
             interviewToday={viewDate === date} />
         )}
 
+        {!date ? (
+          <button type="button" className="tdy-date-cta" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+            <span className="tdy-date-ico" aria-hidden="true">📅</span>
+            <span className="tdy-text"><strong>When is your interview?</strong><span>Your plan assumes 2 weeks. Add the date to fit it to your days.</span></span>
+            <span className="tdy-chev" aria-hidden="true">›</span>
+          </button>
+        ) : null}
+
         <div className="tdy-stats">
           <Link to={"/dashboard?job=" + enc(jobId)} className="tdy-stat">
             <span>Ready</span><strong>{r != null ? r + "%" : "—"}</strong>
-            {delta != null && delta !== 0 ? <em className={delta > 0 ? "tdy-up" : "tdy-down"}>{delta > 0 ? "▲ " + delta : "▼ " + Math.abs(delta)} this week</em> : <em>goal 80%</em>}
+            {delta != null && delta !== 0 ? <em className={delta > 0 ? "tdy-up" : "tdy-down"}>{(delta > 0 ? "▲ " + delta : "▼ " + Math.abs(delta)) + " · " + deltaWhy}</em> : <em>goal 80%</em>}
           </Link>
           {date && !passed ? (
             <button type="button" className="tdy-stat" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
               <span>Interview</span>{days === 0 ? <strong className="tdy-hot">Today</strong> : <><strong>{days}</strong><em>{days === 1 ? "day left" : "days left"}</em></>}
             </button>
           ) : (
-            <button type="button" className="tdy-stat is-set" onClick={() => { setCalOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
-              <span>Interview</span><strong className="tdy-set">Set date</strong><em>tap to add</em>
-            </button>
+            <Link to={"/questions?job=" + enc(jobId)} className="tdy-stat">
+              <span>Answered</span><strong>{derived.practised}</strong><em>{derived.practised === 1 ? "question" : "questions"}</em>
+            </Link>
           )}
           <Link to={jobPath(jobId, "resume")} className="tdy-stat">
             <span>Resume</span><strong>{data.gap ? (data.gap.match_score || 0) + "%" : "—"}</strong><em>{data.gap ? "match" : "add yours"}</em>

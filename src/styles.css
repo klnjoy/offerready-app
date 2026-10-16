@@ -4420,3 +4420,7 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
   .has-tb [data-jobhome] .jw-today { margin-top: 0; }
 }
 .tdy-day.is-missed .tdy-dot { color: var(--text-3); border-color: transparent; background: var(--surface-2); }
+.tdy-date-cta { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; padding: 12px 14px; border-radius: 16px; border: 1px dashed var(--amber-border, #f2b84b); background: var(--amber-soft); }
+.tdy-date-cta .tdy-text { flex: 1; }
+.tdy-date-cta .tdy-text span { white-space: normal; }
+.tdy-date-ico { flex: none; font-size: 1.3rem; }
