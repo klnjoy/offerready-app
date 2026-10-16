@@ -50,6 +50,8 @@ export const KEYS = {
    * one job (lib/tailoredResume.ts). Your main resume (KEYS.resume) is never
    * changed by tailoring. Device only, like the resume. */
   tailoredResumes: "offerready.tailoredResumes.v1",
+  /** jobId → interviewer kind → questions that interviewer is likely to ask (components/InterviewerLens.tsx) */
+  interviewerQs: "offerready.interviewerQs.v1",
   /** Help bot chats ({ v: 1, activeId, chats: Chat[] }, see components/HelpBot.tsx). */
   helpChats: "offerready.help.chats.v1",
   /** "1" = this device may sync the saved resume to the account (opt-in, lib/sync.ts). */

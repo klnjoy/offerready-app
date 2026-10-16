@@ -37,6 +37,8 @@ import { jobsChanged } from "../components/JobNav";
 import { deleteTailoredResume, downloadText, useTailoredResume } from "../lib/tailoredResume";
 import { CopyButton } from "../components/StreamDraft";
 import { SettingsTab } from "./JobSettings";
+import { ShortlistCheck } from "../components/ShortlistCheck";
+import { jobKeywords } from "../lib/tailor";
 
 type Tab = "overview" | "resume" | "after" | "settings";
 const TABS: { key: Tab; label: string; short?: string }[] = [
@@ -763,6 +765,7 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
   const params = useSearchParams();
   const navigate = useNavigate();
   const autoRan = useRef(false);
+  const slKeywords = useMemo(() => jobKeywords(data.job.analysis, data.gap), [data.job.analysis, data.gap]);
 
   const check = async () => {
     if (!resume) return;
@@ -847,6 +850,11 @@ function ResumeTab({ data, onGap }: { data: JobDetail; onGap(g: JobDetail["gap"]
             </div>
           )}
         </section>
+      ) : null}
+
+      {resume ? (
+        <ShortlistCheck text={tailored?.text || resume.text} fileName={tailored ? tailored.fileName : resume.fileName} tailored={!!tailored}
+          title={displayJobTitle(data.job)} keywords={slKeywords} jobId={jobId} />
       ) : null}
 
       {r ? <FitDetails result={r} /> : (

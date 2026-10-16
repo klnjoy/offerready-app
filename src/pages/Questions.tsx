@@ -17,6 +17,7 @@ import { JobPicker } from "../components/JobPicker";
 import { qKey, useQuestionProgress } from "../lib/questionProgress";
 import type { Analysis, GeneratedQuestion, JobRow } from "../types";
 import { track } from "../lib/track";
+import { InterviewerLens } from "../components/InterviewerLens";
 
 const CATEGORY_LABEL: Record<string, string> = {
   technical: "Technical",
@@ -113,6 +114,12 @@ export default function QuestionsPage() {
         <QuestionForm key={jobId + "|" + jd.length} jobs={jobs} jobId={jobId} role={role} jd={jd} note={view.note}
           activeTitle={activeTitle} onPick={restoreOrForm} onSubmit={submit} />
       )}
+      {view.kind === "form" && jobId ? (
+        <InterviewerLens jobId={jobId} job={{
+          title: activeTitle, company: activeJob?.company || undefined,
+          skills: (analysis?.coreSkills || []).map((k) => (typeof k === "string" ? k : (k as { name?: string })?.name || "")).filter(Boolean).slice(0, 12),
+        }} />
+      ) : null}
       {(view.kind === "restored" || view.kind === "result") && (
         <Workspace
           key={jobId}
@@ -363,6 +370,13 @@ function Workspace({ jobId, jobs, title, questions, fresh, saved, analysis, defe
           })}
         </ol>
       )}
+
+      {jobId ? (
+        <InterviewerLens jobId={jobId} job={{
+          title, company: jobs.find((j) => j.id === jobId)?.company || undefined,
+          skills: (analysis?.coreSkills || []).map((k) => (typeof k === "string" ? k : (k as { name?: string })?.name || "")).filter(Boolean).slice(0, 12),
+        }} />
+      ) : null}
 
       <details className="card why-details">
         <summary>Why these questions</summary>

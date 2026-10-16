@@ -4030,3 +4030,53 @@ html, body { overflow-x: clip; }
 .inn-round { flex-direction: row; align-items: center; gap: 10px; }
 .inn-round .input { width: auto; min-width: 180px; }
 .inn-bar .inn-status { padding-bottom: 0; }
+
+/* Who's interviewing you? */
+.il { display: flex; flex-direction: column; gap: 14px; }
+.il h2 { margin: 0 0 2px; }
+.il-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.il-kind { font: inherit; color: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.il-kind span { font-size: 0.8rem; color: var(--text-2); }
+.il-kind:hover { border-color: var(--border-strong); }
+.il-kind.on { border-color: var(--signal-600); box-shadow: 0 0 0 1px var(--signal-600) inset; background: var(--signal-soft); }
+.il-has { font-style: normal; font-size: 0.75rem; font-weight: 650; color: var(--signal-600); }
+.il-body { display: flex; flex-direction: column; gap: 12px; }
+.il-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; padding: 12px 14px; border-radius: 12px; background: var(--bg); }
+.il-guide ul { margin: 4px 0 0; padding-left: 18px; }
+.il-guide p { margin: 4px 0 0; }
+.il-gen { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.il-role { display: flex; flex-direction: column; gap: 4px; flex: 1 1 240px; min-width: 0; }
+.il-focus { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--signal-soft); }
+.il-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.il-q + .il-q { border-top: 1px solid var(--border); }
+.il-q-btn { font: inherit; color: inherit; width: 100%; display: flex; gap: 10px; align-items: baseline; text-align: left; background: var(--surface); border: 0; padding: 10px 12px; cursor: pointer; }
+@media (hover: hover) { .il-q-btn:hover span:last-child { text-decoration: underline; } }
+.il-n { flex: none; font-size: 0.8rem; font-weight: 700; color: var(--signal-600); min-width: 16px; }
+.il-q-body { padding: 0 12px 12px 38px; background: var(--surface); }
+.il-q-body p { margin: 0 0 6px; }
+@media (max-width: 560px) { .il-guide { grid-template-columns: 1fr; } .il-q-body { padding-left: 12px; } }
+
+/* Will it get shortlisted? */
+.sl { display: flex; flex-direction: column; gap: 12px; }
+.sl-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+.sl-head h2 { margin: 0 0 2px; }
+.sl-score { flex: none; text-align: center; line-height: 1.1; font-size: 0.9rem; color: var(--text-2); }
+.sl-score strong { font-size: 1.6rem; color: var(--text); }
+.sl-score span { display: block; font-size: 0.75rem; }
+.sl-score.all strong { color: var(--signal-600); }
+.sl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.sl-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); }
+.sl-item p { margin: 2px 0 0; }
+.sl-mark { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.8rem; font-weight: 800; margin-top: 1px; }
+.sl-item.is-pass .sl-mark { background: var(--signal-soft); color: var(--signal-600); }
+.sl-item.is-warn .sl-mark { background: color-mix(in srgb, #f59e0b 18%, transparent); color: #b45309; }
+.sl-item.is-fail .sl-mark { background: color-mix(in srgb, #dc2626 15%, transparent); color: #b91c1c; }
+.sl-item.is-fail { border-color: color-mix(in srgb, #dc2626 35%, var(--border)); }
+.sl-fix { color: var(--text-2); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sl-item.is-warn .sl-mark { color: #fbbf24; }
+  :root:not([data-theme="light"]) .sl-item.is-fail .sl-mark { color: #f87171; }
+}
+.sl-pass { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.88rem; }
+.sl-pass li { display: flex; gap: 10px; align-items: flex-start; }
+.sl-pass .sl-mark { width: 20px; height: 20px; font-size: 0.7rem; background: var(--signal-soft); color: var(--signal-600); }
