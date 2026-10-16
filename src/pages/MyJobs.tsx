@@ -86,7 +86,8 @@ export default function MyJobsPage() {
           <Art k="jobs" className="empty-art" />
           <div className="question">No jobs yet</div>
           <p>Add the job you want. Paste a link or the description, and you get a day-by-day plan up to your interview.</p>
-          <div className="row"><Link className="btn btn-primary" to="/analyze">+ Add a job</Link><Link className="btn btn-ghost" to="/example">See a sample</Link></div>
+          <div className="row"><Link className="btn btn-primary" to="/analyze">+ Add a job</Link><Link className="btn btn-ghost" to="/roles">Browse open roles</Link></div>
+          <p className="small muted">Or <Link to="/example">see a sample job</Link> first.</p>
         </Card>
       </Page>
     );
@@ -186,7 +187,10 @@ function JobList({ jobs, activeId, onRemoved }: { jobs: JobRow[]; activeId: stri
             <span className="small">Practice, mock interviews and readiness use this job</span>
           </div>
         ) : <span />}
-        <Link className="btn btn-primary jobs-add" to="/analyze">+ Add a job</Link>
+        <span className="jobs-top-actions">
+          <Link className="btn btn-ghost jobs-roles" to="/roles">Browse open roles</Link>
+          <Link className="btn btn-primary jobs-add" to="/analyze">+ Add a job</Link>
+        </span>
       </div>
 
       {many && upcoming.length > 0 && (

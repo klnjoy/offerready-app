@@ -68,9 +68,13 @@ export function LearnCards({ job }: { job?: JobRow }) {
 
   return (
     <>
+      <Link className="tdy-group tdy-grow lrn-entry rm-entry" to="/learn/roadmap">
+        <span className="tdy-text"><strong>12-week AI roadmap</strong><span>What to learn, build and practise each week, for AI engineer or FDE</span></span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </Link>
       <Row id="ic-learn" title="Learn AI" sub="Short reads from the study library" cards={learn} />
       <Link className="tdy-group tdy-grow lrn-entry" to="/learn">
-        <span className="tdy-text"><strong>Keep up with AI</strong><span>A 12-week roadmap, news and free courses from Anthropic, OpenAI, LangChain and more</span></span>
+        <span className="tdy-text"><strong>Keep up with AI</strong><span>News and free courses from Anthropic, OpenAI, LangChain and more</span></span>
         <span className="tdy-chev" aria-hidden="true">›</span>
       </Link>
     </>
