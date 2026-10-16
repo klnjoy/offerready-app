@@ -4187,3 +4187,18 @@ html, body { overflow-x: clip; }
   .jw:has(> .jw-today) { display: flex; flex-direction: column; }
   .jw > .jw-today { order: -1; }
 }
+
+/* Progress: Export (print / Save as PDF) */
+.rd-export { display: flex; justify-content: flex-end; margin-bottom: -6px; }
+.rd-export-btn { gap: 6px; }
+.print-only { display: none; }
+@media print {
+  html:root { color-scheme: light; --bg: #fff; --surface: #fff; --surface-2: #f4f6f9; --text: #0f172a; --text-2: #475569; --text-3: #64748b; --border: #d7dde6; --border-strong: #b8c2d0; }
+  html, body, .app, .main { background: #fff !important; color: #0f172a !important; }
+  .print-only { display: block !important; }
+  .rd-print-head { font-size: 12px; color: #475569; margin: 0 0 8px; }
+  .jn-side, .jn-right, .jn-trail, .jn-pager, .tb-back, .ua, .pp, .no-print, .getapp-light, .plan-chip { display: none !important; }
+  .jn-layout { display: block !important; }
+  .card { border: 1px solid #d7dde6 !important; background: #fff !important; }
+  a { color: #0f172a !important; text-decoration: none !important; }
+}
