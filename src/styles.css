@@ -4651,3 +4651,18 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 .rd2-details-body { display: flex; flex-direction: column; gap: 14px; padding: 0 12px 12px; }
 .rd2-details-body > .card { box-shadow: none; }
 @media print { .rd2-details { display: block; } .rd2-details > .rd2-details-body { display: flex !important; } }
+
+/* Coach: "Get these answers ready" (answer prep for the job) */
+.cp2-bar { height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; margin: -2px 0 12px; }
+.cp2-bar i { display: block; height: 100%; background: #22c07a; border-radius: inherit; transition: width 0.3s; }
+.cp2-how { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 12px; padding: 0; counter-reset: cphow; }
+.cp2-how li { counter-increment: cphow; display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--signal-soft); font-size: 0.82rem; line-height: 1.3; color: var(--text-2); }
+.cp2-how li b { color: var(--text); font-size: 0.9rem; }
+.cp2-how li b::before { content: counter(cphow) ". "; color: var(--signal-600); }
+.cp2-qs .tdy-text span { white-space: normal; }
+.tdy-pill.is-new { background: var(--ink-950, #0f1b2d); color: #fff; }
+.cp2-saved-note { margin: -4px 0 8px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tdy-pill.is-new { background: #22c07a; color: #0f1b2d; } }
+:root[data-theme="dark"] .tdy-pill.is-new { background: #22c07a; color: #0f1b2d; }
+@media (max-width: 420px) { .cp2-how { gap: 6px; } .cp2-how li { padding: 8px 9px; font-size: 0.76rem; } }
+.cp2-own-h { font-size: 1rem; margin: 18px 0 8px; }

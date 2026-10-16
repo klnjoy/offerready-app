@@ -14,7 +14,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import * as api from "../lib/api";
 import type { CopilotRefine, CopilotResult, CopilotSource } from "../lib/api";
 import { useAuth } from "../lib/auth";
-import { deleteAnswer, saveAnswer, storyText, useAnswers } from "../lib/answerLibrary";
+import { deleteAnswer, saveAnswer, storyText, useAnswers, type SavedAnswer } from "../lib/answerLibrary";
 import { invalidatePlan } from "../lib/plans";
 import { getActiveJob, setActiveJob } from "../lib/readiness";
 import { displayJobTitle } from "../lib/roles";
@@ -61,8 +61,38 @@ type Turn = {
   result?: CopilotResult;
   /** The refinement that produced the current result, if any. */
   refined?: CopilotRefine;
+  /** Opened from your saved answers (no AI call); its last practice score. */
+  savedScore?: number | null;
   msg?: string;
 };
+
+const normQ = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+/** "a" or "an" before a job title ("an AI Engineer Lead", "a Data Engineer"). */
+function withArticle(role: string): string {
+  const w = role.trim().split(/\s+/)[0] || "";
+  const acronym = /^[A-Z]{2,}$/.test(w);
+  const vowel = acronym ? /^[AEFHILMNORSX]/.test(w) : /^[aeiou]/i.test(w);
+  return (vowel ? "an " : "a ") + role;
+}
+
+/** Turn a resume gap ("Experience leading engineering teams") into the
+ * question an interviewer would actually ask. */
+function gapQuestion(gap: string): string {
+  let t = gap.trim().replace(/[.;:]+$/, "");
+  t = t.replace(/^(direct|proven|demonstrated|strong|solid|specific|deep|extensive|prior|relevant|hands-on|practical)\s+/i, "");
+  const asRole = /^(?:\d+\+?\s*years?\s+(?:of\s+)?)?experience\s+as\s+(.+)$/i.exec(t);
+  if (asRole) return "What’s the closest you’ve come to working as " + asRole[1] + "?";
+  t = t.replace(/^(?:\d+\+?\s*years?\s+(?:of\s+)?)?(?:experience|background|exposure|track record)(?:\s+(?:with|in|of|on|using))?\s+/i, "");
+  if (!/^[A-Z]{2}/.test(t)) t = t.charAt(0).toLowerCase() + t.slice(1);
+  if (/^(leading|building|managing|running|owning|designing|scaling|delivering|working)\b/i.test(t)) return "Tell me about your experience " + t + ".";
+  return "What’s your experience with " + t + "?";
+}
+
+/** A saved answer shown in the thread (practise, refine or copy it). */
+function savedResult(answer: string): CopilotResult {
+  return { question_type: "general", headline: "", outline: [], example: null, improved_answer: answer, short_answer: "", key_points: [], followups: [], gaps: [], unverified: [], downgraded: 0, has_resume: true, has_stories: true };
+}
 
 export default function CopilotPage() {
   const auth = useAuth();
@@ -116,21 +146,28 @@ export default function CopilotPage() {
   const gaps = useMemo(() => [...(detail?.gap?.result?.missingSkills || []), ...(detail?.gap?.result?.missingExperience || [])].slice(0, 8), [detail]);
   const stories = useMemo(() => loadStories().filter((s) => !s.jobIds.length || s.jobIds.includes(jobId)), [jobId, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   const busy = turns.some((t) => t.state === "busy");
-  // Hard questions for YOU: built from the gaps between your resume and the
-  // job, plus two every interview asks. (The job's full question list lives
-  // on Practice › Questions for this job; it isn't repeated here.)
+  // The answers to prepare for THIS job: the opener, one per gap between your
+  // resume and the job, and "why this role". Each shows whether you already
+  // have an answer ready (saved) and its practice score, so the page reads as
+  // "get these answers ready", not a list of questions. (The job's full
+  // question list lives on Practice › Questions for this job.)
   const starters = useMemo(() => {
     const role = title || "this role";
-    const out = [
-      "Tell me about yourself, for a " + role + " role.",
-      ...gaps.slice(0, 4).map((g) => {
-        const t = String(g).replace(/^(direct|proven|demonstrated|strong|solid|specific|deep|extensive|prior|relevant|hands-on)\s+/i, "").replace(/^(experience|background|exposure)\s+(with|in|of)\s+/i, "");
-        return /^(leading|building|managing|running|owning)\b/i.test(t) ? "Tell me about your experience " + t + "." : "What's your experience with " + t + "?";
-      }),
-      "Why do you want this role, and why now?",
+    const out: { q: string; why: string }[] = [
+      { q: "Tell me about yourself, for " + withArticle(role) + " role.", why: "Asked in almost every interview" },
+      ...gaps.slice(0, 4).map((g) => ({ q: gapQuestion(String(g)), why: "Your resume doesn’t show this yet" })),
+      { q: "Why do you want this role, and why now?", why: "Asked in almost every interview" },
     ];
-    return Array.from(new Set(out)).slice(0, 6);
+    const seen = new Set<string>();
+    return out.filter((x) => (seen.has(normQ(x.q)) ? false : (seen.add(normQ(x.q)), true))).slice(0, 6);
   }, [gaps, title]);
+  const savedFor = (q: string) => answers.find((a) => a.jobId === jobId && normQ(a.question) === normQ(q));
+  const readyN = starters.filter((x) => savedFor(x.q)).length;
+  /** Open a saved answer without spending an AI call. */
+  const openSaved = (a: SavedAnswer) => {
+    setTurns([{ id: nextId.current++, question: a.question, state: "done", savedScore: a.score, result: savedResult(a.answer) }]);
+    window.setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
+  };
   const autoAsked = useRef(false);
   useEffect(() => {
     if (autoAsked.current || params.get("ask") !== "1" || !question.trim() || jobs.status !== "ready") return;
@@ -167,7 +204,7 @@ export default function CopilotPage() {
     if (res.status === 200 && res.body?.result) {
       invalidatePlan();
       track("copilot_used", { mode: opts.refine || (opts.followup ? "followup" : "answer") });
-      patch({ state: "done", result: res.body.result, refined: opts.refine, msg: undefined });
+      patch({ state: "done", result: res.body.result, refined: opts.refine, savedScore: undefined, msg: undefined });
     } else {
       const msg = res.status === 403 ? res.body?.error || "You’ve used your AI coaching for now."
         : res.status === 401 ? "Your session expired. Sign in again and retry."
@@ -178,6 +215,16 @@ export default function CopilotPage() {
       patch(base?.result ? { state: "done", msg } : { state: res.status === 403 ? "limit" : "error", msg });
     }
   };
+
+  const askForm = (
+            <form className="cp2-ask" onSubmit={(e) => { e.preventDefault(); void ask({ q: question, followup: false }); }}>
+              <label className="hm-sr" htmlFor="cp-q">Ask any interview question</label>
+              <textarea id="cp-q" className="input" rows={2} value={question} placeholder="Ask any interview question…"
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void ask({ q: question }); } }} />
+              <button type="submit" className="btn btn-primary cp2-go" disabled={busy || question.trim().length < 8}>{busy ? "…" : "Ask"}</button>
+            </form>
+  );
 
   if (jobs.status === "loading") return <div className="page"><Loading /></div>;
   if (jobs.status === "signedout") return (
@@ -207,7 +254,7 @@ export default function CopilotPage() {
       </div>
 
       {tab === "library" ? (
-        <Library onPractise={(q) => { setTab("copilot"); setTurns([]); void ask({ q }); }} />
+        <Library onPractise={(a) => { setTab("copilot"); if (a.jobId && jobs.status === "ready" && jobs.jobs.some((j) => j.id === a.jobId) && a.jobId !== jobId) setJobId(a.jobId); openSaved(a); }} />
       ) : (
         <div className="cp2">
           <div className="cp2-ctx" aria-label="What the coach uses">
@@ -226,33 +273,41 @@ export default function CopilotPage() {
             <Link className={"cp2-chip" + (stories.length ? " is-ok" : " is-warn")} to="/stories">{stories.length ? "✓ " + stories.length + (stories.length === 1 ? " story" : " stories") : "+ Add a story"}</Link>
           </div>
 
-          <form className="cp2-ask" onSubmit={(e) => { e.preventDefault(); void ask({ q: question, followup: false }); }}>
-            <label className="hm-sr" htmlFor="cp-q">Ask any interview question</label>
-            <textarea id="cp-q" className="input" rows={2} value={question} placeholder="Ask any interview question…"
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void ask({ q: question }); } }} />
-            <button type="submit" className="btn btn-primary cp2-go" disabled={busy || question.trim().length < 8}>{busy ? "…" : "Ask"}</button>
-          </form>
+          {turns.length > 0 && askForm}
 
           {turns.length === 0 && (
-            <section className="tdy" aria-labelledby="cp2-qs-h">
-              <div className="tdy-head"><h2 id="cp2-qs-h">Hard questions for you</h2><span className="small muted">{gaps.length ? "From your gaps" : "Start here"}</span></div>
+            <section className="tdy cp2-bank" aria-labelledby="cp2-qs-h">
+              <div className="tdy-head"><h2 id="cp2-qs-h">Get these answers ready</h2><span className="small muted">{readyN} of {starters.length} ready</span></div>
+              <div className="cp2-bar" role="progressbar" aria-label="Answers ready" aria-valuemin={0} aria-valuemax={starters.length} aria-valuenow={readyN}><i style={{ width: (starters.length ? (readyN / starters.length) * 100 : 0) + "%" }} /></div>
+              {readyN === 0 && (
+                <ol className="cp2-how" aria-label="How it works">
+                  <li><b>Build</b><span>from your resume and stories</span></li>
+                  <li><b>Make it yours</b><span>shorter, numbers, STAR</span></li>
+                  <li><b>Say it</b><span>get a score, then save</span></li>
+                </ol>
+              )}
               <ul className="tdy-group cp2-qs">
-                {starters.map((q) => (
-                  <li key={q}>
-                    <button type="button" className="tdy-grow" onClick={() => void ask({ q })}>
-                      <span className="tdy-text"><strong className="cp2-q">{q}</strong></span>
-                      <span className="tdy-chev" aria-hidden="true">›</span>
-                    </button>
-                  </li>
-                ))}
+                {starters.map(({ q, why }) => {
+                  const a = savedFor(q);
+                  const pill = !a ? "Build" : a.score != null ? a.score + "%" : "Ready";
+                  const tone = !a ? "is-new" : a.score != null && a.score < 70 ? "is-warn" : "";
+                  return (
+                    <li key={q}>
+                      <button type="button" className="tdy-grow" onClick={() => (a ? openSaved(a) : void ask({ q }))}>
+                        <span className="tdy-text"><strong className="cp2-q">{q}</strong><span>{a ? (a.score != null ? "Saved · practise to raise it" : "Saved · practise saying it") : why}</span></span>
+                        <span className={"tdy-pill " + tone}>{pill}</span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
               <p className="small muted cp2-note">
-                {jobId ? <>Your job{"’"}s full question list is in <Link to={"/questions?job=" + encodeURIComponent(jobId)}>Practice › Questions for this job</Link>. </> : null}
-                The coach builds only from your resume and stories.
+                {jobId ? <>All questions for this job are in <Link to={"/questions?job=" + encodeURIComponent(jobId)}>Practice</Link>.</> : null}
               </p>
             </section>
           )}
+
+          {turns.length === 0 && (<><h2 className="cp2-own-h">Or ask your own question</h2>{askForm}</>)}
 
           <div ref={endRef} />
           {turns.map((t, i) => (
@@ -280,10 +335,12 @@ function TurnView({ t, isLast, jobId, title, busy, onRefine, onFollowup, onRetry
   const [saved, setSaved] = useState(false);
   const r = t.result;
   useEffect(() => { setSaved(false); setPractise(false); }, [r]);
+  const isSaved = saved || t.savedScore !== undefined;
   const shown = r ? (len === "short" && r.short_answer ? r.short_answer : r.improved_answer) : "";
   return (
     <article className={"cp2-turn" + (t.followup ? " is-follow" : "")} aria-busy={t.state === "busy"}>
       <p className="cp2-turn-q">{t.followup ? <span className="cp2-tag">Follow-up</span> : null}{t.question}</p>
+      {t.savedScore !== undefined && <p className="small muted cp2-saved-note">Your saved answer{t.savedScore != null ? " · last score " + t.savedScore + "%" : ""}. Practise it again, or tap a change below to rebuild it.</p>}
       {t.state === "busy" && !r && <Loading>Building from your resume and stories{"…"}</Loading>}
       {t.state === "error" && <p className="error" role="alert">{t.msg} <button type="button" className="link-btn" onClick={onRetry}>Try again</button></p>}
       {t.state === "limit" && <UpgradeCard feature="ai_grading" message={t.msg || ""} />}
@@ -297,7 +354,7 @@ function TurnView({ t, isLast, jobId, title, busy, onRefine, onFollowup, onRetry
           </div>
           <div className="cp2-actions">
             <button type="button" className="btn btn-primary" onClick={() => setPractise((v) => !v)} aria-expanded={practise}>{practise ? "Hide practice" : "Practise saying it"}</button>
-            <button type="button" className="btn" disabled={saved || !r.improved_answer} onClick={() => { saveAnswer({ jobId, jobTitle: title, question: t.question, answer: r.improved_answer, score: null, source: "copilot" }); setSaved(true); }}>{saved ? "Saved ✓" : "Save"}</button>
+            <button type="button" className="btn" disabled={isSaved || !r.improved_answer} onClick={() => { saveAnswer({ jobId, jobTitle: title, question: t.question, answer: r.improved_answer, score: null, source: "copilot" }); setSaved(true); }}>{isSaved ? "Saved ✓" : "Save"}</button>
             {shown && <CopyButton text={shown} label="Copy" className="btn btn-ghost" />}
           </div>
           {practise && (
@@ -381,7 +438,7 @@ function ResultView({ r, len, onLen, shown, refined, busy, children }: {
   );
 }
 
-function Library({ onPractise }: { onPractise(q: string): void }) {
+function Library({ onPractise }: { onPractise(a: SavedAnswer): void }) {
   const answers = useAnswers();
   const [filter, setFilter] = useState("");
   const shown = answers.filter((a) => !filter || (a.question + " " + a.answer + " " + a.jobTitle).toLowerCase().includes(filter.toLowerCase()));
@@ -402,7 +459,7 @@ function Library({ onPractise }: { onPractise(q: string): void }) {
           <h3>{a.question}</h3>
           <p>{a.answer}</p>
           <div className="row wrap">
-            <button type="button" className="btn btn-small" onClick={() => onPractise(a.question)}>Practise again</button>
+            <button type="button" className="btn btn-small" onClick={() => onPractise(a)}>Practise again</button>
             <CopyButton text={a.answer} label="Copy" className="btn btn-ghost btn-small" />
             <button type="button" className="link-btn small" onClick={() => deleteAnswer(a.id)}>Delete</button>
           </div>
