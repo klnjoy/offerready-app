@@ -15,6 +15,7 @@ import { InterviewChip } from "../components/InterviewChip";
 import { Card, Loading, Muted } from "../components/ui";
 import { readString, writeString } from "../lib/storage";
 import type { JobRow } from "../types";
+import { Art } from "../components/Art";
 
 const SHOW_CONTROLS_AT = 6;
 const PAGE_SIZE = 9;
@@ -81,7 +82,8 @@ export default function MyJobsPage() {
     return (
       <Page>
         <GettingStarted where="jobs" />
-        <Card>
+        <Card className="empty-card">
+          <Art k="jobs" className="empty-art" />
           <div className="question">No jobs yet</div>
           <p>Add the job you want. Paste a link or the description, and you get a day-by-day plan up to your interview.</p>
           <div className="row"><Link className="btn btn-primary" to="/analyze">+ Add a job</Link><Link className="btn btn-ghost" to="/example">See a sample</Link></div>

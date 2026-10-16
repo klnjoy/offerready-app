@@ -4221,3 +4221,11 @@ html, body { overflow-x: clip; }
 .ic-cta { align-self: flex-start; margin-top: 4px; padding: 7px 14px; border-radius: 999px; background: var(--signal-soft); color: var(--signal-600); font-weight: 700; font-size: 0.88rem; }
 .hub-all-h { font-size: 1.3rem; margin: 6px 0 10px; }
 @media (prefers-reduced-motion: reduce) { .ic-link { transition: none; } .ic-link:hover { transform: none; } }
+
+/* Illustrations on hub tiles and empty screens (components/Art.tsx) */
+.hub-link { overflow: hidden; }
+.hub-art { display: block; width: calc(100% + 44px); max-width: none; margin: -22px -22px 4px; aspect-ratio: 2.4 / 1; height: auto; }
+.empty-card { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.empty-card .row { justify-content: center; }
+.empty-art { display: block; width: 100%; max-width: 360px; aspect-ratio: 2 / 1; height: auto; border-radius: 16px; }
+.inn-empty.empty-card p { margin: 0; }
