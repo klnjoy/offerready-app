@@ -95,6 +95,7 @@ function clearPending() {
 
 const fromPending = (p: Pending): FormValues => ({
   targetRole: p.targetRole || "", jobDescription: p.jobDescription, interviewDate: p.interviewDate || "", sourceUrl: p.sourceUrl || "",
+  ...(p.company ? { company: p.company } : {}),
 });
 
 // ---- local signals (no JD/resume text at rest) -----------------------------
