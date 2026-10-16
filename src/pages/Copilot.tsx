@@ -115,8 +115,29 @@ export default function CopilotPage() {
   }, [detail]);
   const gaps = useMemo(() => [...(detail?.gap?.result?.missingSkills || []), ...(detail?.gap?.result?.missingExperience || [])].slice(0, 8), [detail]);
   const stories = useMemo(() => loadStories().filter((s) => !s.jobIds.length || s.jobIds.includes(jobId)), [jobId, tab]); // eslint-disable-line react-hooks/exhaustive-deps
-  const suggested = (detail?.questions || []).slice(0, 6).map((q) => q.prompt);
   const busy = turns.some((t) => t.state === "busy");
+  // Hard questions for YOU: built from the gaps between your resume and the
+  // job, plus two every interview asks. (The job's full question list lives
+  // on Practice › Questions for this job; it isn't repeated here.)
+  const starters = useMemo(() => {
+    const role = title || "this role";
+    const out = [
+      "Tell me about yourself, for a " + role + " role.",
+      ...gaps.slice(0, 4).map((g) => {
+        const t = String(g).replace(/^(direct|proven|demonstrated|strong|solid|specific|deep|extensive|prior|relevant|hands-on)\s+/i, "").replace(/^(experience|background|exposure)\s+(with|in|of)\s+/i, "");
+        return /^(leading|building|managing|running|owning)\b/i.test(t) ? "Tell me about your experience " + t + "." : "What's your experience with " + t + "?";
+      }),
+      "Why do you want this role, and why now?",
+    ];
+    return Array.from(new Set(out)).slice(0, 6);
+  }, [gaps, title]);
+  const autoAsked = useRef(false);
+  useEffect(() => {
+    if (autoAsked.current || params.get("ask") !== "1" || !question.trim() || jobs.status !== "ready") return;
+    if (jobId && !detail) return; // wait for the job, so the answer fits it
+    autoAsked.current = true;
+    void ask({ q: question });
+  }, [detail, jobs.status, jobId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Ask the coach. A new question starts a turn; a refinement or follow-up
    * builds on the latest answer, so the thread reads like a conversation. */
@@ -203,7 +224,6 @@ export default function CopilotPage() {
             ) : <Link className="cp2-chip is-warn" to="/analyze">Add a job</Link>}
             <Link className={"cp2-chip" + (resume ? " is-ok" : " is-warn")} to={jobId ? "/jobs/" + encodeURIComponent(jobId) + "?tab=resume" : "/account"}>{resume ? "✓ Resume" : "+ Add resume"}</Link>
             <Link className={"cp2-chip" + (stories.length ? " is-ok" : " is-warn")} to="/stories">{stories.length ? "✓ " + stories.length + (stories.length === 1 ? " story" : " stories") : "+ Add a story"}</Link>
-            {gaps.length > 0 && <span className="cp2-chip" title={gaps.join(", ")}>{gaps.length} {gaps.length === 1 ? "gap" : "gaps"} to cover</span>}
           </div>
 
           <form className="cp2-ask" onSubmit={(e) => { e.preventDefault(); void ask({ q: question, followup: false }); }}>
@@ -216,22 +236,21 @@ export default function CopilotPage() {
 
           {turns.length === 0 && (
             <section className="tdy" aria-labelledby="cp2-qs-h">
-              <div className="tdy-head"><h2 id="cp2-qs-h">Questions for this job</h2><span className="small muted">Tap one for an answer</span></div>
-              {suggested.length > 0 ? (
-                <ul className="tdy-group cp2-qs">
-                  {suggested.map((q) => (
-                    <li key={q}>
-                      <button type="button" className="tdy-grow" onClick={() => void ask({ q })}>
-                        <span className="tdy-text"><strong className="cp2-q">{q}</strong></span>
-                        <span className="tdy-chev" aria-hidden="true">›</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="small muted">{jobId ? <>No questions for this job yet. <Link to={"/questions?job=" + encodeURIComponent(jobId)}>Get your interview questions</Link>, or ask your own above.</> : "Ask your own question above."}</p>
-              )}
-              <p className="small muted cp2-note">Practice only, never during a live interview. The coach builds from your resume and stories and never invents experience. <Link to="/demo#coach">How it works</Link></p>
+              <div className="tdy-head"><h2 id="cp2-qs-h">Hard questions for you</h2><span className="small muted">{gaps.length ? "From your gaps" : "Start here"}</span></div>
+              <ul className="tdy-group cp2-qs">
+                {starters.map((q) => (
+                  <li key={q}>
+                    <button type="button" className="tdy-grow" onClick={() => void ask({ q })}>
+                      <span className="tdy-text"><strong className="cp2-q">{q}</strong></span>
+                      <span className="tdy-chev" aria-hidden="true">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="small muted cp2-note">
+                {jobId ? <>Your job{"’"}s full question list is in <Link to={"/questions?job=" + encodeURIComponent(jobId)}>Practice › Questions for this job</Link>. </> : null}
+                The coach builds only from your resume and stories.
+              </p>
             </section>
           )}
 

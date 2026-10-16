@@ -458,10 +458,9 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
 
       {/* 6. Details */}
       <details className="card rd2-details">
-        <summary>Details: score breakdown, skills and trend</summary>
+        <summary>Details: score breakdown and trend</summary>
         <div className="rd2-details-body">
           <Breakdown parts={m.parts} score={m.score} />
-          <Heatmap skills={m.skills} jobId={detail.job.id} hasGap={m.hasGap} />
       <section className="card rd-trend" aria-labelledby="rd-trend-h">
         <div className="rd-sec-head">
           <h2 id="rd-trend-h">Your score over time</h2>
@@ -625,75 +624,6 @@ function Breakdown({ parts, score }: { parts: Part[]; score: number }) {
   );
 }
 
-// ---- 4. Skills heatmap ----
-const LEVEL_LABEL: Record<Level, string> = { strong: "Strong", ok: "OK", weak: "Weak", untested: "Untested" };
-
-function Heatmap({ skills, jobId, hasGap }: { skills: SkillRow[]; jobId: string; hasGap: boolean }) {
-  if (!skills.length) {
-    return (
-      <section className="card rd-hm" aria-labelledby="rd-hm-h">
-        <h2 id="rd-hm-h">Your skills for this job</h2>
-        <p className="muted">We don{"’"}t know this job{"’"}s key skills yet. Analyze the job description to see them here.</p>
-        <div className="row"><Link className="btn" to="/analyze">Analyze the job</Link></div>
-      </section>
-    );
-  }
-  const counts = skills.reduce((acc, s) => ({ ...acc, [s.level]: (acc[s.level] || 0) + 1 }), {} as Record<Level, number>);
-  const lvlNum = (n: number | null) => (n == null ? "untested" : n >= 75 ? "strong" : n >= 55 ? "ok" : "weak");
-  return (
-    <section className="card rd-hm" aria-labelledby="rd-hm-h">
-      <div className="rd-sec-head">
-        <h2 id="rd-hm-h">Your skills for this job</h2>
-        <p className="muted small">What the job needs, against your evidence. Tap a weak or untested skill to practise it.</p>
-      </div>
-      <ul className="rd-legend" aria-label="Key">
-        {(["strong", "ok", "weak", "untested"] as Level[]).map((l) => (
-          <li key={l}><span className={"rd-cell-dot lv-" + l} aria-hidden="true" />{LEVEL_LABEL[l]}{counts[l] ? " · " + counts[l] : ""}</li>
-        ))}
-      </ul>
-      <table className="rd-grid">
-        <caption className="rd-sr">Skills this job needs, with your evidence from your resume, practice, stories and mock interviews</caption>
-        <thead>
-          <tr>
-            <th scope="col">Skill</th>
-            <th scope="col"><span className="rd-long">Resume</span><span className="rd-short" aria-hidden="true">CV</span></th>
-            <th scope="col"><span className="rd-long">Practice</span><span className="rd-short" aria-hidden="true">Prac.</span></th>
-            <th scope="col"><span className="rd-long">Stories</span><span className="rd-short" aria-hidden="true">Story</span></th>
-            <th scope="col">Mock</th>
-          </tr>
-        </thead>
-        <tbody>
-          {skills.map((s) => {
-            const act = s.level === "weak" || s.level === "untested";
-            const chip = (
-              <>
-                <span className={"rd-cell-dot lv-" + s.level} aria-hidden="true" />
-                <span className="rd-skill-name">{s.name}</span>
-                <span className={"rd-skill-lv lv-" + s.level}>{LEVEL_LABEL[s.level]}</span>
-              </>
-            );
-            return (
-              <tr key={s.name} data-level={s.level}>
-                <th scope="row">
-                  {act ? (
-                    <Link className={"rd-skill is-link lv-" + s.level} to={practiseHref(s.name, jobId)} title={s.why} aria-label={"Practise " + s.name + " (" + LEVEL_LABEL[s.level] + ": " + s.why + ")"}>{chip}</Link>
-                  ) : (
-                    <span className={"rd-skill lv-" + s.level} title={s.why}>{chip}<span className="rd-sr"> ({s.why})</span></span>
-                  )}
-                </th>
-                <td><span className={"rd-cell lv-" + (s.resume === "strong" ? "strong" : s.resume === "gap" ? "weak" : "untested")}>{s.resume === "strong" ? "Yes" : s.resume === "gap" ? "Gap" : hasGap ? "–" : "?"}</span></td>
-                <td><span className={"rd-cell lv-" + lvlNum(s.practice)}>{s.practice == null ? "–" : s.practice}</span></td>
-                <td><span className={"rd-cell lv-" + (s.stories ? "strong" : "untested")}>{s.stories || "–"}</span></td>
-                <td><span className={"rd-cell lv-" + lvlNum(s.mock)}>{s.mock == null ? "–" : s.mock}</span></td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <p className="muted small rd-hm-foot">Practice and mock show your average score (%). Stories shows how many of your stories mention the skill. {"–"} means no evidence yet{hasGap ? "" : "; ? means you haven’t checked your fit"}.</p>
-    </section>
-  );
-}
 
 // ---- 5. Trend ----
 function TrendEmpty({ jobQ }: { jobQ: string }) {
