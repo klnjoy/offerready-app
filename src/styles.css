@@ -4245,7 +4245,7 @@ html, body { overflow-x: clip; }
   .has-tb .rd-switch { display: none; }
   .has-tb .rd-job-chip { display: inline-flex !important; margin: -4px 0 4px; }
   .has-tb .jn-body { position: relative; }
-  .has-tb [data-tabroot] .rd-export { position: absolute; top: 2px; right: 0; margin: 0; }
+  .has-tb [data-tabroot] .rd-export { position: absolute; top: -14px; right: 0; margin: 0; }
 }
 @media (max-width: 760px) { .has-tb [data-tabroot] .page-head { margin-top: -14px; } }
 
@@ -4666,3 +4666,13 @@ a.tdy-grow:hover, summary.tdy-grow:hover { background: var(--bg); }
 :root[data-theme="dark"] .tdy-pill.is-new { background: #22c07a; color: #0f1b2d; }
 @media (max-width: 420px) { .cp2-how { gap: 6px; } .cp2-how li { padding: 8px 9px; font-size: 0.76rem; } }
 .cp2-own-h { font-size: 1rem; margin: 18px 0 8px; }
+
+/* Progress polish: score parts in the hero, untried areas folded into one row */
+.rd2-parts { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; padding: 0; }
+.rd2-parts li { font-size: 0.82rem; color: var(--text-2); background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; }
+.rd2-parts li b { color: var(--text); font-size: 0.9rem; }
+.rd2-parts li span { color: var(--text-3); }
+.rd2-untried { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 12px 14px; border: 1px dashed var(--border-strong); border-radius: 14px; color: var(--text-2); text-decoration: none; font-size: 0.9rem; }
+.rd2-untried strong { color: var(--text); }
+.rd2-untried-cta { flex: none; font-weight: 700; color: var(--signal-600); }
+.rd2-spark { flex-wrap: wrap; }
