@@ -23,3 +23,6 @@ createRoot(document.getElementById("root")!).render(
     </RouterProvider>
   </StrictMode>,
 );
+
+// Hide the launch screen (index.html) once the app has rendered.
+requestAnimationFrame(() => (window as unknown as { __hideSplash?: () => void }).__hideSplash?.());
