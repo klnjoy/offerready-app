@@ -11,7 +11,6 @@ export function AppWelcome({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="aw">
       <section className="aw-hero">
-        <svg className="aw-mark" viewBox="0 0 48 48" aria-hidden="true"><path d="M33 11 A15 15 0 1 0 35 21" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" /><path d="M13 33 L19 20 L25 11" fill="none" stroke="#ffffff" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" /><path d="M25 11 L31 5 M31 5 L24 6 M31 5 L30 12" fill="none" stroke="#22c07a" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
         <h1 className="aw-h">{signedIn ? "Let’s add your first job" : <>Interview prep for <span>the one job you want</span></>}</h1>
         <ul className="aw-points">
           <li><Icon name="target" size={18} /><span>See what the job asks and where your resume falls short</span></li>
