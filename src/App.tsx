@@ -108,7 +108,7 @@ const ROUTES: Route[] = [
   { path: "/mock", title: "Mock interview", section: "mock", subtitle: "Rehearse the real thing: pick a round and a length, then start.", component: MockHubPage },
   { path: "/interview/voice", title: "Voice interview", section: "mock", back: BACK_MOCK, subtitle: "Answer out loud. The interviewer follows up on what you actually said, then scores your content and delivery.", component: VoiceMockPage },
   { path: "/simulator", title: "Text interview", section: "mock", back: BACK_MOCK, subtitle: "A mixed loop of questions. Answer, compare with a strong answer, then face the follow-up.", component: SimulatorPage },
-  { path: "/dashboard", title: "Interview readiness", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
+  { path: "/dashboard", title: "Progress", section: "readiness", subtitle: "One score per job, built from your resume match, practice and preparation.", component: DashboardPage },
   { path: "/account", title: "Account", section: "more", component: AccountPage },
   { path: "/more", title: "More", section: "more", component: MorePage },
   { path: "/pricing", title: "Pricing", section: "more", component: PricingPage },
