@@ -31,17 +31,22 @@ function legacyCopy(text: string): boolean {
 }
 
 /** "Copy" button with a short "Copied" confirmation. */
+/** Copy button that remembers it was used: after a copy it keeps showing
+ * "Copied ✓" (tap again to copy again) until the text changes, so you can see
+ * at a glance what you've already copied. A failed copy says so briefly. */
 export function CopyButton({ text, label = "Copy", className = "btn btn-small" }: { text: string; label?: string; className?: string }) {
   const [done, setDone] = useState<"" | "ok" | "fail">("");
+  useEffect(() => { setDone(""); }, [text]);
   useEffect(() => {
-    if (!done) return;
-    const t = setTimeout(() => setDone(""), 1800);
+    if (done !== "fail") return;
+    const t = setTimeout(() => setDone(""), 2500);
     return () => clearTimeout(t);
   }, [done]);
   return (
     <button type="button" className={className + (done === "ok" ? " is-copied" : "")} disabled={!text}
+      title={done === "ok" ? "Copied. Tap to copy again" : undefined}
       onClick={async () => setDone((await copyText(text)) ? "ok" : "fail")}>
-      {done === "ok" ? "Copied" : done === "fail" ? "Select and copy" : label}
+      {done === "ok" ? "Copied ✓" : done === "fail" ? "Select and copy" : label}
       <span className="dto-sr" aria-live="polite">{done === "ok" ? " to clipboard" : ""}</span>
     </button>
   );
