@@ -77,6 +77,8 @@ export default function TailorPage() {
   const [edits, setEdits] = useState<Record<number, string>>({});
   const [editing, setEditing] = useState<number | null>(null);
   const [applied, setApplied] = useState<{ replaced: number; missed: number } | null>(null);
+  // Changing a bullet after saving means there's something new to save.
+  useEffect(() => { setApplied(null); }, [edits]);
   const resultsRef = useRef<HTMLDivElement | null>(null);
 
   // Pick the job: ?job=, the hand-off, the active job, else the first.
@@ -308,7 +310,9 @@ export default function TailorPage() {
                 <p className="small muted">{row
                   ? <>Makes a copy of your resume with the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"}, saved with <strong>{displayJobTitle(row)}</strong>. Your main resume stays as it is, for your other jobs. Find the copy on this job{"’"}s Resume match tab.</>
                   : <>Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</>}</p>
-                <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>{row ? "Save tailored copy" : "Update my saved resume"}</button>
+                {applied?.replaced
+                  ? <button type="button" className="btn is-copied" disabled>Saved ✓</button>
+                  : <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>{row ? "Save tailored copy" : "Update my saved resume"}</button>}
                 {!saved?.text ? <p className="small muted">No saved resume yet: copy the bullets instead.</p>
                   : !acceptedCount ? (
                     <p className="small muted">Accept at least one rewrite above first, or{" "}
