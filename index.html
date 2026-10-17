@@ -21,9 +21,9 @@
   <body>
     <!-- Launch screen: the logo on brand navy, once per visit (every launch of
          the installed app). Inline so it shows before the app's code loads;
-         src/main.tsx hides it after the first render (min 0.9 s, max 3 s). -->
+         src/main.tsx hides it after the first render (min 2.5 s, max 4 s). -->
     <style>
-      #or-splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(120% 80% at 50% 35%, #163a5c 0%, #0c1c38 55%, #081327 100%); color: #fff; font-family: Inter, system-ui, -apple-system, sans-serif; transition: opacity .35s ease, visibility .35s; }
+      #or-splash { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(120% 80% at 50% 35%, #163a5c 0%, #0c1c38 55%, #081327 100%); color: #fff; font-family: Inter, system-ui, -apple-system, sans-serif; transition: opacity .6s ease, visibility .6s; }
       #or-splash.out { opacity: 0; visibility: hidden; }
       #or-splash .m { width: 112px; height: 112px; animation: orpop .6s cubic-bezier(.2,.9,.3,1.3) both; filter: drop-shadow(0 12px 30px rgba(34,192,122,.25)); }
       #or-splash .arrow { stroke-dasharray: 40; stroke-dashoffset: 40; animation: ordraw .5s .35s ease-out forwards; }
@@ -46,10 +46,10 @@
         var standalone = (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone;
         var seen = false;
         try { seen = !!sessionStorage.getItem("or_splash"); sessionStorage.setItem("or_splash", "1"); } catch (e) {}
-        function hide() { if (done || !el) return; done = true; el.classList.add("out"); setTimeout(function () { el && el.remove(); }, 400); }
+        function hide() { if (done || !el) return; done = true; el.classList.add("out"); setTimeout(function () { el && el.remove(); }, 650); }
         if (seen && !standalone) { el && el.remove(); window.__hideSplash = function () {}; return; }
-        window.__hideSplash = function () { setTimeout(hide, Math.max(0, 900 - (Date.now() - t0))); };
-        setTimeout(hide, 3000);
+        window.__hideSplash = function () { setTimeout(hide, Math.max(0, 2500 - (Date.now() - t0))); };
+        setTimeout(hide, 4000);
       })();
     </script>
     <div id="root"></div>
