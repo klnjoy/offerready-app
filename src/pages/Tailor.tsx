@@ -310,7 +310,11 @@ export default function TailorPage() {
                   : <>Swaps your original bullets for the {acceptedCount} accepted {acceptedCount === 1 ? "rewrite" : "rewrites"} in the resume OfferReady uses for fit checks and mock interviews.</>}</p>
                 <button type="button" className="btn btn-primary" disabled={!saved?.text || !acceptedCount || unfilled > 0} onClick={putInResume}>{row ? "Save tailored copy" : "Update my saved resume"}</button>
                 {!saved?.text ? <p className="small muted">No saved resume yet: copy the bullets instead.</p>
-                  : !acceptedCount ? <p className="small muted">Accept at least one rewrite above first.</p> : null}
+                  : !acceptedCount ? (
+                    <p className="small muted">Accept at least one rewrite above first, or{" "}
+                      <button type="button" className="link-btn small" onClick={() => setAccepted(Object.fromEntries(done.suggestions.map((x) => [x.index, true])))}>accept all {done.suggestions.length}</button>.
+                    </p>
+                  ) : null}
               </div>
               <div className="tl-finish-opt">
                 <strong>Copy into your resume file</strong>
@@ -318,6 +322,16 @@ export default function TailorPage() {
                 <CopyButton text={bulletsToText(final)} label={"Copy all " + final.length + " bullets"} className="btn" />
               </div>
             </div>
+            {row && !applied && (
+              <div className="tl-next">
+                <strong>When your resume is updated</strong>
+                <ol>
+                  <li><Link to={"/jobs/" + encodeURIComponent(row.id) + "?tab=resume&recheck=1"}>Re-check your fit</Link><span> See how many gaps are left for this job.</span></li>
+                  <li><Link to={"/questions?job=" + encodeURIComponent(row.id)}>Practise this job{"’"}s questions</Link><span> Be ready to talk about every bullet you changed.</span></li>
+                  <li><Link to={"/jobs/" + encodeURIComponent(row.id)}>Back to Today</Link><span> Your plan for this job.</span></li>
+                </ol>
+              </div>
+            )}
             {applied && (
               <div className="tl-applied" role="status">
                 {applied.replaced
