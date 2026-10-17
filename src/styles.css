@@ -4901,3 +4901,8 @@ body:has(.aw) .hb-fab { display: none; }
 .tl-next ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; }
 .tl-next li a { font-weight: 700; color: var(--signal-600); }
 .tl-next li span { color: var(--text-2); font-size: 0.9rem; }
+
+/* Voice mock setup: a way back out, right under Start session. */
+.vm-cancel { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; padding: 10px; font-weight: 600; color: var(--text-2); text-decoration: none; }
+.vm-cancel span { font-size: 1.3em; line-height: 1; }
+.vm-cancel:hover { color: var(--text); }

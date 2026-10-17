@@ -528,6 +528,7 @@ function Setup({ sessions, onStart, onOpen }: { sessions: SessionRec[]; onStart(
             <button type="button" className="btn btn-primary btn-lg" onClick={start} disabled={starting}>{starting ? "Preparing…" : "Start session"}</button>
           </div>
         </PlanGate>
+        <Link className="vm-cancel" to="/mock"><span aria-hidden="true">‹</span> Not now, back to Mock interview</Link>
       </section>
 
       <RecentSessions sessions={sessions} onOpen={onOpen} />
