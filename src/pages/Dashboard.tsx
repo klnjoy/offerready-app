@@ -344,7 +344,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
       {note && <Card><Muted>{note}</Muted></Card>}
 
       <div className="rd-export no-print">
-        <button type="button" className="btn btn-small rd-export-btn" onClick={() => window.print()} title="Save or share this report as a PDF">
+        <button type="button" className="btn btn-small rd-export-btn" onClick={() => window.print()} title="Save or share this report as a PDF" aria-label="Export report as PDF">
           <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 3v9M6 8.5l4 4 4-4M4 14.5v1.5A1.5 1.5 0 0 0 5.5 17.5h9A1.5 1.5 0 0 0 16 16v-1.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           Export
         </button>
@@ -384,7 +384,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
             {date && days != null && days >= 0
               ? <><strong>{days === 0 ? "Interview today" : days === 1 ? "Interview tomorrow" : "Interview in " + days + " days"}</strong> · {formatDay(date, { weekday: "short", month: "short", day: "numeric" })}</>
               : date && days != null ? <strong>{countdownLabel(days)}</strong>
-              : <Link to={"/jobs/" + encodeURIComponent(detail.job.id)}>Set your interview date</Link>}
+              : <Link className="rd2-date-cta" to={"/jobs/" + encodeURIComponent(detail.job.id)}>+ Set your interview date</Link>}
           </span>
         </div>
       </section>
@@ -409,7 +409,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
             ))}
           </ul>
         ) : (
-          <p className="small muted">No scored answers yet, so there{"’"}s nothing to compare. <Link to={"/questions" + m.jobQ}>Answer your first question</Link>.</p>
+          <EmptyRow to={"/questions" + m.jobQ} title="No scored answers yet" line="Answer your first question to see your strong and weak areas." />
         )}
         {untried.length > 0 && tried.length > 0 && (
           <Link className="rd2-untried" to={"/questions" + m.jobQ}>
@@ -421,7 +421,7 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
       </section>
 
       {/* 3. Am I getting better? */}
-      <section className="rd2" aria-labelledby="rd2-recent-h">
+      {(m.recent.length > 0 || tried.length > 0) && <section className="rd2" aria-labelledby="rd2-recent-h">
         <div className="pl-head"><h2 id="rd2-recent-h">Your recent answers</h2><span className="small muted">Latest first</span></div>
         {m.recent.length ? (
           <ul className="tdy-group rd2-recent">
@@ -438,9 +438,9 @@ function Readiness({ detail, jobs, onSwitch, note }: { detail: JobDetail; jobs: 
             ))}
           </ul>
         ) : (
-          <p className="small muted">No scored answers yet. <Link to={"/questions" + m.jobQ}>Answer your first question</Link> and it shows up here.</p>
+          <EmptyRow to={"/questions" + m.jobQ} title="Nothing here yet" line="Each answer you practise shows up here with its score." />
         )}
-      </section>
+      </section>}
 
       {/* 4. What to do next */}
       <section className="rd-week2" aria-labelledby="rd-week-h">
@@ -740,3 +740,18 @@ function TrendChart({ points, today, interviewDate, f }: { points: { at: number;
   );
 }
 
+
+/** App-style empty state: one tappable row instead of a sentence with a link. */
+function EmptyRow({ to, title, line }: { to: string; title: string; line: string }) {
+  return (
+    <div className="tdy-group">
+      <Link className="tdy-grow rd2-empty" to={to}>
+        <span className="rd2-empty-ico" aria-hidden="true">
+          <svg viewBox="0 0 20 20" width="18" height="18"><path d="M7 7.5a3 3 0 1 1 4.2 2.75c-.75.33-1.2 1-1.2 1.8V12.5M10 15.5v.01" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+        </span>
+        <span className="tdy-text"><strong>{title}</strong><span>{line}</span></span>
+        <span className="tdy-chev" aria-hidden="true">›</span>
+      </Link>
+    </div>
+  );
+}

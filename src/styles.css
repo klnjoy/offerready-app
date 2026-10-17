@@ -4909,3 +4909,12 @@ body:has(.aw) .hb-fab { display: none; }
 
 /* Today's plan rows: the detail says why the task is there, so show two lines. */
 .tdy-row .tdy-text span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* Progress, app feel: tappable empty rows, a pill for the interview date, icon-only Export on phones. */
+.rd2-empty .tdy-text span { white-space: normal; }
+.rd2-empty-ico { flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--signal-soft); color: var(--signal-600); }
+.rd2-date-cta { display: inline-flex; align-items: center; padding: 6px 14px; border-radius: 999px; background: var(--signal-soft); color: var(--signal-600); font-weight: 700; font-size: 0.88rem; text-decoration: none; }
+@media (max-width: 760px) {
+  .has-tb [data-tabroot] .rd-export-btn { width: 38px; height: 38px; padding: 0; justify-content: center; border-radius: 999px; font-size: 0; gap: 0; }
+  .has-tb [data-tabroot] .rd-export-btn svg { width: 18px; height: 18px; }
+}
