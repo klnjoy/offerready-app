@@ -4906,3 +4906,6 @@ body:has(.aw) .hb-fab { display: none; }
 .vm-cancel { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; padding: 10px; font-weight: 600; color: var(--text-2); text-decoration: none; }
 .vm-cancel span { font-size: 1.3em; line-height: 1; }
 .vm-cancel:hover { color: var(--text); }
+
+/* Today's plan rows: the detail says why the task is there, so show two lines. */
+.tdy-row .tdy-text span { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
