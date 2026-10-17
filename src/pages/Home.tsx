@@ -10,6 +10,7 @@
  * "Positioning v2" in styles.css; every class here is prefixed hm- so
  * nothing leaks. */
 
+import { useEffect, useState } from "react";
 import { DOCS_BASE } from "../config";
 import { PASSES, PASS_ORDER, POPULAR } from "../lib/passes";
 import { LIMITS } from "../lib/plans";
@@ -21,6 +22,7 @@ import { Icon, type IconName } from "../components/Icon";
 import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import { DemoTour } from "../components/DemoTour";
+import { Art } from "../components/Art";
 import { HOME_FAQ } from "../content/faq";
 import type { JobRow } from "../types";
 
@@ -334,6 +336,9 @@ export default function HomePage() {
         </ul>
       </section>
 
+      {/* 2b. free, no sign-in: live open roles and the 12-week roadmap */}
+      <FreeStart />
+
       {/* 3. how it works: the three-step demo */}
       <section className="hm-section" aria-labelledby="hm-demo-h">
         <header className="hm-head">
@@ -466,5 +471,60 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+/** Free, no sign-in: today's open roles (a live preview from roles.json) and
+ * the 12-week roadmap. Prepare on a role asks for sign-in, so this is the
+ * natural first step for a new visitor. */
+type FreeRole = { company: string; title: string; location: string; region?: string };
+function FreeStart() {
+  const [roles, setRoles] = useState<{ n: number; top: FreeRole[] } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(import.meta.env.BASE_URL + "roles.json", { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { roles?: FreeRole[] } | null) => {
+        if (!alive || !d || !Array.isArray(d.roles) || !d.roles.length) return;
+        const us = d.roles.filter((x) => x.region !== "intl");
+        setRoles({ n: us.length, top: us.slice(0, 3) });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return (
+    <section className="hm-section hm-free" aria-labelledby="hm-free-h">
+      <header className="hm-head">
+        <h2 id="hm-free-h" className="hm-h2">Start free, no sign-in</h2>
+        <p className="hm-sub">Find a real role, follow a plan for it, then sign in when you want OfferReady to prepare you for that exact job.</p>
+      </header>
+      <div className="hm-free-grid">
+        <Link className="hm-free-card" to="/roles">
+          <Art k="jobs" className="hm-free-art" />
+          <span className="hm-free-k">Updated daily</span>
+          <strong>{roles ? roles.n + " open roles in the USA" : "Open roles in the USA"}</strong>
+          <span className="hm-free-line">AI / ML, data, forward deployed, architect and platform jobs, from companies{"’"} own job boards.</span>
+          {roles && (
+            <ul className="hm-free-list">
+              {roles.top.map((r, i) => <li key={i}><b>{r.company}</b> · {r.title}</li>)}
+            </ul>
+          )}
+          <span className="hm-free-cta">Browse open roles <Icon name="arrow" size={15} /></span>
+        </Link>
+        <Link className="hm-free-card" to="/learn/roadmap">
+          <Art k="llm" className="hm-free-art" />
+          <span className="hm-free-k">12 weeks · about 1 hour a day</span>
+          <strong>Become an AI engineer or forward deployed engineer</strong>
+          <span className="hm-free-line">Each week: what to learn, one thing to build, and the interview questions about it.</span>
+          <ul className="hm-free-list">
+            <li><b>Weeks 1 to 4</b> · How LLMs work, prompting, RAG</li>
+            <li><b>Weeks 5 to 8</b> · Evals, agents, LangGraph, production</li>
+            <li><b>Weeks 9 to 12</b> · System design, portfolio, interviews</li>
+          </ul>
+          <span className="hm-free-cta">See the roadmap <Icon name="arrow" size={15} /></span>
+        </Link>
+      </div>
+      <p className="hm-free-note"><Icon name="check" size={15} /> Free to browse. Sign in (free) to save a job and get its resume match, questions and daily plan.</p>
+    </section>
   );
 }
