@@ -4872,3 +4872,25 @@ a.more-stat:active { background: var(--bg); }
 .hm-free-list b { color: var(--text); }
 .hm-free-cta { margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--signal-600); }
 .hm-free-note { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 14px 0 0; font-size: 0.88rem; color: var(--text-2); text-align: center; }
+
+/* Installed app: welcome screen (components/AppWelcome) */
+.aw { display: grid; gap: 22px; padding-bottom: 12px; }
+.aw-hero { display: flex; flex-direction: column; gap: 14px; margin: -8px -16px 0; padding: 32px 22px 26px; border-radius: 0 0 28px 28px; background: radial-gradient(120% 90% at 50% 0%, #163a5c 0%, #0c1c38 60%, #081327 100%); color: #f4f8fd; }
+.aw-mark { width: 64px; height: 64px; filter: drop-shadow(0 10px 24px rgba(34,192,122,.25)); }
+.aw-h { margin: 0; font-size: 1.9rem; line-height: 1.15; letter-spacing: -0.02em; color: #fff; }
+.aw-h span { color: #22c07a; }
+.aw-points { list-style: none; margin: 4px 0 6px; padding: 0; display: grid; gap: 10px; }
+.aw-points li { display: flex; gap: 10px; align-items: flex-start; margin: 0; font-size: 0.98rem; color: rgba(232,240,252,.85); }
+.aw-points svg { flex: none; color: #6fe0a9; margin-top: 2px; }
+.aw-primary { min-height: 52px; justify-content: center; font-size: 1.05rem; font-weight: 750; border-radius: 14px; background: #22c07a; color: #06281a; border: 0; }
+.aw-secondary { align-self: center; color: #9fe7c4; font-weight: 650; text-decoration: none; padding: 6px; }
+.aw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.aw-tile { display: flex; flex-direction: column; gap: 4px; padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; min-height: 110px; }
+.aw-tile svg { color: var(--signal-600); margin-bottom: 4px; }
+.aw-tile strong { font-size: 0.98rem; }
+.aw-tile span { font-size: 0.8rem; color: var(--text-2); line-height: 1.3; }
+.aw-tile:active { background: var(--bg); }
+.aw-foot { text-align: center; font-size: 0.8rem; color: var(--text-3); }
+@media (min-width: 761px) { .aw-hero { margin: 0; border-radius: 24px; } }
+/* Installed app: no website footer */
+.footer.is-app { display: none; }

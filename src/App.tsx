@@ -1,4 +1,5 @@
 import { BgJobPill } from "./components/BgJobPill";
+import { isStandalone } from "./lib/pwa";
 import { rememberVisit } from "./lib/recent";
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { DOCS_BASE, STUDY_URL } from "./config";
@@ -320,7 +321,7 @@ export default function App() {
       <HelpBot />
       <FeedbackDialog />
 
-      <footer className="footer">
+      <footer className={"footer" + (isStandalone() ? " is-app" : "")}>
         <div className="footer-top">
           <Link className="footer-logo" to="/" aria-label="OfferReady home"><Logo /> <span>Offer<b>Ready</b></span></Link>
           {signedIn ? <Link className="btn footer-cta" to="/jobs">Open my jobs</Link> : <Link className="btn footer-cta" to="/analyze">Start free</Link>}
