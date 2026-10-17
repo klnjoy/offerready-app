@@ -4896,3 +4896,8 @@ body:has(.aw) .mh-signin, body:has(.aw) .mh-start:not(.mh-mstart) { display: non
 /* Installed app: no website footer */
 .footer.is-app { display: none; }
 body:has(.aw) .hb-fab { display: none; }
+/* Tailor: what to do after copying or saving */
+.tl-next { margin-top: 14px; padding: 14px 16px; border-radius: 14px; background: var(--signal-soft); }
+.tl-next ol { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 8px; }
+.tl-next li a { font-weight: 700; color: var(--signal-600); }
+.tl-next li span { color: var(--text-2); font-size: 0.9rem; }
