@@ -1,6 +1,7 @@
 /* Resume-vs-job fit display (was the Check fit result screen), shared by the
  * Add a job result and the job page's Resume tab. */
 
+import { tidyList } from "../lib/gapText";
 import { Card, Chips, Muted, ScoreBar, ScoreHead } from "./ui";
 import type { GapResult, GapRow } from "../types";
 
@@ -40,10 +41,12 @@ export function topGaps(r: GapResult | null, extra: string[] = [], n = 3): strin
 
 export function FitDetails({ result: r }: { result: GapResult }) {
   const score = r.matchScore || 0;
+  // Each idea shows once: a gap that repeats a strength or another list is dropped.
+  const seenGap = new Set<string>(tidyList(r.strengths).map((x) => x.toLowerCase()));
   const missing = [
-    { label: "Skills not found in your resume", items: r.missingSkills || [] },
-    { label: "Keywords not found in your resume", items: r.missingKeywords || [] },
-    { label: "Experience not shown in your resume", items: r.missingExperience || [] },
+    { label: "Skills not found in your resume", items: tidyList(r.missingSkills, seenGap) },
+    { label: "Keywords not found in your resume", items: tidyList(r.missingKeywords, seenGap) },
+    { label: "Experience not shown in your resume", items: tidyList(r.missingExperience, seenGap) },
   ].filter((m) => m.items.length);
   const areas = [
     ["Technical", r.technicalScore], ["Behavioral", r.behavioralScore], ["Architecture", r.architectureScore], ["Domain", r.domainScore],
@@ -59,7 +62,7 @@ export function FitDetails({ result: r }: { result: GapResult }) {
         </Card>
       )}
       {(r.strengths || []).length > 0 && (
-        <Card tone="ok"><Chips label="Found in your resume" items={r.strengths || []} tone="ok" /></Card>
+        <Card tone="ok"><Chips label="Found in your resume" items={tidyList(r.strengths)} tone="ok" /></Card>
       )}
       {missing.length > 0 && (
         <Card tone="warn">
