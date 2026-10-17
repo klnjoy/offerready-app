@@ -23,6 +23,8 @@ import { useJobs } from "../lib/useJobs";
 import { OutcomeCheckIn } from "../components/OutcomeCheckIn";
 import { DemoTour } from "../components/DemoTour";
 import { Art } from "../components/Art";
+import { AppWelcome } from "../components/AppWelcome";
+import { isStandalone } from "../lib/pwa";
 import { HOME_FAQ } from "../content/faq";
 import type { JobRow } from "../types";
 
@@ -284,6 +286,8 @@ export default function HomePage() {
   if (!wantsHome && ((auth.configured && !auth.ready) || (auth.session && (jobs.status === "loading" || (jobs.status === "ready" && jobs.jobs.length > 0))))) {
     return <div className="page"><Loading /></div>;
   }
+  // The installed app opens on an app-style welcome, not the marketing site.
+  if (isStandalone() && !/[?&]site=1/.test(search)) return <div className="page"><AppWelcome signedIn={!!auth.session} /></div>;
   return (
     <div className="page hm">
       <ContinueBar />
