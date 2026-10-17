@@ -152,11 +152,12 @@ export default function AccountPage() {
         </div>
       ) : (
         <>
-          <header className="page-head"><h1>Account</h1><p>Your sign-in and plan.</p></header>
-          <Card>
-            <h2>Profile</h2>
+          <header className="page-head"><h1>My account</h1><p>Your details, plan and data.</p></header>
+          <AccountOverview billing={billing.info} onPortal={openPortal} />
+          <details className="card acc-signin">
+            <summary>Sign-in options</summary>
             <AuthForm />
-          </Card>
+          </details>
         </>
       )}
       {auth.session ? (
@@ -179,6 +180,59 @@ export default function AccountPage() {
           {showLocal ? <YourDataCard /> : null}
         </>
       )}
+    </div>
+  );
+}
+
+// ---- overview: the sections people look for first ---------------------------
+
+function AccountOverview({ billing, onPortal }: { billing: BillingInfo | null; onPortal(): void }) {
+  const auth = useAuth();
+  const plan = usePlan();
+  const [msg, setMsg] = useState("");
+  const isPro = plan.plan === "pro";
+  const planName = !isPro ? "Free" : plan.pass ? passName(plan.pass.kind) : billing?.pro_source === "subscription" ? "Pro" + (billing.pro_interval === "year" ? " (yearly)" : billing.pro_interval === "month" ? " (monthly)" : "") : "Pro";
+  const until = billing?.pro_expires_at ? shortDate(billing.pro_expires_at) : "";
+  const sub = billing?.pro_source === "subscription";
+  const reset = async () => {
+    if (!auth.email) return;
+    setMsg("Sending…");
+    const r = await auth.resetPassword(auth.email);
+    setMsg(r && (r as { error?: string }).error ? String((r as { error?: string }).error) : "Check your email for a link to set a new password.");
+  };
+  const scrollTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  return (
+    <div className="acc">
+      <section className="card acc-sec" aria-labelledby="acc-me">
+        <h2 id="acc-me"><span className="acc-ico" aria-hidden="true">{"👤"}</span>Personal information</h2>
+        <p className="acc-row"><b>Email</b> {auth.email || "–"}</p>
+        <div className="acc-links">
+          <button type="button" className="link-btn" onClick={reset}>Change password</button>
+          <button type="button" className="link-btn" onClick={() => void auth.signOut()}>Sign out</button>
+        </div>
+        {msg && <p className="small muted" role="status">{msg}</p>}
+      </section>
+
+      <section className="card acc-sec" aria-labelledby="acc-plan">
+        <h2 id="acc-plan"><span className="acc-ico" aria-hidden="true">{"💳"}</span>Plan and billing</h2>
+        <p className="acc-row"><b>Plan</b> {planName}{until && isPro ? (sub ? (billing?.cancel_at_period_end ? " · ends " : " · renews ") : " · until ") + until : ""}</p>
+        <div className="acc-links">
+          <Link to="/pricing">{isPro ? "Change plan" : "Upgrade"}</Link>
+          {billing?.portal && <button type="button" className="link-btn" onClick={onPortal}>Payment method and invoices</button>}
+          {sub && !billing?.cancel_at_period_end && <button type="button" className="link-btn" onClick={onPortal}>Cancel subscription</button>}
+          <button type="button" className="link-btn" onClick={() => scrollTo("usage")}>Usage this month</button>
+        </div>
+      </section>
+
+      <section className="card acc-sec" aria-labelledby="acc-data">
+        <h2 id="acc-data"><span className="acc-ico" aria-hidden="true">{"🗂"}</span>Your data</h2>
+        <p className="acc-row">Your jobs, stories and practice, synced to your account.</p>
+        <div className="acc-links">
+          <button type="button" className="link-btn" onClick={() => scrollTo("your-data")}>Download my data</button>
+          <button type="button" className="link-btn" onClick={() => scrollTo("your-data")}>Delete my data</button>
+          <Link to="/app">Install the app</Link>
+        </div>
+      </section>
     </div>
   );
 }
@@ -305,7 +359,7 @@ function YourDataCard() {
   };
 
   return (
-    <Card className="lp-data">
+    <Card className="lp-data" id="your-data">
       <div className="lp-data-head">
         <h2>Your data</h2>
         <p className="muted">

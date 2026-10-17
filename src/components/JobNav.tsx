@@ -432,6 +432,10 @@ export function JobPager({ nav }: { nav: JobNavModel }) {
         <Link className="jn-pg jn-next" to={next.to}>
           <span className="jn-pg-k">Next {"→"}</span><span className="jn-pg-t">{name(next)}</span>
         </Link>
+      ) : i > 0 ? (
+        <Link className="jn-pg jn-next jn-home" to={all[0].to}>
+          <span className="jn-pg-k">Done {"→"}</span><span className="jn-pg-t">Back to {all[0].label}</span>
+        </Link>
       ) : <span />}
     </nav>
   );
