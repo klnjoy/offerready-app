@@ -254,10 +254,10 @@ export function buildPrepPlan(input: PlanInput): PrepPlan {
       if (isExperienceGap(g)) {
         const topic = experienceTopic(g);
         const q = "Tell me about your experience " + (/^(leading|building|managing|working|running|owning)\b/i.test(topic) ? topic : "with " + topic) + ".";
-        place(at, (d) => mk(d, "story", "prep-" + g, { title: "Prepare your answer: " + topic, detail: "They’ll likely ask about this. Use your closest real example and say it honestly in two minutes.", to: "/coach?" + (job ? "job=" + job + "&" : "") + "q=" + encodeURIComponent(q), minutes: 15 }));
+        place(at, (d) => mk(d, "story", "prep-" + g, { title: "Prepare your answer: " + topic, detail: "The job asks for this and your resume doesn’t show it, so expect a question on it. Shape one honest example with the AI Coach (2 minutes out loud).", to: "/coach?" + (job ? "job=" + job + "&" : "") + "q=" + encodeURIComponent(q), minutes: 15 }));
         return;
       }
-      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "Learn the basics, then explain it out loud in two minutes.", to: "/practice?topic=" + encodeURIComponent(g) + (job ? "&job=" + job : ""), minutes: 15 }));
+      const used = place(at, (d) => mk(d, "study", g, { title: "Study: " + g, detail: "The job asks for it and your resume doesn’t show it. Learn the basics, then explain it out loud in two minutes.", to: "/practice?topic=" + encodeURIComponent(g) + (job ? "&job=" + job : ""), minutes: 15 }));
       if (used < 0) return;
       [2, 5, 10].forEach((off) => {
         const r = used + off;
