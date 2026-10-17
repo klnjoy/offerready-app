@@ -2,6 +2,7 @@
  * stories saved), then only what isn't already on another tab. Practice
  * owns stories, the question bank and mocks; Today owns the streak. */
 
+import { recentVisits } from "../lib/recent";
 import type { ReactNode } from "react";
 import { DOCS_BASE } from "../config";
 import { useAuth } from "../lib/auth";
@@ -46,6 +47,7 @@ export default function MorePage() {
   const nStories = loadStories().length;
   const initial = (auth.email || "").trim().charAt(0).toUpperCase() || "•";
 
+  const recent = recentVisits();
   const groups: { title: string; rows: Row[] }[] = [
     { title: "Find your next role", rows: [
       { icon: ICON.jobs, label: "Open roles", sub: "AI, data and FDE jobs in the USA, updated daily", to: "/roles" },
@@ -77,13 +79,24 @@ export default function MorePage() {
   return (
     <div className="page more">
       <section className="more-head" aria-label="Your summary">
-        <div className="more-stat"><span>Jobs</span><strong>{nJobs ?? "–"}</strong><em>saved</em></div>
+        <Link className="more-stat" to="/jobs" aria-label={"Jobs: " + (nJobs ?? 0) + " saved. Open"}><span>Jobs</span><strong>{nJobs ?? "–"}</strong><em>saved ›</em></Link>
         <div className="more-me">
-          <span className="avatar avatar-lg more-avatar" aria-hidden="true">{initial}</span>
-          <span className="more-email">{auth.email || "Not signed in"}</span>
+          <Link to="/account" className="more-me-link" aria-label="Your account">
+            <span className="avatar avatar-lg more-avatar" aria-hidden="true">{initial}</span>
+            <span className="more-email">{auth.email || "Not signed in"}</span>
+          </Link>
         </div>
-        <div className="more-stat"><span>Stories</span><strong>{nStories}</strong><em>written</em></div>
+        <Link className="more-stat" to="/stories" aria-label={"Stories: " + nStories + " written. Open"}><span>Stories</span><strong>{nStories}</strong><em>written ›</em></Link>
       </section>
+
+      {recent.length > 0 && (
+        <section className="more-recent" aria-labelledby="more-recent-h">
+          <h2 id="more-recent-h" className="more-h">Recently visited</h2>
+          <div className="more-recent-grid">
+            {recent.map((v) => <Link key={v.path} className="more-recent-tile" to={v.path}>{v.title}</Link>)}
+          </div>
+        </section>
+      )}
 
       {groups.map((g) => (
         <section key={g.title} className="more-group" aria-labelledby={"more-" + g.title.replace(/\W+/g, "-")}>

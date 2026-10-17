@@ -1,4 +1,5 @@
 import { BgJobPill } from "./components/BgJobPill";
+import { rememberVisit } from "./lib/recent";
 import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from "react";
 import { DOCS_BASE, STUDY_URL } from "./config";
 import { useAuth } from "./lib/auth";
@@ -209,6 +210,7 @@ export default function App() {
     document.title = match && match.route.path !== "/" ? match.route.title + " | OfferReady" : "OfferReady — interview readiness for your job";
     setMenuOpen(false);
     track("page_view");
+    if (match && !/^\/(more|account)?$/.test(match.route.path) && !match.route.path.includes(":")) rememberVisit(match.route.path, match.route.title);
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // In-page links (/demo#coach, /account#usage): scroll to the section once
