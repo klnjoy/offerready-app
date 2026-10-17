@@ -15,7 +15,16 @@ const I = (d: ReactNode) => (
 const ICONS: Record<Tab, ReactNode> = {
   today: I(<><path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19v-8.5Z" /></>),
   practice: I(<><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="1" /></>),
-  coach: I(<><path d="M4 5.5h16v10H9.5L5 19.5v-4H4v-10Z" /><path d="M8.5 10.5h7" /></>),
+  // The AI Coach: our own sparkle mark, filled and in brand green, so the
+  // assistant is easy to spot in the bar.
+  coach: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" className="tb-ai">
+      <defs><linearGradient id="tb-ai-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#6fe0a9" /><stop offset="1" stopColor="#22c07a" /></linearGradient></defs>
+      <path d="M10 3.2c.5 3.6 2.6 5.8 6.2 6.3-3.6.5-5.7 2.7-6.2 6.3-.5-3.6-2.6-5.8-6.2-6.3 3.6-.5 5.7-2.7 6.2-6.3Z" fill="url(#tb-ai-g)" />
+      <path d="M17.6 13.4c.3 1.9 1.3 3 3.2 3.2-1.9.3-2.9 1.4-3.2 3.3-.3-1.9-1.4-3-3.3-3.3 1.9-.2 3-1.3 3.3-3.2Z" fill="url(#tb-ai-g)" />
+      <circle cx="18.2" cy="5.6" r="1.3" fill="#6fe0a9" />
+    </svg>
+  ),
   progress: I(<><path d="M5 20V13M10 20V8M15 20v-5M20 20V5" /></>),
   more: I(<><circle cx="5.5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="18.5" cy="12" r="1.3" /></>),
 };
@@ -41,7 +50,7 @@ export function TabBar({ section }: { section?: string }) {
   const tabs: { key: Tab; label: string; to: string }[] = [
     { key: "today", label: "Today", to: job ? "/jobs/" + encodeURIComponent(job) : "/jobs" },
     { key: "practice", label: "Practice", to: "/practice" },
-    { key: "coach", label: "Coach", to: "/coach" + jq },
+    { key: "coach", label: "AI Coach", to: "/coach" + jq },
     { key: "progress", label: "Progress", to: "/dashboard" + jq },
     { key: "more", label: "More", to: "/more" },
   ];

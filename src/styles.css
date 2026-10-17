@@ -4855,3 +4855,5 @@ a.more-stat:active { background: var(--bg); }
 .more-recent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .more-recent-tile { display: flex; align-items: center; min-height: 52px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-weight: 650; font-size: 0.9rem; line-height: 1.25; text-decoration: none; }
 .more-recent-tile:active { background: var(--bg); }
+/* AI Coach tab: the sparkle stays green; a soft glow when it's not selected */
+.tb-tab .tb-ai { filter: drop-shadow(0 0 6px rgba(34, 192, 122, 0.35)); }
